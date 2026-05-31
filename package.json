@@ -1,0 +1,27 @@
+{
+  "name": "browsync",
+  "version": "1.0.0",
+  "private": true,
+  "description": "BrowSync — P2P browser streaming with remote control",
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/viewer",
+    "packages/desktop"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w packages/server",
+    "dev:viewer": "npm run dev -w packages/viewer",
+    "dev:desktop": "npm run dev -w packages/desktop",
+    "build": "npm run build -w packages/shared && npm run build -w packages/server && npm run build -w packages/viewer && npm run build -w packages/desktop",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,css}\"",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "author": "BrowSync Team",
+  "license": "MIT"
+}
