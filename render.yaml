@@ -7,7 +7,7 @@ services:
     env: node
     plan: free
     buildCommand: npm run build -w packages/shared && npm run build -w packages/server
-    startCommand: npm run start -w packages/server
+    startCommand: npx prisma db push --schema packages/server/prisma/schema.prisma && npm run db:seed -w packages/server && npm run start -w packages/server
     envVars:
       - key: PORT
         value: 3001
