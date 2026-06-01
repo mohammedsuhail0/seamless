@@ -6,8 +6,8 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || 'browsync_access_secret_998811';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || 'browsync_refresh_secret_772233';
+const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || process.env.JWT_ACCESS_SECRET || 'browsync_access_secret_998811';
+const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET || 'browsync_refresh_secret_772233';
 
 export interface TokenPayload {
   userId: string;

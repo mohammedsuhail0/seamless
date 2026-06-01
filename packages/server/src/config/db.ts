@@ -145,6 +145,43 @@ class InMemoryRedis {
     }
     return obj;
   }
+
+  async exists(key: string) {
+    return this.store.has(key) ? 1 : 0;
+  }
+
+  async llen(key: string) {
+    const val = this.store.get(key);
+    if (!val || !Array.isArray(val)) return 0;
+    return val.length;
+  }
+
+  async hget(key: string, field: string) {
+    const val = this.store.get(key);
+    if (!val || !(val instanceof Map)) return null;
+    return val.get(field) || null;
+  }
+
+  async lrem(key: string, count: number, value: string) {
+    const val = this.store.get(key);
+    if (!val || !Array.isArray(val)) return 0;
+    
+    let removedCount = 0;
+    const newArr = [];
+    
+    for (const item of val) {
+      if (item === value) {
+        if (count === 0 || removedCount < Math.abs(count)) {
+          removedCount++;
+          continue;
+        }
+      }
+      newArr.push(item);
+    }
+    
+    this.store.set(key, newArr);
+    return removedCount;
+  }
 }
 
 // ── Redis Connection and Proxy ──────────────────────────────────────

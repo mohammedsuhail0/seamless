@@ -1,0 +1,25 @@
+# BrowSync Render Blueprint Specification
+# Use this Blueprint to deploy the co-browsing server instantly with one click.
+
+services:
+  - type: web
+    name: browsync-api
+    env: node
+    plan: free
+    buildCommand: npm run build -w packages/shared && npm run build -w packages/server
+    startCommand: npm run start -w packages/server
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ACCESS_TOKEN_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
