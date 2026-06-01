@@ -22,5 +22,16 @@ services:
       - '6379:6379'
     restart: unless-stopped
 
+  # Coturn TURN Server (Staging/Production NAT-bypass relay)
+  # Uncomment and configure parameters when deploying on your cloud VPS
+  # turnserver:
+  #   image: coturn/coturn:4.6.2-alpine
+  #   container_name: browsync-turn
+  #   network_mode: host
+  #   volumes:
+  #     - ./turnserver.conf:/etc/coturn/turnserver.conf
+  #   restart: unless-stopped
+
 volumes:
   pgdata:
+
