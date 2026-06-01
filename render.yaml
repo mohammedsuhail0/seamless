@@ -6,7 +6,7 @@ services:
     name: browsync-api
     env: node
     plan: free
-    buildCommand: npm run build -w packages/shared && npm run build -w packages/server
+    buildCommand: npm ci --include=dev --workspaces --include-workspace-root && npm run build -w packages/shared && npm run build -w packages/server
     startCommand: npx prisma db push --schema packages/server/prisma/schema.prisma && npm run db:seed -w packages/server && npm run start -w packages/server
     envVars:
       - key: NODE_VERSION
