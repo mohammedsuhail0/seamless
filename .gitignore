@@ -39,3 +39,8 @@ coverage/
 # Temporary
 *.tmp
 *.temp
+
+# SQLite Databases
+*.db
+*.db-journal
+

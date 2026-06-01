@@ -10,28 +10,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-// ── Enums ────────────────────────────────────────────────────────
-
-enum QualityPreset {
-  AUTO
-  HD_720
-  FHD_1080
-}
-
-enum RoomStatus {
-  WAITING    // Room created, host not yet streaming
-  ACTIVE     // Host is streaming
-  CLOSED     // Session ended
-}
-
-enum MemberRole {
-  HOST
-  VIEWER
-  GUEST
 }
 
 // ── Models ───────────────────────────────────────────────────────
@@ -57,12 +37,12 @@ model User {
 /// Room — a streaming session created by a host
 model Room {
   id            String        @id @default(cuid())
-  roomCode      String        @unique @map("room_code") @db.VarChar(6)
-  name          String        @db.VarChar(100)
+  roomCode      String        @unique @map("room_code")
+  name          String
   hostId        String        @map("host_id")
   isPrivate     Boolean       @default(false) @map("is_private")
-  qualityPreset QualityPreset @default(AUTO) @map("quality_preset")
-  status        RoomStatus    @default(WAITING)
+  qualityPreset String        @default("AUTO") @map("quality_preset")
+  status        String        @default("WAITING")
   maxViewers    Int           @default(7) @map("max_viewers")
   createdAt     DateTime      @default(now()) @map("created_at")
   closedAt      DateTime?     @map("closed_at")
@@ -83,7 +63,7 @@ model RoomMember {
   id          String     @id @default(cuid())
   roomId      String     @map("room_id")
   userId      String?    @map("user_id")    // null for guests
-  role        MemberRole
+  role        String
   displayName String     @map("display_name")
   joinedAt    DateTime   @default(now()) @map("joined_at")
   leftAt      DateTime?  @map("left_at")
