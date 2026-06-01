@@ -14,7 +14,8 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "."
+    "baseUrl": ".",
+    "ignoreDeprecations": "5.0"
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
