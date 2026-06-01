@@ -14,7 +14,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:./dev.db
+        value: file:/opt/render/project/src/packages/server/prisma/dev.db
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
