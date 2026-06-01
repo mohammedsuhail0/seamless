@@ -18,6 +18,7 @@ export function useWebRTC({ socket, roomId, role: _role }: UseWebRTCOptions) {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const inputChannelRef = useRef<RTCDataChannel | null>(null);
   const controlChannelRef = useRef<RTCDataChannel | null>(null);
+  const hostUserIdRef = useRef<string | null>(null);
 
   // STUN servers configuration
   const iceConfig = {
@@ -44,8 +45,9 @@ export function useWebRTC({ socket, roomId, role: _role }: UseWebRTCOptions) {
     // Gather and relay ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        if (!hostUserIdRef.current) return;
         socket.emit(SOCKET_EVENTS.RTC_ICE_CANDIDATE, {
-          targetUserId: 'HOST_ID_PLACEHOLDER', // Server routes candidates host <-> viewer
+          targetUserId: hostUserIdRef.current,
           candidate: event.candidate,
         });
       }
@@ -75,6 +77,7 @@ export function useWebRTC({ socket, roomId, role: _role }: UseWebRTCOptions) {
     const handleOffer = async (payload: { senderUserId: string; sdp: any }) => {
       try {
         console.log('📬 WebRTC Offer received from Host');
+        hostUserIdRef.current = payload.senderUserId;
         await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
         
         const answer = await pc.createAnswer();
@@ -107,6 +110,7 @@ export function useWebRTC({ socket, roomId, role: _role }: UseWebRTCOptions) {
       
       pc.close();
       peerConnectionRef.current = null;
+      hostUserIdRef.current = null;
       setStream(null);
     };
   }, [socket, roomId]);

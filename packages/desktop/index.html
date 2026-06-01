@@ -279,6 +279,17 @@
 
     <!-- Display capture source selection cards -->
     <section class="card">
+      <h3 class="card-title">🔗 Room Session</h3>
+      <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(3, minmax(0, 1fr));">
+        <input id="roomCodeInput" placeholder="Room Code (e.g. C8VM6Y)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+        <input id="displayNameInput" placeholder="Display Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+        <input id="tokenInput" placeholder="Access Token (optional)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+      </div>
+      <button class="btn btn-primary" id="joinRoomBtn">Join Room As Host Streamer</button>
+      <p id="joinStatus" style="margin-top:0.5rem;color:var(--text-muted);font-size:0.8rem;">Not joined</p>
+    </section>
+
+    <section class="card">
       <h3 class="card-title">🖥️ Select Stream Source</h3>
       <div class="source-grid" id="sourcesGrid">
         <div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.85rem;">
@@ -302,11 +313,26 @@
     const browsync = window.browsync;
     const sourcesGrid = document.getElementById('sourcesGrid');
     const startBtn = document.getElementById('startBtn');
+    const joinRoomBtn = document.getElementById('joinRoomBtn');
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const displayNameInput = document.getElementById('displayNameInput');
+    const tokenInput = document.getElementById('tokenInput');
+    const joinStatus = document.getElementById('joinStatus');
     const toastContainer = document.getElementById('toastContainer');
     const controllerStatus = document.getElementById('controllerStatus');
 
     let selectedSourceId = null;
-    let currentRoomId = 'cuid_room_test_123'; // Mock / real room context reference
+    let currentRoomId = null;
+    let currentUserId = null;
+    let joinedMembers = [];
+    let localStream = null;
+    const peerConnections = new Map();
+
+    const SOCKET_EVENTS = {
+      RTC_OFFER: 'rtc:offer',
+      RTC_ANSWER: 'rtc:answer',
+      RTC_ICE_CANDIDATE: 'rtc:ice-candidate'
+    };
 
     async function loadSources() {
       if (!browsync) return;
@@ -340,11 +366,118 @@
     }
 
     startBtn.onclick = () => {
+      startStreaming().catch((err) => {
+        console.error(err);
+        alert(`Failed to start streaming: ${err.message || err}`);
+      });
+    };
+
+    async function startStreaming() {
+      if (!currentRoomId || !currentUserId) {
+        alert('Join room first.');
+        return;
+      }
       if (!selectedSourceId) {
         alert('Please select a screen/window source to stream first!');
         return;
       }
-      alert('Screen acquisition started! Mirrored P2P stream is active.');
+
+      if (!localStream) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: selectedSourceId,
+              maxWidth: 1920,
+              maxHeight: 1080,
+              maxFrameRate: 30
+            }
+          }
+        });
+        localStream = stream;
+      }
+
+      const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
+      if (targets.length === 0) {
+        alert('Streaming source ready. Waiting for viewers to join room...');
+        return;
+      }
+
+      for (const member of targets) {
+        await ensurePeerForViewer(member.userId);
+      }
+
+      alert(`Streaming started for ${targets.length} viewer(s).`);
+    }
+
+    async function ensurePeerForViewer(targetUserId) {
+      if (!localStream) return;
+      if (peerConnections.has(targetUserId)) return;
+
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      });
+
+      peerConnections.set(targetUserId, pc);
+
+      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          browsync.sendIceCandidate(targetUserId, event.candidate);
+        }
+      };
+
+      const inputChannel = pc.createDataChannel('input');
+      inputChannel.onmessage = (evt) => {
+        try {
+          const parsed = JSON.parse(evt.data);
+          // Relay incoming input events to existing main process path.
+          console.log('Input event over data channel', parsed?.type);
+        } catch (_e) {}
+      };
+
+      pc.createDataChannel('control');
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      browsync.sendRtcOffer(targetUserId, offer);
+    }
+
+    async function handleRtcAnswer(payload) {
+      const pc = peerConnections.get(payload.senderUserId);
+      if (!pc || !payload.sdp) return;
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+    }
+
+    async function handleRtcIceCandidate(payload) {
+      const pc = peerConnections.get(payload.senderUserId);
+      if (!pc || !payload.candidate) return;
+      await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+    }
+
+    function setMembers(members) {
+      joinedMembers = members || [];
+      if (localStream) {
+        const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
+        targets.forEach((m) => ensurePeerForViewer(m.userId).catch(console.error));
+      }
+    }
+
+    joinRoomBtn.onclick = () => {
+      const roomCode = roomCodeInput.value.trim().toUpperCase();
+      const displayName = displayNameInput.value.trim() || 'Desktop Host';
+      const token = tokenInput.value.trim();
+      if (!roomCode || roomCode.length !== 6) {
+        alert('Enter a valid 6-character room code.');
+        return;
+      }
+      browsync.joinRoom({ roomCode, displayName, token: token || undefined });
+      joinStatus.textContent = `Joining room ${roomCode}...`;
     };
 
     // Load available windows on load
@@ -352,6 +485,39 @@
 
     // Attach IPC Preload alert listeners
     if (browsync) {
+      browsync.getServerUrl().then((url) => {
+        joinStatus.textContent = `Connected target: ${url}. Not joined yet.`;
+      }).catch(() => {});
+
+      browsync.onSocketConnected((_event, payload) => {
+        if (payload?.socketId) {
+          joinStatus.textContent = `Socket connected (${payload.socketId}). Join a room to stream.`;
+        }
+      });
+
+      browsync.onRoomJoined((_event, payload) => {
+        if (!payload?.roomId) return;
+        currentRoomId = payload.roomId;
+        currentUserId = payload.userId || null;
+        joinStatus.textContent = `Joined room ${payload.roomCode} as ${payload.displayName} (${payload.role}).`;
+      });
+
+      browsync.onPresenceSync((_event, payload) => {
+        setMembers(payload?.members || []);
+      });
+
+      browsync.onRoomError((_event, payload) => {
+        joinStatus.textContent = `Join failed: ${payload?.message || 'Unknown error'}`;
+      });
+
+      browsync.onRtcAnswer((_event, payload) => {
+        handleRtcAnswer(payload).catch(console.error);
+      });
+
+      browsync.onRtcIceCandidate((_event, payload) => {
+        handleRtcIceCandidate(payload).catch(console.error);
+      });
+
       browsync.onControlRequest((event, payload) => {
         const { viewerId, viewerName, queuePosition } = payload;
         
@@ -376,6 +542,7 @@
 
         // Grant access click
         document.getElementById(`allow_${viewerId}`).onclick = () => {
+          if (!currentRoomId) return;
           browsync.grantControl(currentRoomId, viewerId);
           toast.remove();
           
@@ -385,6 +552,7 @@
           `;
 
           document.getElementById('revokeBtn').onclick = () => {
+            if (!currentRoomId) return;
             browsync.revokeControl(currentRoomId);
             controllerStatus.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.875rem;">Currently sharing view-only stream. No active remote controls.</p>`;
           };
@@ -392,6 +560,7 @@
 
         // Deny access click
         document.getElementById(`deny_${viewerId}`).onclick = () => {
+          if (!currentRoomId) return;
           browsync.denyControl(currentRoomId, viewerId);
           toast.remove();
         };

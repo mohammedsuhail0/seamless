@@ -72,6 +72,7 @@ function initializeHostSocket() {
 
   hostSocket.on('connect', () => {
     console.log('🔌 Host signaling node connected to server');
+    mainWindow?.webContents.send('host:socket-connected', { socketId: hostSocket?.id });
   });
 
   // Listen to viewer control requests relayed from Server
@@ -94,6 +95,26 @@ function initializeHostSocket() {
     if (mainWindow) {
       mainWindow.webContents.send('control:released', payload);
     }
+  });
+
+  hostSocket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: any) => {
+    mainWindow?.webContents.send('host:room-joined', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.PRESENCE_SYNC, (payload: any) => {
+    mainWindow?.webContents.send('host:presence-sync', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.ROOM_ERROR, (payload: any) => {
+    mainWindow?.webContents.send('host:room-error', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.RTC_ANSWER, (payload: any) => {
+    mainWindow?.webContents.send('host:rtc-answer', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.RTC_ICE_CANDIDATE, (payload: any) => {
+    mainWindow?.webContents.send('host:rtc-ice-candidate', payload);
   });
 }
 
@@ -138,4 +159,23 @@ ipcMain.on('control:revoke', (event: any, { roomId }: any) => {
   if (hostSocket) {
     hostSocket.emit(SOCKET_EVENTS.CONTROL_REVOKE, { roomId });
   }
+});
+
+ipcMain.handle('host:get-server-url', async () => {
+  return serverUrl;
+});
+
+ipcMain.on('host:join-room', (_event: any, payload: { roomCode: string; displayName: string; token?: string }) => {
+  if (!hostSocket) return;
+  hostSocket.emit(SOCKET_EVENTS.ROOM_JOIN, payload);
+});
+
+ipcMain.on('host:rtc-offer', (_event: any, payload: { targetUserId: string; sdp: any }) => {
+  if (!hostSocket) return;
+  hostSocket.emit(SOCKET_EVENTS.RTC_OFFER, payload);
+});
+
+ipcMain.on('host:rtc-ice-candidate', (_event: any, payload: { targetUserId: string; candidate: any }) => {
+  if (!hostSocket) return;
+  hostSocket.emit(SOCKET_EVENTS.RTC_ICE_CANDIDATE, payload);
 });

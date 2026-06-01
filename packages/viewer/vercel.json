@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "http://localhost:3001/api/$1"
+      "destination": "https://browsync-api.onrender.com/api/$1"
     },
     {
       "source": "/socket.io/(.*)",
-      "destination": "http://localhost:3001/socket.io/$1"
+      "destination": "https://browsync-api.onrender.com/socket.io/$1"
     },
     {
       "source": "/(.*)",
