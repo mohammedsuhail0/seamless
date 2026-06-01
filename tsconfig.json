@@ -14,11 +14,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@browsync/shared": ["./packages/shared/src"],
-      "@browsync/shared/*": ["./packages/shared/src/*"]
-    }
+    "baseUrl": "."
   },
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

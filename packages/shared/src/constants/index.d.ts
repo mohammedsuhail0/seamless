@@ -1,0 +1,50 @@
+export declare const SOCKET_EVENTS: {
+    readonly ROOM_CREATE: "room:create";
+    readonly ROOM_CREATED: "room:created";
+    readonly ROOM_JOIN: "room:join";
+    readonly ROOM_JOINED: "room:joined";
+    readonly ROOM_LEAVE: "room:leave";
+    readonly ROOM_LEFT: "room:left";
+    readonly ROOM_CLOSE: "room:close";
+    readonly ROOM_CLOSED: "room:closed";
+    readonly ROOM_ERROR: "room:error";
+    readonly RTC_OFFER: "rtc:offer";
+    readonly RTC_ANSWER: "rtc:answer";
+    readonly RTC_ICE_CANDIDATE: "rtc:ice-candidate";
+    readonly CONTROL_REQUEST: "control:request";
+    readonly CONTROL_REQUEST_RECEIVED: "control:request-received";
+    readonly CONTROL_GRANT: "control:grant";
+    readonly CONTROL_GRANTED: "control:granted";
+    readonly CONTROL_DENY: "control:deny";
+    readonly CONTROL_DENIED: "control:denied";
+    readonly CONTROL_REVOKE: "control:revoke";
+    readonly CONTROL_REVOKED: "control:revoked";
+    readonly CONTROL_RELEASE: "control:release";
+    readonly CONTROL_RELEASED: "control:released";
+    readonly CHAT_MESSAGE: "chat:message";
+    readonly CHAT_MESSAGE_RECEIVED: "chat:message-received";
+    readonly CHAT_REACTION: "chat:reaction";
+    readonly CHAT_REACTION_RECEIVED: "chat:reaction-received";
+    readonly CHAT_HISTORY: "chat:history";
+    readonly PRESENCE_HEARTBEAT: "presence:heartbeat";
+    readonly PRESENCE_UPDATE: "presence:update";
+    readonly PRESENCE_SYNC: "presence:sync";
+};
+export declare const ERROR_CODES: {
+    readonly VALIDATION_ERROR: "VALIDATION_ERROR";
+    readonly UNAUTHORIZED: "UNAUTHORIZED";
+    readonly FORBIDDEN: "FORBIDDEN";
+    readonly NOT_FOUND: "NOT_FOUND";
+    readonly CONFLICT: "CONFLICT";
+    readonly ROOM_FULL: "ROOM_FULL";
+    readonly ROOM_CLOSED: "ROOM_CLOSED";
+    readonly INTERNAL_ERROR: "INTERNAL_ERROR";
+};
+export declare const LIMITS: {
+    readonly MAX_VIEWERS: 7;
+    readonly CHAT_MAX_LENGTH: 500;
+    readonly CHAT_HISTORY_LIMIT: 200;
+    readonly HEARTBEAT_INTERVAL_MS: 30000;
+    readonly HEARTBEAT_TIMEOUT_MS: 60000;
+};
+//# sourceMappingURL=index.d.ts.map
