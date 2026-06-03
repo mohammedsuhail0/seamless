@@ -52,6 +52,10 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
     setCreationLoading(true);
 
     try {
+      // Verify the cached session before creating a room.
+      // This prevents stale localStorage from showing the dashboard while the token is already invalid.
+      await api.get('/api/auth/me');
+
       const data = await api.post('/api/rooms', {
         name: roomName || 'Movie Screening Room 🍿',
         isPrivate,
@@ -62,7 +66,14 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
       // Refresh history list
       fetchHistory();
     } catch (err: any) {
-      setCreationError(err.error?.message || 'Failed to create room.');
+      if (err?.error?.code === 'UNAUTHORIZED' || err?.error?.code === 'SESSION_EXPIRED') {
+        await logout().catch(() => {});
+        setCreationError('Session expired. Please log in again.');
+        onNavigate('landing');
+        return;
+      }
+
+      setCreationError(err?.error?.message || err?.message || 'Failed to create room.');
     } finally {
       setCreationLoading(false);
     }
