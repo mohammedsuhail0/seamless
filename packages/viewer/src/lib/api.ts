@@ -6,6 +6,12 @@ interface RequestOptions extends RequestInit {
 }
 
 class ApiClient {
+  private getBaseUrl(): string {
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? ''
+      : 'https://browsync-api.onrender.com';
+  }
+
   private getAccessToken(): string | null {
     return localStorage.getItem('browsync_access_token');
   }
@@ -30,7 +36,7 @@ class ApiClient {
     if (!refreshToken) return false;
 
     try {
-      const response = await fetch('/api/auth/refresh', {
+      const response = await fetch(`${this.getBaseUrl()}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
@@ -66,7 +72,7 @@ class ApiClient {
 
     options.headers = headers;
 
-    let response = await fetch(path, options);
+    let response = await fetch(`${this.getBaseUrl()}${path}`, options);
 
     // Auto-refresh token if unauthorized
     if (response.status === 401 && this.getRefreshToken()) {
@@ -75,7 +81,7 @@ class ApiClient {
         // Retry request with new token
         headers.set('Authorization', `Bearer ${this.getAccessToken()}`);
         options.headers = headers;
-        response = await fetch(path, options);
+        response = await fetch(`${this.getBaseUrl()}${path}`, options);
       } else {
         window.location.href = '/';
         throw new Error('Session expired');

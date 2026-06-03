@@ -13,8 +13,12 @@ class SocketClient {
       return this.socket;
     }
 
-    // Connects to server (Vite proxies WS traffic perfectly)
-    this.socket = io({
+    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? ''
+      : 'https://browsync-api.onrender.com';
+
+    // Connects to server (Vite proxies WS traffic perfectly on dev, direct Render URL on production)
+    this.socket = io(BACKEND_URL, {
       autoConnect: false,
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,
