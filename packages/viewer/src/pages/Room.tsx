@@ -2,6 +2,7 @@
 // File: packages/viewer/src/pages/Room.tsx
 
 import React, { useState, useEffect, useRef } from 'react';
+import type { Socket } from 'socket.io-client';
 import socketClient from '../lib/socket';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { api } from '../lib/api';
@@ -47,7 +48,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [copiedLink, setCopiedLink] = useState(false);
 
   // References
-  const socketRef = useRef<any>(null);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -70,21 +72,22 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   useEffect(() => {
     if (loading || errorMsg) return;
 
-    const socket = socketClient.connect();
-    socketRef.current = socket;
+    const nextSocket = socketClient.connect();
+    socketRef.current = nextSocket;
+    setSocket(nextSocket);
 
     // Retrieve access token
     const token = localStorage.getItem('browsync_access_token') || undefined;
 
     // Join Socket Room
-    socket.emit(SOCKET_EVENTS.ROOM_JOIN, {
+    nextSocket.emit(SOCKET_EVENTS.ROOM_JOIN, {
       roomCode: roomCode.toUpperCase(),
       displayName: userContext?.displayName || `Guest_${Math.floor(Math.random() * 1000)}`,
       token,
     });
 
     // Listeners: Room joined confirmation (authoritative role assignment)
-    socket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { role?: MemberRole; roomCode?: string }) => {
+    nextSocket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { role?: MemberRole; roomCode?: string }) => {
       if (payload?.roomCode && payload?.role) {
         console.log('🔑 Authoritative role from server:', payload.role);
         setRole(payload.role);
@@ -92,21 +95,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
 
     // Listeners: Sync Room Members presences
-    socket.on(SOCKET_EVENTS.PRESENCE_SYNC, (payload: { members: any[] }) => {
+    nextSocket.on(SOCKET_EVENTS.PRESENCE_SYNC, (payload: { members: any[] }) => {
       setActiveMembers(payload.members);
     });
 
     // Listeners: Chat updates
-    socket.on(SOCKET_EVENTS.CHAT_HISTORY, (payload: { messages: ChatMessage[] }) => {
+    nextSocket.on(SOCKET_EVENTS.CHAT_HISTORY, (payload: { messages: ChatMessage[] }) => {
       setChatMessages(payload.messages);
     });
 
-    socket.on(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED, (message: ChatMessage) => {
+    nextSocket.on(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED, (message: ChatMessage) => {
       setChatMessages((prev) => [...prev, message]);
     });
 
     // Listeners: Ephemeral emoji reactions received
-    socket.on(SOCKET_EVENTS.CHAT_REACTION_RECEIVED, (reaction: ChatReaction) => {
+    nextSocket.on(SOCKET_EVENTS.CHAT_REACTION_RECEIVED, (reaction: ChatReaction) => {
       const id = `${Date.now()}_${Math.random()}`;
       const drift = Math.floor(Math.random() * 80) - 40; // horizontal drift padding
       
@@ -119,45 +122,46 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
 
     // Listeners: Access controls granted
-    socket.on(SOCKET_EVENTS.CONTROL_GRANTED, (payload: { grantedAt: number }) => {
+    nextSocket.on(SOCKET_EVENTS.CONTROL_GRANTED, (payload: { grantedAt: number }) => {
       setCurrentController({
-        userId: userContext?.id || socket.id,
+        userId: userContext?.id || nextSocket.id,
         displayName: userContext?.displayName || 'You',
         grantedAt: payload.grantedAt,
       });
       setIsRequestingControl(false);
     });
 
-    socket.on(SOCKET_EVENTS.CONTROL_DENIED, (payload: { reason: string }) => {
+    nextSocket.on(SOCKET_EVENTS.CONTROL_DENIED, (payload: { reason: string }) => {
       alert(`Access Request Denied: ${payload.reason}`);
       setIsRequestingControl(false);
     });
 
-    socket.on(SOCKET_EVENTS.CONTROL_REVOKED, (payload: { reason: string }) => {
+    nextSocket.on(SOCKET_EVENTS.CONTROL_REVOKED, (payload: { reason: string }) => {
       setCurrentController(null);
       alert(`Control access has been revoked: ${payload.reason}`);
     });
 
-    socket.on(SOCKET_EVENTS.CONTROL_RELEASED, () => {
+    nextSocket.on(SOCKET_EVENTS.CONTROL_RELEASED, () => {
       setCurrentController(null);
     });
 
-    socket.on(SOCKET_EVENTS.ROOM_CLOSED, (payload: { reason: string }) => {
+    nextSocket.on(SOCKET_EVENTS.ROOM_CLOSED, (payload: { reason: string }) => {
       alert(`Session Closed: ${payload.reason}`);
       onNavigate('dashboard');
     });
 
     return () => {
-      socket.emit(SOCKET_EVENTS.ROOM_LEAVE);
-      socket.off(SOCKET_EVENTS.PRESENCE_SYNC);
-      socket.off(SOCKET_EVENTS.CHAT_HISTORY);
-      socket.off(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED);
-      socket.off(SOCKET_EVENTS.CHAT_REACTION_RECEIVED);
-      socket.off(SOCKET_EVENTS.CONTROL_GRANTED);
-      socket.off(SOCKET_EVENTS.CONTROL_DENIED);
-      socket.off(SOCKET_EVENTS.CONTROL_REVOKED);
-      socket.off(SOCKET_EVENTS.CONTROL_RELEASED);
-      socket.off(SOCKET_EVENTS.ROOM_CLOSED);
+      nextSocket.emit(SOCKET_EVENTS.ROOM_LEAVE);
+      nextSocket.off(SOCKET_EVENTS.ROOM_JOINED);
+      nextSocket.off(SOCKET_EVENTS.PRESENCE_SYNC);
+      nextSocket.off(SOCKET_EVENTS.CHAT_HISTORY);
+      nextSocket.off(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED);
+      nextSocket.off(SOCKET_EVENTS.CHAT_REACTION_RECEIVED);
+      nextSocket.off(SOCKET_EVENTS.CONTROL_GRANTED);
+      nextSocket.off(SOCKET_EVENTS.CONTROL_DENIED);
+      nextSocket.off(SOCKET_EVENTS.CONTROL_REVOKED);
+      nextSocket.off(SOCKET_EVENTS.CONTROL_RELEASED);
+      nextSocket.off(SOCKET_EVENTS.ROOM_CLOSED);
     };
   }, [loading, errorMsg, roomCode]);
 
@@ -184,7 +188,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }, [roomInfo, userContext]);
 
   const { stream, connectionState, sendInputEvent, startCapture, stopCapture } = useWebRTC({
-    socket: socketRef.current,
+    socket,
     roomId: roomInfo?.id || null,
     role,
   });
