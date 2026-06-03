@@ -12,6 +12,10 @@
       "destination": "https://browsync-api.onrender.com/socket.io/$1"
     },
     {
+      "source": "/room/:path*",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
