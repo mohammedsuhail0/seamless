@@ -12,11 +12,21 @@ export default function App() {
   const [currentRoomCode, setCurrentRoomCode] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<any | null>(null);
 
-  // Sync user context cache on mount
+  // Sync user context cache and check path routing on mount
   useEffect(() => {
     const cachedUser = localStorage.getItem('browsync_user');
     if (cachedUser) {
       setUserContext(JSON.parse(cachedUser));
+    }
+
+    // Direct invite link pathname routing (e.g., /room/38XTER)
+    const path = window.location.pathname;
+    const match = path.match(/^\/room\/([A-Za-z0-9]{6})$/);
+    if (match && match[1]) {
+      const code = match[1].toUpperCase();
+      console.log('🔗 Direct room invite link detected:', code);
+      setCurrentRoomCode(code);
+      setCurrentPage('room');
     }
   }, []);
 
