@@ -22,6 +22,8 @@ import {
   Copy,
   Check,
   Signal,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 interface RoomProps {
@@ -47,6 +49,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [_isRequestingControl, setIsRequestingControl] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(true);
 
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -231,12 +234,20 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
-      videoRef.current.muted = true; // Always mute by default to satisfy browser autoplay policies (especially in Incognito)
+      videoRef.current.muted = isMuted; // Sync with state to satisfy browser autoplay policies or user volume changes
       videoRef.current.play().catch((err) => {
         console.warn('⚠️ Autoplay prevented by browser:', err);
       });
     }
-  }, [stream]);
+  }, [stream, isMuted]);
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      const newMuted = !isMuted;
+      videoRef.current.muted = newMuted;
+      setIsMuted(newMuted);
+    }
+  };
 
   const isMeInControl =
     !!currentController &&
@@ -441,7 +452,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 ref={videoRef}
                 autoPlay
                 playsInline
-                muted
+                muted={isMuted}
                 tabIndex={0} // capture keyup/keydown events
                 onMouseMove={handleMouseMove}
                 onMouseDown={handleMouseDown}
@@ -514,6 +525,16 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 <Signal size={14} color={connectionState === 'connected' ? 'var(--color-success)' : 'var(--color-warning)'} /> 
                 Signal: {connectionState}
               </span>
+              {role !== MemberRole.HOST && (
+                <button 
+                  className="btn btn-ghost" 
+                  style={{ padding: '0.4rem' }} 
+                  onClick={toggleMute}
+                  title={isMuted ? "Unmute Audio" : "Mute Audio"}
+                >
+                  {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                </button>
+              )}
               <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={() => videoRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
             </div>
           </footer>
