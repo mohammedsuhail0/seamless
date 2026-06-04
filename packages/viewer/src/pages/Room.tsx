@@ -46,12 +46,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [currentController, setCurrentController] = useState<any | null>(null);
   const [_isRequestingControl, setIsRequestingControl] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [myUserId, setMyUserId] = useState<string | null>(null);
 
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
+  const activeMembersRef = useRef<any[]>([]);
 
   // 1. Fetch Room Meta Specs from REST API on join
   useEffect(() => {
@@ -87,16 +89,46 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
 
     // Listeners: Room joined confirmation (authoritative role assignment)
-    nextSocket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { role?: MemberRole; roomCode?: string }) => {
+    nextSocket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { 
+      role?: MemberRole; 
+      roomCode?: string; 
+      userId?: string;
+      currentController?: any;
+    }) => {
       if (payload?.roomCode && payload?.role) {
         console.log('🔑 Authoritative role from server:', payload.role);
         setRole(payload.role);
+      }
+      if (payload?.userId) {
+        setMyUserId(payload.userId);
+      }
+      if (payload?.currentController) {
+        setCurrentController(payload.currentController);
       }
     });
 
     // Listeners: Sync Room Members presences
     nextSocket.on(SOCKET_EVENTS.PRESENCE_SYNC, (payload: { members: any[] }) => {
       setActiveMembers(payload.members);
+      activeMembersRef.current = payload.members;
+    });
+
+    // Listeners: Room join or signaling error
+    nextSocket.on(SOCKET_EVENTS.ROOM_ERROR, (payload: { code: string; message: string }) => {
+      console.error('❌ Room error from socket server:', payload);
+      setErrorMsg(payload.message || 'Failed to join co-browsing room');
+    });
+
+    // Listeners: Dynamically sync controller changes via presence updates
+    nextSocket.on(SOCKET_EVENTS.PRESENCE_UPDATE, (payload: { userId: string; status: string }) => {
+      if (payload?.status === 'controlling' && payload?.userId) {
+        const member = activeMembersRef.current.find((m) => m.userId === payload.userId);
+        setCurrentController({
+          userId: payload.userId,
+          displayName: member?.displayName || 'Viewer',
+          grantedAt: Date.now(),
+        });
+      }
     });
 
     // Listeners: Chat updates
@@ -124,7 +156,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     // Listeners: Access controls granted
     nextSocket.on(SOCKET_EVENTS.CONTROL_GRANTED, (payload: { grantedAt: number }) => {
       setCurrentController({
-        userId: userContext?.id || nextSocket.id,
+        userId: myUserId || userContext?.id || nextSocket.id,
         displayName: userContext?.displayName || 'You',
         grantedAt: payload.grantedAt,
       });
@@ -154,6 +186,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       nextSocket.emit(SOCKET_EVENTS.ROOM_LEAVE);
       nextSocket.off(SOCKET_EVENTS.ROOM_JOINED);
       nextSocket.off(SOCKET_EVENTS.PRESENCE_SYNC);
+      nextSocket.off(SOCKET_EVENTS.ROOM_ERROR);
+      nextSocket.off(SOCKET_EVENTS.PRESENCE_UPDATE);
       nextSocket.off(SOCKET_EVENTS.CHAT_HISTORY);
       nextSocket.off(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED);
       nextSocket.off(SOCKET_EVENTS.CHAT_REACTION_RECEIVED);
@@ -205,8 +239,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     }
   }, [stream, role]);
 
-  // 4. Coordinates Normalization Capture and Relay (P2P Remote Control)
-  const isMeInControl = currentController?.userId === (userContext?.id || socketRef.current?.id);
+  const isMeInControl =
+    !!currentController &&
+    !!myUserId &&
+    currentController.userId === myUserId;
 
   const handleMouseMove = (e: React.MouseEvent<HTMLVideoElement>) => {
     if (!isMeInControl || !videoRef.current) return;

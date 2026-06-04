@@ -153,6 +153,11 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         // Join socket to its own userId channel for WebRTC signaling and remote control target routing
         socket.join(socketUserId);
 
+        // Fetch current controller if any
+        const controllerKey = RedisKeys.roomController(roomId);
+        const controllerStr = await redis.get(controllerKey);
+        const currentController = controllerStr ? JSON.parse(controllerStr) : null;
+
         // Emit room joined configuration
         socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
           roomId,
@@ -161,6 +166,7 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           role,
           roomCode: room.roomCode,
           roomName: room.name,
+          currentController,
         });
 
         // Emit presence sync of all active members
