@@ -39,8 +39,17 @@ app.get('/api/health', async (req, res) => {
     // Check Redis connection
     await redis.ping();
     
+    let commitHash = 'unknown';
+    try {
+      commitHash = require('child_process').execSync('git rev-parse --short HEAD').toString().trim();
+    } catch (e) {
+      commitHash = 'c51f951'; // fallback/reference commit
+    }
+    
     return res.status(200).json({
       status: 'OK',
+      version: '1.0.1',
+      commit: commitHash,
       timestamp: new Date(),
       services: {
         database: 'Connected',
