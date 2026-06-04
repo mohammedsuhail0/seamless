@@ -461,8 +461,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 onKeyUp={handleKeyUp}
                 className={isMeInControl ? 'glow-active' : ''}
                 style={{
-                  maxWidth: '100%',
-                  maxHeight: '100%',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
                   borderRadius: 'var(--radius-md)',
                   outline: 'none',
                   cursor: isMeInControl ? 'crosshair' : 'default',
