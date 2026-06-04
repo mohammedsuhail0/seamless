@@ -81,7 +81,8 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
 
   const handleCopyLink = () => {
     if (createdRoom) {
-      navigator.clipboard.writeText(createdRoom.joinLink);
+      const joinUrl = `${window.location.protocol}//${window.location.host}/room/${createdRoom.roomCode}`;
+      navigator.clipboard.writeText(joinUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     }

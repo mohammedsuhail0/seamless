@@ -150,6 +150,9 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         // 7. Join Socket.io room channel
         socket.join(roomId);
 
+        // Join socket to its own userId channel for WebRTC signaling and remote control target routing
+        socket.join(socketUserId);
+
         // Emit room joined configuration
         socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
           roomId,
