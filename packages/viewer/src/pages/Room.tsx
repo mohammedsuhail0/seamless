@@ -256,15 +256,27 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   const toggleFullscreen = () => {
     if (!roomContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      roomContainerRef.current.requestFullscreen().then(() => {
-        setIsFullscreen(true);
-      }).catch(err => {
-        console.error('Fullscreen failed:', err);
-      });
+    
+    if (roomContainerRef.current.requestFullscreen) {
+      if (!document.fullscreenElement) {
+        roomContainerRef.current.requestFullscreen().then(() => {
+          setIsFullscreen(true);
+        }).catch(err => {
+          console.error('Fullscreen failed:', err);
+        });
+      } else {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
+    } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+      // Graceful fallback for iOS (iPhone) Safari
+      try {
+        (videoRef.current as any).webkitEnterFullscreen();
+      } catch (err) {
+        console.error('iOS Fullscreen failed:', err);
+      }
     } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
+      alert('Fullscreen is not supported on this browser/device.');
     }
   };
 
@@ -475,7 +487,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
       {/* Header bar */}
       <header 
-        className="glass" 
+        className="glass room-header" 
         style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -515,10 +527,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </header>
 
       {/* Main split work area */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="room-content" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         
         {/* Left Side: Stream Viewer */}
-        <div style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#02040e' }}>
+        <div className="stream-column" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#02040e' }}>
           
           {/* Active control badge overlay */}
           {isMeInControl && (
@@ -587,7 +599,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
           {/* Toolbar footer overlay */}
           <footer 
-            className="glass" 
+            className="glass room-footer" 
             style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -669,7 +681,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         {/* Right Side: Chat & Reaction Drawer */}
         {showChat && (
           <aside 
-            className="glass" 
+            className="glass chat-drawer slide-in-right" 
             style={{ 
               width: '340px', 
               borderLeft: '1px solid var(--border-default)', 
@@ -679,9 +691,19 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               paddingTop: isFullscreen ? '60px' : '0',
             }}
           >
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <MessageSquare size={16} color="var(--text-secondary)" />
-            <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Chat</h2>
+          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <MessageSquare size={16} color="var(--text-secondary)" />
+              <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Chat</h2>
+            </div>
+            <button 
+              className="btn btn-ghost" 
+              style={{ padding: '0.2rem', minWidth: 'auto', display: 'inline-flex', height: 'auto' }} 
+              onClick={() => setShowChat(false)}
+              title="Close Chat"
+            >
+              ✕
+            </button>
           </div>
 
           {/* Chat scrolling feed */}

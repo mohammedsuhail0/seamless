@@ -310,3 +310,145 @@ button, input, select, textarea {
   overflow: hidden !important;
 }
 
+/* ── Responsive & Fullscreen Chat Overlay & Layout Fixes ── */
+
+.room-content {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.stream-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #02040e;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+}
+
+.chat-drawer {
+  width: 340px;
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  z-index: 15;
+}
+
+/* Responsive (Mobile/Tablet drawer overlay) */
+@media (max-width: 768px) {
+  .chat-drawer {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    height: 100% !important;
+    z-index: 40 !important;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.6) !important;
+    background: rgba(10, 14, 39, 0.95) !important;
+    border-left: 1px solid rgba(255,255,255,0.08) !important;
+  }
+}
+
+/* When parent is fullscreen, chat drawer is ALWAYS an overlay to keep video complete full screen */
+.room-container:fullscreen .chat-drawer {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 320px !important;
+  height: 100% !important;
+  z-index: 40 !important;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.6) !important;
+  background: rgba(10, 14, 39, 0.9) !important;
+  border-left: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.room-container:-webkit-full-screen .chat-drawer {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 320px !important;
+  height: 100% !important;
+  z-index: 40 !important;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.6) !important;
+  background: rgba(10, 14, 39, 0.9) !important;
+  border-left: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.room-container:-moz-full-screen .chat-drawer {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 320px !important;
+  height: 100% !important;
+  z-index: 40 !important;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.6) !important;
+  background: rgba(10, 14, 39, 0.9) !important;
+  border-left: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.room-container:-ms-fullscreen .chat-drawer {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 320px !important;
+  height: 100% !important;
+  z-index: 40 !important;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.6) !important;
+  background: rgba(10, 14, 39, 0.9) !important;
+  border-left: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* Header & Footer styling tweaks */
+.room-header {
+  z-index: 20;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.room-footer {
+  z-index: 20;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* Mobile optimizations for headers and footers */
+@media (max-width: 600px) {
+  .room-header {
+    padding: 0.5rem 1rem !important;
+  }
+  .room-header h1 {
+    font-size: var(--text-sm) !important;
+  }
+  .room-header span {
+    font-size: 10px !important;
+  }
+  .room-header .btn {
+    padding: 0.2rem 0.5rem !important;
+    font-size: 11px !important;
+  }
+
+  .room-footer {
+    padding: 0.5rem 1rem !important;
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+  .room-footer .btn {
+    padding: 0.4rem 0.8rem !important;
+    font-size: var(--text-xs) !important;
+  }
+}
+
