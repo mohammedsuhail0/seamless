@@ -504,4 +504,95 @@ button, input, select, textarea {
   }
 }
 
+/* ── Landing Page Responsive Grid ── */
+.landing-hero-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 4rem !important;
+}
+
+.highlights-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 2rem !important;
+}
+
+@media (max-width: 768px) {
+  .landing-hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 2.5rem !important;
+    padding: 2rem 1.5rem !important;
+    text-align: center !important;
+  }
+  .landing-hero-grid section {
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+  .highlights-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.5rem !important;
+  }
+  .landing-header {
+    padding: 1rem !important;
+  }
+}
+
+/* ── Dashboard Page Responsive Layout ── */
+.dashboard-banner {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 1.5rem !important;
+}
+
+.stats-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr 1fr !important;
+  gap: 1.5rem !important;
+}
+
+.history-card {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 1rem !important;
+}
+
+@media (max-width: 768px) {
+  .dashboard-banner {
+    flex-direction: column !important;
+    text-align: center !important;
+    align-items: center !important;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  .history-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
+    text-align: center !important;
+  }
+  .history-card > div {
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  .history-card button {
+    width: 100% !important;
+  }
+  .dashboard-header {
+    padding: 1rem !important;
+  }
+}
+
+/* ── Responsive Modals ── */
+.modal-container {
+  width: 100% !important;
+  max-width: 460px !important;
+  margin: 1.5rem !important;
+}
+
+
 

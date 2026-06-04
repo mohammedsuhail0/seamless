@@ -98,7 +98,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
       <div className="radial-glow" style={{ top: '-10%', right: '-10%' }} />
 
       {/* Header */}
-      <header className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
+      <header className="glass dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
           <span style={{ fontSize: '1.75rem' }}>📡</span>
           <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>BrowSync</span>
@@ -118,7 +118,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
       <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', gap: '3rem', position: 'relative', zIndex: 1 }}>
         
         {/* Banner Segment */}
-        <section style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <section className="dashboard-banner">
           <div>
             <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 800 }}>Welcome, {userContext?.displayName || 'Screen Host'}</h1>
             <p style={{ color: 'var(--text-secondary)' }}>Launch a screen streaming room and invite friends to co-watch without geo-blocks.</p>
@@ -129,7 +129,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
         </section>
 
         {/* Stats Section */}
-        <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+        <section className="stats-grid">
           <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ background: 'rgba(79, 70, 229, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
               <Film size={20} color="#818cf8" />
@@ -179,7 +179,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {history.map((room) => (
-                <div key={room.id} className="glass-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={room.id} className="glass-card history-card" style={{ padding: '1.25rem 1.5rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{room.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
@@ -206,7 +206,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
       {/* Immersive Glassmorphic Modal Overlay for Creating Rooms */}
       {showCreateModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--bg-overlay)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="glass" style={{ width: '460px', padding: '2.5rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="glass modal-container" style={{ padding: '2.5rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid rgba(255,255,255,0.08)' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800 }}>Create New Screening</h2>
