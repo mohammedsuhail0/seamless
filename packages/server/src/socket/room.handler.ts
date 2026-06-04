@@ -153,10 +153,17 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         // Join socket to its own userId channel for WebRTC signaling and remote control target routing
         socket.join(socketUserId);
 
-        // Fetch current controller if any
-        const controllerKey = RedisKeys.roomController(roomId);
-        const controllerStr = await redis.get(controllerKey);
-        const currentController = controllerStr ? JSON.parse(controllerStr) : null;
+        // Fetch current controller if any (defensively caught)
+        let currentController = null;
+        try {
+          const controllerKey = RedisKeys.roomController(roomId);
+          const controllerStr = await redis.get(controllerKey);
+          if (controllerStr) {
+            currentController = JSON.parse(controllerStr);
+          }
+        } catch (redisErr) {
+          console.warn('⚠️ Failed to fetch current controller from Redis:', redisErr);
+        }
 
         // Emit room joined configuration
         socket.emit(SOCKET_EVENTS.ROOM_JOINED, {
