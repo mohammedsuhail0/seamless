@@ -508,20 +508,26 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem' }}>✕ Leaving</button>
+          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem' }}>
+            ✕<span className="hide-mobile"> Leaving</span>
+          </button>
           <div>
             <h1 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{roomInfo?.name}</h1>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Hosted by {roomInfo?.hostName}</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }} className="hide-mobile">Hosted by {roomInfo?.hostName}</span>
           </div>
         </div>
 
         {/* Invite link copying utility */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', background: 'rgba(255,255,255,0.04)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', letterSpacing: '0.5px' }}>
+          <span className="room-code-tag" style={{ fontFamily: 'var(--font-mono)', background: 'rgba(255,255,255,0.04)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', letterSpacing: '0.5px' }}>
             CODE: {roomCode}
           </span>
           <button className="btn btn-secondary" onClick={handleCopyLink} style={{ padding: '0.25rem 0.75rem', fontSize: 'var(--text-xs)' }}>
-            {copiedLink ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Invite</>}
+            {copiedLink ? (
+              <><Check size={12} /><span className="hide-mobile"> Copied</span></>
+            ) : (
+              <><Copy size={12} /><span className="hide-mobile"> Copy Invite</span></>
+            )}
           </button>
         </div>
       </header>
@@ -540,15 +546,18 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           )}
 
           {/* Full Stream rendering area */}
-          <div style={{ 
-            flex: 1, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center', 
-            position: 'relative', 
-            padding: isFullscreen ? '0' : '1rem',
-            background: '#000000',
-          }}>
+          <div 
+            className="video-render-area"
+            style={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              position: 'relative', 
+              padding: isFullscreen ? '0' : '1rem',
+              background: '#000000',
+            }}
+          >
             {stream ? (
               <video
                 ref={videoRef}
@@ -624,29 +633,36 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 <button 
                   className={`btn ${stream ? 'btn-secondary' : 'btn-primary'}`} 
                   onClick={stream ? stopCapture : startCapture}
-                  style={{ width: 'auto' }}
+                  style={{ width: 'auto', paddingInline: '0.75rem' }}
                 >
-                  📡 {stream ? 'Stop Screen Share' : 'Start Screen Share'}
+                  📡 <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
+                  <span className="show-mobile-only">{stream ? 'Stop' : 'Share'}</span>
                 </button>
               ) : (
                 <button 
                   className={`btn ${isMeInControl ? 'btn-secondary' : 'btn-primary'}`} 
                   onClick={requestControlAccess}
                   disabled={currentController && !isMeInControl}
+                  style={{ paddingInline: '0.75rem' }}
                 >
                   <Gamepad2 size={16} /> 
-                  {isMeInControl ? 'Release Control' : currentController ? `${currentController.displayName} is in control` : 'Request Control'}
+                  <span className="hide-mobile">
+                    {isMeInControl ? 'Release Control' : currentController ? `${currentController.displayName} is in control` : 'Request Control'}
+                  </span>
+                  <span className="show-mobile-only">
+                    {isMeInControl ? 'Release' : currentController ? 'Controlling' : 'Control'}
+                  </span>
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Users size={14} /> {activeMembers.length} Watching
+                <Users size={14} /> {activeMembers.length}<span className="hide-mobile"> Watching</span>
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <Signal size={14} color={connectionState === 'connected' ? 'var(--color-success)' : 'var(--color-warning)'} /> 
-                Signal: {connectionState}
+                <span className="hide-mobile">Signal: </span>{connectionState}
               </span>
               {role !== MemberRole.HOST && (
                 <button 
