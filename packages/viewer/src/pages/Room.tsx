@@ -50,13 +50,16 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(true);
-
+  const [showChat, setShowChat] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+ 
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const activeMembersRef = useRef<any[]>([]);
+  const roomContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 1. Fetch Room Meta Specs from REST API on join
   useEffect(() => {
@@ -249,6 +252,30 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     }
   };
 
+  const toggleFullscreen = () => {
+    if (!roomContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      roomContainerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error('Fullscreen failed:', err);
+      });
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const isMeInControl =
     !!currentController &&
     !!myUserId &&
@@ -395,7 +422,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div 
+      ref={roomContainerRef}
+      style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0a0e27' }}
+    >
       
       {/* Dynamic Floating reactions container */}
       {floatingEmojis.map((reaction) => (
@@ -536,13 +566,29 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                   {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
                 </button>
               )}
-              <button className="btn btn-ghost" style={{ padding: '0.4rem' }} onClick={() => videoRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
+              <button 
+                className="btn btn-ghost" 
+                style={{ padding: '0.4rem', color: showChat ? 'var(--color-primary)' : 'inherit' }} 
+                onClick={() => setShowChat(!showChat)}
+                title={showChat ? "Hide Chat" : "Show Chat"}
+              >
+                <MessageSquare size={16} />
+              </button>
+              <button 
+                className="btn btn-ghost" 
+                style={{ padding: '0.4rem' }} 
+                onClick={toggleFullscreen}
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                <Maximize2 size={16} />
+              </button>
             </div>
           </footer>
         </div>
 
         {/* Right Side: Chat & Reaction Drawer */}
-        <aside className="glass" style={{ width: '340px', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {showChat && (
+          <aside className="glass" style={{ width: '340px', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <MessageSquare size={16} color="var(--text-secondary)" />
             <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Chat</h2>
@@ -622,6 +668,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           </form>
 
         </aside>
+        )}
 
       </div>
     </div>
