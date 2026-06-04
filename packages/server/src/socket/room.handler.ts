@@ -53,9 +53,18 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         if (token) {
           try {
             const decoded = verifyAccessToken(token);
-            userId = decoded.userId;
-            finalDisplayName = decoded.displayName;
-            role = userId === room.hostId ? MemberRole.HOST : MemberRole.VIEWER;
+            // Verify user exists in database (handles DB wipes/resets)
+            const user = await prisma.user.findUnique({
+              where: { id: decoded.userId },
+            });
+            
+            if (user) {
+              userId = decoded.userId;
+              finalDisplayName = decoded.displayName;
+              role = userId === room.hostId ? MemberRole.HOST : MemberRole.VIEWER;
+            } else {
+              console.warn('⚠️ User from token does not exist in DB (likely DB reset). Treating as guest.');
+            }
           } catch (err) {
             console.warn('⚠️ Guest quick join — Token verification failed');
           }
