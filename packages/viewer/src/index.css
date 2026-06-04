@@ -272,3 +272,41 @@ button, input, select, textarea {
   animation: floatUpEmoji 1.8s cubic-bezier(0.075, 0.82, 0.165, 1) forwards;
   z-index: 999;
 }
+
+/* ── Immersive Fullscreen Flexbox Layout Fixes ── */
+.room-container:fullscreen {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: #02040e !important;
+  overflow: hidden !important;
+}
+
+.room-container:-webkit-full-screen {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: #02040e !important;
+  overflow: hidden !important;
+}
+
+.room-container:-moz-full-screen {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: #02040e !important;
+  overflow: hidden !important;
+}
+
+.room-container:-ms-fullscreen {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: #02040e !important;
+  overflow: hidden !important;
+}
+

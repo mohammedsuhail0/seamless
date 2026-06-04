@@ -52,6 +52,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [showChat, setShowChat] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showControls, setShowControls] = useState(true);
  
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -60,6 +61,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const activeMembersRef = useRef<any[]>([]);
   const roomContainerRef = useRef<HTMLDivElement | null>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Fetch Room Meta Specs from REST API on join
   useEffect(() => {
@@ -276,6 +278,34 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     };
   }, []);
 
+  const resetControlsTimeout = () => {
+    setShowControls(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    if (document.fullscreenElement) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    }
+  };
+
+  useEffect(() => {
+    if (isFullscreen) {
+      resetControlsTimeout();
+    } else {
+      setShowControls(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    }
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [isFullscreen]);
+
   const isMeInControl =
     !!currentController &&
     !!myUserId &&
@@ -424,6 +454,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   return (
     <div 
       ref={roomContainerRef}
+      className="room-container"
+      onMouseMove={resetControlsTimeout}
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0a0e27' }}
     >
       
@@ -442,7 +474,27 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       ))}
 
       {/* Header bar */}
-      <header className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border-default)' }}>
+      <header 
+        className="glass" 
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: '0.75rem 1.5rem', 
+          borderBottom: '1px solid var(--border-default)',
+          ...(isFullscreen ? {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 30,
+            transition: 'opacity 0.3s ease, transform 0.3s ease',
+            opacity: showControls ? 1 : 0,
+            transform: showControls ? 'translateY(0)' : 'translateY(-100%)',
+            pointerEvents: showControls ? 'auto' : 'none',
+          } : {})
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem' }}>✕ Leaving</button>
           <div>
@@ -476,7 +528,15 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           )}
 
           {/* Full Stream rendering area */}
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', padding: '1rem' }}>
+          <div style={{ 
+            flex: 1, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            position: 'relative', 
+            padding: isFullscreen ? '0' : '1rem',
+            background: '#000000',
+          }}>
             {stream ? (
               <video
                 ref={videoRef}
@@ -494,11 +554,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                   width: '100%',
                   height: '100%',
                   objectFit: 'contain',
-                  borderRadius: 'var(--radius-md)',
+                  borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
                   outline: 'none',
                   cursor: isMeInControl ? 'crosshair' : 'default',
                   border: isMeInControl ? '3px solid var(--color-primary)' : 'none',
-                  boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
+                  boxShadow: isFullscreen ? 'none' : '0 10px 40px rgba(0,0,0,0.6)',
                 }}
               />
             ) : role === MemberRole.HOST ? (
@@ -526,7 +586,27 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           </div>
 
           {/* Toolbar footer overlay */}
-          <footer className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.5rem', borderTop: '1px solid var(--border-default)' }}>
+          <footer 
+            className="glass" 
+            style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '0.75rem 1.5rem', 
+              borderTop: '1px solid var(--border-default)',
+              ...(isFullscreen ? {
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 30,
+                transition: 'opacity 0.3s ease, transform 0.3s ease',
+                opacity: showControls ? 1 : 0,
+                transform: showControls ? 'translateY(0)' : 'translateY(100%)',
+                pointerEvents: showControls ? 'auto' : 'none',
+              } : {})
+            }}
+          >
             <div style={{ display: 'flex', gap: '1rem' }}>
               {role === MemberRole.HOST ? (
                 <button 
@@ -588,7 +668,17 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
         {/* Right Side: Chat & Reaction Drawer */}
         {showChat && (
-          <aside className="glass" style={{ width: '340px', borderLeft: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <aside 
+            className="glass" 
+            style={{ 
+              width: '340px', 
+              borderLeft: '1px solid var(--border-default)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              overflow: 'hidden',
+              paddingTop: isFullscreen ? '60px' : '0',
+            }}
+          >
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <MessageSquare size={16} color="var(--text-secondary)" />
             <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Chat</h2>
