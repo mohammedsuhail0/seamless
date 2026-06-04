@@ -11,11 +11,11 @@
     },
     {
       "source": "/room/:path*",
-      "destination": "/index.html"
+      "destination": "/"
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
