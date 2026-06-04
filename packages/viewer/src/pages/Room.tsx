@@ -231,13 +231,12 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
-      if (role === MemberRole.HOST) {
-        videoRef.current.muted = true;
-      } else {
-        videoRef.current.muted = false;
-      }
+      videoRef.current.muted = true; // Always mute by default to satisfy browser autoplay policies (especially in Incognito)
+      videoRef.current.play().catch((err) => {
+        console.warn('⚠️ Autoplay prevented by browser:', err);
+      });
     }
-  }, [stream, role]);
+  }, [stream]);
 
   const isMeInControl =
     !!currentController &&
@@ -442,6 +441,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 ref={videoRef}
                 autoPlay
                 playsInline
+                muted
                 tabIndex={0} // capture keyup/keydown events
                 onMouseMove={handleMouseMove}
                 onMouseDown={handleMouseDown}
