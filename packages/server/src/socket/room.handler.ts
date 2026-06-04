@@ -117,25 +117,37 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         }
 
         // 6. Write presence into PostgreSQL and Redis presence ZSET
-        await prisma.roomMember.upsert({
-          where: {
-            roomId_userId: {
-              roomId,
-              userId: userId || socketUserId, // guests use guestId
+        if (userId) {
+          await prisma.roomMember.upsert({
+            where: {
+              roomId_userId: {
+                roomId,
+                userId,
+              },
             },
-          },
-          update: {
-            role,
-            displayName: finalDisplayName,
-            leftAt: null,
-          },
-          create: {
-            roomId,
-            userId: userId || socketUserId,
-            role,
-            displayName: finalDisplayName,
-          },
-        });
+            update: {
+              role,
+              displayName: finalDisplayName,
+              leftAt: null,
+            },
+            create: {
+              roomId,
+              userId,
+              role,
+              displayName: finalDisplayName,
+            },
+          });
+        } else {
+          // Anonymous Guest: Write to DB with null userId to satisfy foreign key constraints
+          await prisma.roomMember.create({
+            data: {
+              roomId,
+              userId: null,
+              role,
+              displayName: finalDisplayName,
+            },
+          });
+        }
 
         // Add to Redis Presence Sorted Set (score is timestamp)
         await redis.zadd(presenceKey, Date.now(), JSON.stringify(presenceMember));
