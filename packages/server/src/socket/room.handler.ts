@@ -226,7 +226,7 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         console.error('❌ Error joining socket room:', err);
         socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to join streaming room',
+          message: `Failed to join streaming room: ${err.message || err}`,
         });
       }
     },
