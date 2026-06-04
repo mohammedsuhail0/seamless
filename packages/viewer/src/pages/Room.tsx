@@ -172,14 +172,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   // 3. WebRTC Hooks setup
   const [role, setRole] = useState<MemberRole>(
-    roomInfo?.hostName && userContext?.displayName && roomInfo.hostName === userContext.displayName
+    roomInfo?.hostId && userContext?.id && roomInfo.hostId === userContext.id
       ? MemberRole.HOST
       : MemberRole.VIEWER
   );
 
   useEffect(() => {
-    if (roomInfo?.hostName && userContext?.displayName) {
-      if (roomInfo.hostName === userContext.displayName) {
+    if (roomInfo?.hostId && userContext?.id) {
+      if (roomInfo.hostId === userContext.id) {
         setRole(MemberRole.HOST);
       } else {
         setRole(MemberRole.VIEWER);

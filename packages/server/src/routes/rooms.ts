@@ -169,6 +169,7 @@ router.get('/:code', async (req, res) => {
       id: room.id,
       roomCode: room.roomCode,
       name: room.name,
+      hostId: room.hostId,
       hostName: room.host.displayName,
       status: room.status,
       viewerCount: Math.max(0, viewerCount - 1), // Exclude the Host if present in count
