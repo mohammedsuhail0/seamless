@@ -121,7 +121,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
         <section className="dashboard-banner">
           <div>
             <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 800 }}>Welcome, {userContext?.displayName || 'Screen Host'}</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Launch a screen streaming room and invite friends to co-watch without geo-blocks.</p>
+            <p style={{ color: 'var(--text-secondary)' }}>Create a room, invite your friends, and start watching together with zero lag.</p>
           </div>
           <button className="btn btn-primary" onClick={() => { setShowCreateModal(true); setCreatedRoom(null); }} style={{ height: 'fit-content' }}>
             <Plus size={18} /> Create New Room

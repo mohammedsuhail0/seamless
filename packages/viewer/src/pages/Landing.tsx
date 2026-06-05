@@ -83,7 +83,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               <button className="btn btn-ghost" onClick={logout}>Logout</button>
             </div>
           ) : (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Secure P2P Signaling Node: Online</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>🍿 Ready for showtime!</span>
           )}
         </div>
       </header>
@@ -95,7 +95,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(79, 70, 229, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(79,70,229,0.2)', width: 'fit-content' }}>
             <Sparkles size={14} color="#a5b4fc" />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#c7d2fe', fontWeight: 600 }}>WebRTC P2P Co-Browsing</span>
+            <span style={{ fontSize: 'var(--text-xs)', color: '#c7d2fe', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
           </div>
 
           <h1 style={{ fontSize: 'var(--text-5xl)', fontWeight: 800, lineHeight: 1.15 }}>
@@ -104,7 +104,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           </h1>
 
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
-            BrowSync streams your actual browser directly to friends over ultra-low latency WebRTC. No virtual servers, no geo-blocks, and no login issues. It's your computer, your Netflix account, your regional streaming — mirrored perfectly in real time.
+            Stop fighting with blurry screen shares and annoying copyright blocks. BrowSync streams whatever is on your browser to friends in real time with crystal-clear, zero-lag video. Share your Netflix, watch regional shows, browse memes, or shop together. It's just like sharing the same screen on the same couch.
           </p>
 
           {/* Quick Join Segment */}
@@ -201,16 +201,16 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Highlights Grid */}
       <section style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, textAlign: 'center', marginBottom: '3rem' }}>Why existing co-watching tools fail</h2>
+        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, textAlign: 'center', marginBottom: '3rem' }}>Why you'll love BrowSync</h2>
         <div className="highlights-grid">
           
           <div className="glass-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div style={{ background: 'rgba(79, 70, 229, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
               <Shield size={24} color="#818cf8" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Zero Regional Geo-blocks</h3>
+            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Watch Anything, Anywhere</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Other apps use host servers in generic datacenters that trigger regional licensing blocks on Indian OTT channels. BrowSync streams directly from YOUR machine, completely bypassing regional lockouts.
+              Tired of seeing a black screen when sharing Netflix or Disney+? If it works on your browser, it works here. No copyright blockouts, no regional geo-blocks, and no streaming limits.
             </p>
           </div>
 
@@ -218,9 +218,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
               <Tv size={24} color="#34d399" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Keep All Subscriptions</h3>
+            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>No Account Sharing Required</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              No need to relogin on a virtual screen. BrowSync displays your existing browser tabs: Netflix, Airtel Xstream, JioCinema, Hotstar—instantly logged in and ready to watch.
+              Your friends don't need subscriptions to watch with you. Since you're hosting from your own computer, they can see exactly what you're playing. Just open a tab, hit play, and relax.
             </p>
           </div>
 
@@ -228,9 +228,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
               <Zap size={24} color="#fbbf24" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Interactive Controls</h3>
+            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Pass the Remote Control</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Request mouse and keyboard control with one click. Search a wiki page, type comments, or skip video intervals. Host remains in full control and can revoke access instantly.
+              Let your friends pick the next YouTube video, search for a product, or type in a text box. You can hand over mouse and keyboard control with one click, and take it back just as easily.
             </p>
           </div>
 
