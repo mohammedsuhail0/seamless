@@ -106,16 +106,8 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           socketId: socket.id,
         };
 
-        // 5. Cancel Host Disconnect Timeout if host rejoined
+        // 5. If host joined and room was WAITING, set status to ACTIVE
         if (role === MemberRole.HOST) {
-          const activeTimeout = hostDisconnectTimeouts.get(roomId);
-          if (activeTimeout) {
-            clearTimeout(activeTimeout);
-            hostDisconnectTimeouts.delete(roomId);
-            console.log(`🔌 Host reconnected within 60s for room ${room.roomCode}`);
-          }
-
-          // If room was WAITING, set status to ACTIVE on host join
           if (room.status === RoomStatus.WAITING) {
             await prisma.room.update({
               where: { id: roomId },
@@ -330,44 +322,9 @@ async function handleUserLeavingRoom(io: Server, socket: Socket) {
     // Check active viewers left
     const membersRemaining = await getActivePresenceMembers(roomId);
 
-    // If host leaves, setup 60s shutdown timeout
+    // Log host disconnect
     if (role === MemberRole.HOST) {
-      console.log(`🔌 Host disconnected from room ${roomId}. Waiting 60 seconds...`);
-      
-      const timeout = setTimeout(async () => {
-        try {
-          // Verify host still offline
-          const checkMembers = await getActivePresenceMembers(roomId);
-          const hostRejoined = checkMembers.some(m => m.role === MemberRole.HOST);
-
-          if (!hostRejoined) {
-            console.log(`⏳ Host reconnection timeout reached. Automatically closing room ${roomId}`);
-            
-            // Mark Room CLOSED in PG
-            await prisma.room.update({
-              where: { id: roomId },
-              data: { status: RoomStatus.CLOSED, closedAt: new Date() },
-            });
-
-            // Erase Redis states
-            await redis.del(presenceKey);
-            await redis.del(RedisKeys.roomAccessQueue(roomId));
-            await redis.del(RedisKeys.roomController(roomId));
-            await redis.expire(RedisKeys.roomMeta(roomId), 3600);
-            await redis.expire(RedisKeys.roomChat(roomId), 3600);
-
-            // Broadcast room:closed to remaining viewers
-            io.to(roomId).emit(SOCKET_EVENTS.ROOM_CLOSED, {
-              roomId,
-              reason: 'Host disconnected and session timed out.',
-            });
-          }
-        } catch (timeoutErr) {
-          console.error('❌ Error handling host disconnect timeout:', timeoutErr);
-        }
-      }, 60000);
-
-      hostDisconnectTimeouts.set(roomId, timeout);
+      console.log(`🔌 Host disconnected from room ${roomId}. Room remains open.`);
     }
 
     // Check if leaving user held controller
