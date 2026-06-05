@@ -524,8 +524,10 @@ button, input, select, textarea {
 
 .highlights-grid {
   display: grid !important;
-  grid-template-columns: 1fr 1fr 1fr !important;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important;
   gap: 2rem !important;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 @media (max-width: 768px) {

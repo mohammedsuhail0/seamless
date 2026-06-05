@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { useAuthStore } from '../stores/auth';
-import { Tv, Shield, Zap, Sparkles, ArrowRight } from 'lucide-react';
+import { Tv, Shield, Sparkles, ArrowRight } from 'lucide-react';
 
 interface LandingProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
@@ -224,15 +224,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             </p>
           </div>
 
-          <div className="glass-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
-              <Zap size={24} color="#fbbf24" />
-            </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Pass the Remote Control</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Let your friends pick the next YouTube video, search for a product, or type in a text box. You can hand over mouse and keyboard control with one click, and take it back just as easily.
-            </p>
-          </div>
+
 
         </div>
       </section>

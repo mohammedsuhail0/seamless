@@ -47,7 +47,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   // Room presence & control queue
   const [activeMembers, setActiveMembers] = useState<any[]>([]);
   const [currentController, setCurrentController] = useState<any | null>(null);
-  const [_isRequestingControl, setIsRequestingControl] = useState(false);
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(true);
@@ -170,12 +170,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         displayName: userContext?.displayName || 'You',
         grantedAt: payload.grantedAt,
       });
-      setIsRequestingControl(false);
     });
 
     nextSocket.on(SOCKET_EVENTS.CONTROL_DENIED, (payload: { reason: string }) => {
       alert(`Access Request Denied: ${payload.reason}`);
-      setIsRequestingControl(false);
     });
 
     nextSocket.on(SOCKET_EVENTS.CONTROL_REVOKED, (payload: { reason: string }) => {
@@ -412,17 +410,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
   };
 
-  // 5. Interactive Control Requests
-  const requestControlAccess = () => {
-    if (isMeInControl) {
-      // Voluntary release
-      socketRef.current?.emit(SOCKET_EVENTS.CONTROL_RELEASE, { roomId: roomInfo.id });
-      setCurrentController(null);
-    } else {
-      setIsRequestingControl(true);
-      socketRef.current?.emit(SOCKET_EVENTS.CONTROL_REQUEST, { roomId: roomInfo.id });
-    }
-  };
+
 
   // Chat message send
   const handleSendChat = (e: React.FormEvent) => {
@@ -657,7 +645,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             }}
           >
             <div style={{ display: 'flex', gap: '1rem' }}>
-              {role === MemberRole.HOST ? (
+              {role === MemberRole.HOST && (
                 <button 
                   className={`btn ${stream ? 'btn-secondary' : 'btn-primary'}`} 
                   onClick={stream ? stopCapture : startCapture}
@@ -665,21 +653,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 >
                   📡 <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
                   <span className="show-mobile-only">{stream ? 'Stop' : 'Share'}</span>
-                </button>
-              ) : (
-                <button 
-                  className={`btn ${isMeInControl ? 'btn-secondary' : 'btn-primary'}`} 
-                  onClick={requestControlAccess}
-                  disabled={currentController && !isMeInControl}
-                  style={{ paddingInline: '0.75rem' }}
-                >
-                  <Gamepad2 size={16} /> 
-                  <span className="hide-mobile">
-                    {isMeInControl ? 'Release Control' : currentController ? `${currentController.displayName} is in control` : 'Request Control'}
-                  </span>
-                  <span className="show-mobile-only">
-                    {isMeInControl ? 'Release' : currentController ? 'Controlling' : 'Control'}
-                  </span>
                 </button>
               )}
             </div>
