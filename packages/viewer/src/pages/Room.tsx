@@ -15,6 +15,7 @@ import {
 import {
   Gamepad2,
   Maximize2,
+  Minimize2,
   Users,
   Smile,
   Send,
@@ -463,11 +464,28 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     );
   }
 
+  const handleContainerClick = (e: React.MouseEvent) => {
+    if (isMeInControl) {
+      resetControlsTimeout();
+      return;
+    }
+    const target = e.target as HTMLElement;
+    if (target.closest('.room-header') || target.closest('.room-footer') || target.closest('.chat-drawer')) {
+      return;
+    }
+    if (document.fullscreenElement) {
+      setShowControls(prev => !prev);
+    }
+    resetControlsTimeout();
+  };
+
   return (
     <div 
       ref={roomContainerRef}
       className="room-container"
       onMouseMove={resetControlsTimeout}
+      onClick={handleContainerClick}
+      onTouchStart={resetControlsTimeout}
       style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0a0e27' }}
     >
       
@@ -558,6 +576,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               background: '#000000',
             }}
           >
+            {/* Portrait Orientation Assist Tip */}
+            <div className="rotate-device-tip">
+              <span>🔄 Rotate phone for larger theater view</span>
+            </div>
             {stream ? (
               <video
                 ref={videoRef}
@@ -688,7 +710,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 onClick={toggleFullscreen}
                 title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
               >
-                <Maximize2 size={16} />
+                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </button>
             </div>
           </footer>
