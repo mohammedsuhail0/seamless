@@ -57,6 +57,22 @@ export function useAuthStore() {
     }
   };
 
+  const googleLogin = async (email: string) => {
+    setLoading(true);
+    try {
+      const data = await api.post('/api/auth/google-login', { email });
+      
+      localStorage.setItem('browsync_access_token', data.accessToken);
+      localStorage.setItem('browsync_refresh_token', data.refreshToken);
+      localStorage.setItem('browsync_user', JSON.stringify(data.user));
+
+      setUser(data.user);
+      return data.user;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     setLoading(true);
     try {
@@ -78,6 +94,7 @@ export function useAuthStore() {
     isAuthenticated: !!user,
     login,
     register,
+    googleLogin,
     logout,
   };
 }

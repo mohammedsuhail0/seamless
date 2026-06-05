@@ -10,12 +10,20 @@ interface LandingProps {
   setAuthContext: any;
 }
 
+const MOCK_GOOGLE_ACCOUNTS = [
+  { name: 'Alex Mercer', email: 'alex.mercer@gmail.com', avatarColor: '#ea4335' },
+  { name: 'Priya Sharma', email: 'priya.sharma@gmail.com', avatarColor: '#4285f4' },
+  { name: 'Arjun Mehta', email: 'arjun.mehta@gmail.com', avatarColor: '#34a853' },
+];
+
 export function Landing({ onNavigate, setAuthContext }: LandingProps) {
-  const { user, login, register, isAuthenticated, logout } = useAuthStore();
+  const { user, login, register, googleLogin, isAuthenticated, logout } = useAuthStore();
   
   // Auth Form tabs state
   const [isLoginTab, setIsLoginTab] = useState(true);
-  const [authMethod, setAuthMethod] = useState<'options' | 'email'>('options');
+  const [authMethod, setAuthMethod] = useState<'options' | 'email' | 'google'>('options');
+  const [googleStep, setGoogleStep] = useState<'chooser' | 'custom-email' | 'credentials'>('chooser');
+  const [googleEmail, setGoogleEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -28,7 +36,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
     e.preventDefault();
     setErrorMsg('');
     setFormLoading(true);
-
+ 
     const cleanUsername = username.trim().toLowerCase();
     const resolvedEmail = cleanUsername.includes('@') ? cleanUsername : `${cleanUsername}@browsync.local`;
     const resolvedDisplayName = username.trim();
@@ -54,38 +62,46 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
     }
   };
 
-  const handleGoogleAuth = async () => {
+  const handleGoogleSelectEmail = async (email: string) => {
     setErrorMsg('');
     setFormLoading(true);
     try {
-      let mockEmail = localStorage.getItem('browsync_mock_google_email');
-      let mockName = localStorage.getItem('browsync_mock_google_name');
-      
-      if (!mockEmail || !mockName) {
-        const randomId = Math.floor(1000 + Math.random() * 9000);
-        mockEmail = `google_user_${randomId}@gmail.com`;
-        mockName = `GoogleUser_${randomId}`;
-        localStorage.setItem('browsync_mock_google_email', mockEmail);
-        localStorage.setItem('browsync_mock_google_name', mockName);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      let loggedUser;
-      try {
-        loggedUser = await register(mockEmail, mockName, 'GoogleSecret123!');
-      } catch (regErr: any) {
-        if (regErr.status === 409 || regErr.error?.code === 'CONFLICT') {
-          loggedUser = await login(mockEmail, 'GoogleSecret123!');
-        } else {
-          throw regErr;
-        }
-      }
-
+      // Attempt login passwordlessly for returning Google user
+      const loggedUser = await googleLogin(email.toLowerCase());
       setAuthContext(loggedUser);
       onNavigate('dashboard');
     } catch (err: any) {
-      setErrorMsg(err.error?.message || 'Google authentication demo failed.');
+      // If user profile is not found, transition to Step 2 to set up credentials
+      if (err.error?.code === 'NOT_FOUND') {
+        setGoogleEmail(email.toLowerCase());
+        setGoogleStep('credentials');
+        
+        // Suggest a username based on email
+        const suggestedName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
+        setUsername(suggestedName);
+      } else {
+        setErrorMsg(err.error?.message || 'Google Authentication demo failed.');
+      }
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleGoogleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setFormLoading(true);
+    try {
+      // Register user: email = googleEmail, displayName = username, password = password
+      const registeredUser = await register(googleEmail.toLowerCase(), username.trim(), password);
+      setAuthContext(registeredUser);
+      onNavigate('dashboard');
+    } catch (err: any) {
+      let msg = err.error?.message || 'Registration failed.';
+      if (msg.toLowerCase().includes('email')) {
+        msg = msg.replace(/email/ig, 'Username');
+      }
+      setErrorMsg(msg);
     } finally {
       setFormLoading(false);
     }
@@ -174,21 +190,23 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           ) : (
             <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(255,255,255,0.06)' }}>
               
-              {/* Tab Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
-                <button 
-                  style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setIsLoginTab(true); setAuthMethod('options'); setErrorMsg(''); }}
-                >
-                  Sign In
-                </button>
-                <button 
-                  style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: !isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: !isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setIsLoginTab(false); setAuthMethod('options'); setErrorMsg(''); }}
-                >
-                  Create Account
-                </button>
-              </div>
+              {/* Tab Selector (only visible in root options / email form) */}
+              {authMethod !== 'google' && (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
+                  <button 
+                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setIsLoginTab(true); setAuthMethod('options'); setErrorMsg(''); }}
+                  >
+                    Sign In
+                  </button>
+                  <button 
+                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: !isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: !isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setIsLoginTab(false); setAuthMethod('options'); setErrorMsg(''); }}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              )}
 
               {errorMsg && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
@@ -196,7 +214,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                 </div>
               )}
 
-              {authMethod === 'options' ? (
+              {authMethod === 'options' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1rem 0' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', textAlign: 'center', marginBottom: '0.5rem' }}>
                     {isLoginTab ? 'Sign in to start co-browsing and hosting rooms' : 'Create an account to start hosting co-browsing rooms'}
@@ -207,7 +225,11 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                     className="btn" 
                     type="button"
                     disabled={formLoading}
-                    onClick={handleGoogleAuth} 
+                    onClick={() => {
+                      setAuthMethod('google');
+                      setGoogleStep('chooser');
+                      setErrorMsg('');
+                    }} 
                     style={{ 
                       background: '#ffffff', 
                       color: '#000000', 
@@ -219,7 +241,8 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                       borderRadius: 'var(--radius-md)',
                       fontWeight: 600,
                       width: '100%',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      cursor: 'pointer'
                     }}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24">
@@ -228,7 +251,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                       <path fill="#FBBC05" d="M5.19 14.23A7.18 7.18 0 014.8 12c0-.79.13-1.56.39-2.23V6.67H1.26A11.99 11.99 0 000 12c0 2.02.5 3.92 1.26 5.66l3.93-3.43z"/>
                       <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.8l3.43-3.43C17.96 1.08 15.24 0 12 0 7.37 0 3.32 2.66 1.26 6.67l3.93 3.43c.96-2.88 3.64-5.02 6.81-5.02z"/>
                     </svg>
-                    {formLoading ? 'Connecting...' : isLoginTab ? 'Continue with Google' : 'Sign up with Google'}
+                    {isLoginTab ? 'Continue with Google' : 'Sign up with Google'}
                   </button>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-muted)', fontSize: 'var(--text-xs)', margin: '0.5rem 0' }}>
@@ -247,7 +270,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                     {isLoginTab ? 'Use Username & Password' : 'Sign up with Username & Password'}
                   </button>
                 </div>
-              ) : (
+              )}
+
+              {authMethod === 'email' && (
                 /* Form Input elements */
                 <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -293,10 +318,281 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                   </button>
                 </form>
               )}
+
+              {authMethod === 'google' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Google Account Selector Mode */}
+                  {googleStep === 'chooser' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', textAlign: 'center' }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" style={{ marginBottom: '0.5rem' }}>
+                          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.48-1.12 2.73-2.38 3.58v3h3.84c2.25-2.07 3.54-5.12 3.54-8.4z"/>
+                          <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.84-3c-1.07.72-2.44 1.16-4.12 1.16-3.17 0-5.85-2.14-6.81-5.02H1.26v3.1A11.99 11.99 0 0012 24z"/>
+                          <path fill="#FBBC05" d="M5.19 14.23A7.18 7.18 0 014.8 12c0-.79.13-1.56.39-2.23V6.67H1.26A11.99 11.99 0 000 12c0 2.02.5 3.92 1.26 5.66l3.93-3.43z"/>
+                          <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.8l3.43-3.43C17.96 1.08 15.24 0 12 0 7.37 0 3.32 2.66 1.26 6.67l3.93 3.43c.96-2.88 3.64-5.02 6.81-5.02z"/>
+                        </svg>
+                        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-primary)' }}>Choose an account</h2>
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>to continue to <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>BrowSync</span></p>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        {MOCK_GOOGLE_ACCOUNTS.map((account) => (
+                          <button
+                            key={account.email}
+                            type="button"
+                            disabled={formLoading}
+                            onClick={() => handleGoogleSelectEmail(account.email)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '1rem',
+                              padding: '0.75rem 1rem',
+                              background: 'rgba(255, 255, 255, 0.03)',
+                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              borderRadius: 'var(--radius-md)',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              width: '100%',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!formLoading) {
+                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+                            }}
+                          >
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: account.avatarColor,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#ffffff',
+                              fontWeight: 700,
+                              fontSize: 'var(--text-sm)'
+                            }}>
+                              {account.name.charAt(0)}
+                            </div>
+                            <div style={{ flex: 1, overflow: 'hidden' }}>
+                              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)' }}>{account.name}</div>
+                              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden' }}>{account.email}</div>
+                            </div>
+                          </button>
+                        ))}
+
+                        <button
+                          type="button"
+                          disabled={formLoading}
+                          onClick={() => {
+                            setGoogleStep('custom-email');
+                            setErrorMsg('');
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            padding: '0.75rem 1rem',
+                            background: 'none',
+                            border: '1px dashed rgba(255, 255, 255, 0.15)',
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            width: '100%',
+                            color: 'var(--text-secondary)',
+                            transition: 'all 0.15s ease',
+                            marginTop: '0.25rem'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!formLoading) {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                              e.currentTarget.style.borderColor = 'var(--color-primary)';
+                              e.currentTarget.style.color = 'var(--text-primary)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'none';
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.color = 'var(--text-secondary)';
+                          }}
+                        >
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 'var(--text-sm)'
+                          }}>
+                            ➕
+                          </div>
+                          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>Use another account</div>
+                        </button>
+                      </div>
+
+                      <button 
+                        type="button" 
+                        disabled={formLoading}
+                        className="btn btn-ghost" 
+                        onClick={() => { setAuthMethod('options'); setErrorMsg(''); }}
+                        style={{ fontSize: 'var(--text-xs)', padding: '0.5rem', width: '100%', marginTop: '0.5rem' }}
+                      >
+                        ← Back to other options
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Google Custom Email Entry Mode */}
+                  {googleStep === 'custom-email' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', textAlign: 'center' }}>
+                        <svg width="32" height="32" viewBox="0 0 24 24" style={{ marginBottom: '0.5rem' }}>
+                          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.48-1.12 2.73-2.38 3.58v3h3.84c2.25-2.07 3.54-5.12 3.54-8.4z"/>
+                          <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.84-3c-1.07.72-2.44 1.16-4.12 1.16-3.17 0-5.85-2.14-6.81-5.02H1.26v3.1A11.99 11.99 0 0012 24z"/>
+                          <path fill="#FBBC05" d="M5.19 14.23A7.18 7.18 0 014.8 12c0-.79.13-1.56.39-2.23V6.67H1.26A11.99 11.99 0 000 12c0 2.02.5 3.92 1.26 5.66l3.93-3.43z"/>
+                          <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.6 4.59 1.8l3.43-3.43C17.96 1.08 15.24 0 12 0 7.37 0 3.32 2.66 1.26 6.67l3.93 3.43c.96-2.88 3.64-5.02 6.81-5.02z"/>
+                        </svg>
+                        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 600, color: 'var(--text-primary)' }}>Sign in with Google</h2>
+                        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Use your Google Account</p>
+                      </div>
+
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (googleEmail.trim()) {
+                          handleGoogleSelectEmail(googleEmail.trim().toLowerCase());
+                        }
+                      }} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Email or phone</label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="username@gmail.com"
+                            value={googleEmail}
+                            onChange={(e) => setGoogleEmail(e.target.value)}
+                            className="input-text"
+                            style={{ width: '100%' }}
+                          />
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => {
+                              setGoogleStep('chooser');
+                              setErrorMsg('');
+                            }}
+                            style={{ flex: 1, padding: '0.8rem' }}
+                          >
+                            Back
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={formLoading || !googleEmail.trim()}
+                            className="btn btn-primary"
+                            style={{ flex: 1, padding: '0.8rem' }}
+                          >
+                            {formLoading ? 'Checking...' : 'Next'}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Google Step 2: Credentials Form for new users */}
+                  {googleStep === 'credentials' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'center' }}>
+                        <div style={{ fontSize: '2.5rem' }}>🤝</div>
+                        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Finish BrowSync Setup</h2>
+                        <div style={{ 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: '0.5rem', 
+                          background: 'rgba(66, 133, 244, 0.1)', 
+                          border: '1px solid rgba(66, 133, 244, 0.2)', 
+                          padding: '0.35rem 0.75rem', 
+                          borderRadius: 'var(--radius-full)',
+                          fontSize: 'var(--text-xs)',
+                          color: '#8ab4f8',
+                          margin: '0.25rem auto 0 auto',
+                          width: 'fit-content'
+                        }}>
+                          <svg width="12" height="12" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.48-1.12 2.73-2.38 3.58v3h3.84c2.25-2.07 3.54-5.12 3.54-8.4z"/>
+                            <path fill="currentColor" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.84-3c-1.07.72-2.44 1.16-4.12 1.16-3.17 0-5.85-2.14-6.81-5.02H1.26v3.1A11.99 11.99 0 0012 24z"/>
+                            <path fill="currentColor" d="M5.19 14.23A7.18 7.18 0 014.8 12c0-.79.13-1.56.39-2.23V6.67H1.26A11.99 11.99 0 000 12c0 2.02.5 3.92 1.26 5.66l3.93-3.43z"/>
+                            <path fill="currentColor" d="M12 4.77c1.76 0 3.34.6 4.59 1.8l3.43-3.43C17.96 1.08 15.24 0 12 0 7.37 0 3.32 2.66 1.26 6.67l3.93 3.43c.96-2.88 3.64-5.02 6.81-5.02z"/>
+                          </svg>
+                          <span style={{ fontWeight: 600 }}>{googleEmail}</span>
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleGoogleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', textAlign: 'center', lineHeight: '1.5' }}>
+                          No BrowSync account exists for this Google email yet. Choose a unique Username (User ID) and Password to complete registration.
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Choose Username (User ID)</label>
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="e.g. arjun_mehta" 
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            className="input-text"
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Create Password</label>
+                          <input 
+                            type="password" 
+                            required
+                            placeholder="••••••••" 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="input-text"
+                          />
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                            Must be at least 8 characters, include 1 uppercase and 1 number
+                          </span>
+                        </div>
+
+                        <button type="submit" disabled={formLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
+                          {formLoading ? 'Completing Setup...' : 'Complete Sign Up'}
+                        </button>
+
+                        <button 
+                          type="button" 
+                          disabled={formLoading}
+                          className="btn btn-ghost" 
+                          onClick={() => { setGoogleStep('chooser'); setErrorMsg(''); }}
+                          style={{ fontSize: 'var(--text-xs)', padding: '0.5rem', width: '100%' }}
+                        >
+                          ← Choose a different Google account
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
       </main>
+
 
       {/* Highlights Grid */}
       <section style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>

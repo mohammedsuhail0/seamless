@@ -5,16 +5,16 @@ import { z } from 'zod';
 import { QualityPreset } from '../enums';
 
 export const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  displayName: z.string().min(2, 'Min 2 characters').max(50, 'Max 50 characters'),
+  email: z.string().min(3, 'Username or Email must be at least 3 characters').max(100),
+  displayName: z.string().min(2, 'Username must be at least 2 characters').max(50, 'Max 50 characters'),
   password: z.string()
-    .min(8, 'Min 8 characters')
-    .regex(/[A-Z]/, 'Must contain at least 1 uppercase letter')
-    .regex(/[0-9]/, 'Must contain at least 1 number'),
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least 1 number'),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().min(1, 'Username or Email required'),
   password: z.string().min(1, 'Password required'),
 });
 

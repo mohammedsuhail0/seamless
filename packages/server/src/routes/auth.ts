@@ -31,16 +31,24 @@ router.post('/register', async (req, res) => {
 
     const { email, displayName, password } = parseResult.data;
 
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    // Check if email/username already exists
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: email.toLowerCase() },
+          { displayName: displayName }
+        ]
+      }
     });
 
     if (existingUser) {
+      const isEmailConflict = existingUser.email.toLowerCase() === email.toLowerCase();
       return res.status(409).json({
         error: {
           code: 'CONFLICT',
-          message: 'Email is already registered',
+          message: isEmailConflict 
+            ? 'Email / Username identifier is already registered' 
+            : 'Username is already taken. Please choose another.',
         },
       });
     }
@@ -125,11 +133,16 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const { email, password } = parseResult.data;
+    const { email: emailOrUsername, password } = parseResult.data;
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+    // Find user by email or username (displayName)
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: emailOrUsername.toLowerCase() },
+          { displayName: emailOrUsername }
+        ]
+      }
     });
 
     if (!user) {
@@ -196,6 +209,86 @@ router.post('/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('❌ Login error:', error);
+    return res.status(500).json({
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong on the server',
+      },
+    });
+  }
+});
+
+// POST /api/auth/google-login - Passwordless Google Login (Mock OAuth entry)
+router.post('/google-login', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Google Email identifier required',
+        },
+      });
+    }
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        error: {
+          code: 'NOT_FOUND',
+          message: 'No BrowSync account registered with this Google email. Please Sign Up first.',
+        },
+      });
+    }
+
+    // Generate tokens
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    // Save session in PG
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token: accessToken,
+        refreshToken,
+        expiresAt,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    // Cache session in Redis
+    const sessionKey = RedisKeys.session(accessToken);
+    await redis.hset(sessionKey, {
+      userId: user.id,
+      displayName: user.displayName,
+      email: user.email,
+      createdAt: user.createdAt.toISOString(),
+    });
+    await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error: any) {
+    console.error('❌ Google login error:', error);
     return res.status(500).json({
       error: {
         code: 'INTERNAL_ERROR',
