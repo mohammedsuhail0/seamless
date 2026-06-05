@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/auth';
 import { Tv, Shield, Zap, Sparkles, ArrowRight } from 'lucide-react';
 
 interface LandingProps {
-  onNavigate: (page: 'dashboard' | 'room', contextCode?: string) => void;
+  onNavigate: (page: 'landing' | 'onboarding' | 'dashboard' | 'room', contextCode?: string) => void;
   setAuthContext: any;
 }
 
@@ -17,12 +17,12 @@ const MOCK_GOOGLE_ACCOUNTS = [
 ];
 
 export function Landing({ onNavigate, setAuthContext }: LandingProps) {
-  const { user, login, register, googleLogin, isAuthenticated, logout } = useAuthStore();
+  const { user, login, register, googleCallback, isAuthenticated, logout } = useAuthStore();
   
   // Auth Form tabs state
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [authMethod, setAuthMethod] = useState<'options' | 'email' | 'google'>('options');
-  const [googleStep, setGoogleStep] = useState<'chooser' | 'custom-email' | 'credentials'>('chooser');
+  const [googleStep, setGoogleStep] = useState<'chooser' | 'custom-email'>('chooser');
   const [googleEmail, setGoogleEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -66,46 +66,23 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
     setErrorMsg('');
     setFormLoading(true);
     try {
-      // Attempt login passwordlessly for returning Google user
-      const loggedUser = await googleLogin(email.toLowerCase());
-      setAuthContext(loggedUser);
-      onNavigate('dashboard');
-    } catch (err: any) {
-      // If user profile is not found, transition to Step 2 to set up credentials
-      if (err.error?.code === 'NOT_FOUND') {
-        setGoogleEmail(email.toLowerCase());
-        setGoogleStep('credentials');
-        
-        // Suggest a username based on email
-        const suggestedName = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-        setUsername(suggestedName);
-      } else {
-        setErrorMsg(err.error?.message || 'Google Authentication demo failed.');
+      // Simulate ID Token for mock selector
+      const mockIdToken = `mock_id_token_${email.toLowerCase()}`;
+      const result = await googleCallback(mockIdToken);
+      
+      if (result.status === 'AUTHENTICATED') {
+        setAuthContext(result.user);
+        onNavigate('dashboard');
+      } else if (result.status === 'ONBOARDING_REQUIRED') {
+        onNavigate('onboarding');
       }
+    } catch (err: any) {
+      setErrorMsg(err.error?.message || 'Google Authentication failed.');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleGoogleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    setFormLoading(true);
-    try {
-      // Register user: email = googleEmail, displayName = username, password = password
-      const registeredUser = await register(googleEmail.toLowerCase(), username.trim(), password);
-      setAuthContext(registeredUser);
-      onNavigate('dashboard');
-    } catch (err: any) {
-      let msg = err.error?.message || 'Registration failed.';
-      if (msg.toLowerCase().includes('email')) {
-        msg = msg.replace(/email/ig, 'Username');
-      }
-      setErrorMsg(msg);
-    } finally {
-      setFormLoading(false);
-    }
-  };
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -508,84 +485,6 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                     </div>
                   )}
 
-                  {/* Google Step 2: Credentials Form for new users */}
-                  {googleStep === 'credentials' && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '2.5rem' }}>🤝</div>
-                        <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>Finish BrowSync Setup</h2>
-                        <div style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          gap: '0.5rem', 
-                          background: 'rgba(66, 133, 244, 0.1)', 
-                          border: '1px solid rgba(66, 133, 244, 0.2)', 
-                          padding: '0.35rem 0.75rem', 
-                          borderRadius: 'var(--radius-full)',
-                          fontSize: 'var(--text-xs)',
-                          color: '#8ab4f8',
-                          margin: '0.25rem auto 0 auto',
-                          width: 'fit-content'
-                        }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.9h6.6c-.28 1.48-1.12 2.73-2.38 3.58v3h3.84c2.25-2.07 3.54-5.12 3.54-8.4z"/>
-                            <path fill="currentColor" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-3.84-3c-1.07.72-2.44 1.16-4.12 1.16-3.17 0-5.85-2.14-6.81-5.02H1.26v3.1A11.99 11.99 0 0012 24z"/>
-                            <path fill="currentColor" d="M5.19 14.23A7.18 7.18 0 014.8 12c0-.79.13-1.56.39-2.23V6.67H1.26A11.99 11.99 0 000 12c0 2.02.5 3.92 1.26 5.66l3.93-3.43z"/>
-                            <path fill="currentColor" d="M12 4.77c1.76 0 3.34.6 4.59 1.8l3.43-3.43C17.96 1.08 15.24 0 12 0 7.37 0 3.32 2.66 1.26 6.67l3.93 3.43c.96-2.88 3.64-5.02 6.81-5.02z"/>
-                          </svg>
-                          <span style={{ fontWeight: 600 }}>{googleEmail}</span>
-                        </div>
-                      </div>
-
-                      <form onSubmit={handleGoogleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', textAlign: 'center', lineHeight: '1.5' }}>
-                          No BrowSync account exists for this Google email yet. Choose a unique Username (User ID) and Password to complete registration.
-                        </p>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Choose Username (User ID)</label>
-                          <input 
-                            type="text" 
-                            required
-                            placeholder="e.g. arjun_mehta" 
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            className="input-text"
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                          <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Create Password</label>
-                          <input 
-                            type="password" 
-                            required
-                            placeholder="••••••••" 
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="input-text"
-                          />
-                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                            Must be at least 8 characters, include 1 uppercase and 1 number
-                          </span>
-                        </div>
-
-                        <button type="submit" disabled={formLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
-                          {formLoading ? 'Completing Setup...' : 'Complete Sign Up'}
-                        </button>
-
-                        <button 
-                          type="button" 
-                          disabled={formLoading}
-                          className="btn btn-ghost" 
-                          onClick={() => { setGoogleStep('chooser'); setErrorMsg(''); }}
-                          style={{ fontSize: 'var(--text-xs)', padding: '0.5rem', width: '100%' }}
-                        >
-                          ← Choose a different Google account
-                        </button>
-                      </form>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

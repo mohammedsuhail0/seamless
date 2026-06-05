@@ -16,6 +16,8 @@ export function useAuthStore() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
+  const [tempGoogleSession, setTempGoogleSession] = useState<{ email: string; tempToken: string } | null>(null);
+
   // Sync user profile from local cache on start
   useEffect(() => {
     const cachedUser = localStorage.getItem('browsync_user');
@@ -73,6 +75,44 @@ export function useAuthStore() {
     }
   };
 
+  const googleCallback = async (idToken: string) => {
+    setLoading(true);
+    try {
+      const data = await api.post('/api/auth/google-callback', { idToken });
+      
+      if (data.status === 'AUTHENTICATED') {
+        localStorage.setItem('browsync_access_token', data.accessToken);
+        localStorage.setItem('browsync_refresh_token', data.refreshToken);
+        localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        setUser(data.user);
+        setTempGoogleSession(null);
+      } else if (data.status === 'ONBOARDING_REQUIRED') {
+        setTempGoogleSession(data.tempSession);
+      }
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const googleOnboard = async (username: string, password: string, tempToken: string) => {
+    setLoading(true);
+    try {
+      const data = await api.post('/api/auth/google-onboard', { username, password, tempToken });
+      
+      if (data.status === 'AUTHENTICATED') {
+        localStorage.setItem('browsync_access_token', data.accessToken);
+        localStorage.setItem('browsync_refresh_token', data.refreshToken);
+        localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        setUser(data.user);
+        setTempGoogleSession(null);
+      }
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     setLoading(true);
     try {
@@ -84,6 +124,7 @@ export function useAuthStore() {
       localStorage.removeItem('browsync_refresh_token');
       localStorage.removeItem('browsync_user');
       setUser(null);
+      setTempGoogleSession(null);
       setLoading(false);
     }
   };
@@ -91,10 +132,14 @@ export function useAuthStore() {
   return {
     user,
     loading,
+    tempGoogleSession,
     isAuthenticated: !!user,
     login,
     register,
     googleLogin,
+    googleCallback,
+    googleOnboard,
     logout,
   };
 }
+
