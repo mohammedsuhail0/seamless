@@ -495,7 +495,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
       onTouchStart={resetControlsTimeout}
-      style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0a0e27' }}
+      style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: '#0a0e27' }}
     >
       
       {/* Dynamic Floating reactions container */}
@@ -521,17 +521,15 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           alignItems: 'center', 
           padding: '0.75rem 1.5rem', 
           borderBottom: '1px solid var(--border-default)',
-          ...(isFullscreen ? {
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 30,
-            transition: 'opacity 0.3s ease, transform 0.3s ease',
-            opacity: showControls ? 1 : 0,
-            transform: showControls ? 'translateY(0)' : 'translateY(-100%)',
-            pointerEvents: showControls ? 'auto' : 'none',
-          } : {})
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 30,
+          transition: 'opacity 0.3s ease, transform 0.3s ease',
+          opacity: showControls ? 1 : 0,
+          transform: showControls ? 'translateY(0)' : 'translateY(-100%)',
+          pointerEvents: showControls ? 'auto' : 'none',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -560,7 +558,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </header>
 
       {/* Main split work area */}
-      <div className="room-content" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="room-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
         
         {/* Left Side: Stream Viewer */}
         <div className="stream-column" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#02040e' }}>
@@ -581,7 +579,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               alignItems: 'center', 
               justifyContent: 'center', 
               position: 'relative', 
-              padding: isFullscreen ? '0' : '1rem',
+              padding: 0,
               background: '#000000',
             }}
           >
@@ -646,17 +644,15 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               alignItems: 'center', 
               padding: '0.75rem 1.5rem', 
               borderTop: '1px solid var(--border-default)',
-              ...(isFullscreen ? {
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                zIndex: 30,
-                transition: 'opacity 0.3s ease, transform 0.3s ease',
-                opacity: showControls ? 1 : 0,
-                transform: showControls ? 'translateY(0)' : 'translateY(100%)',
-                pointerEvents: showControls ? 'auto' : 'none',
-              } : {})
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              zIndex: 30,
+              transition: 'opacity 0.3s ease, transform 0.3s ease',
+              opacity: showControls ? 1 : 0,
+              transform: showControls ? 'translateY(0)' : 'translateY(100%)',
+              pointerEvents: showControls ? 'auto' : 'none',
             }}
           >
             <div style={{ display: 'flex', gap: '1rem' }}>
@@ -743,7 +739,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               display: 'flex', 
               flexDirection: 'column', 
               overflow: 'hidden',
-              paddingTop: isFullscreen ? '60px' : '0',
+              paddingTop: '60px',
             }}
           >
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
