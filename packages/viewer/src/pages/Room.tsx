@@ -54,6 +54,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [showChat, setShowChat] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [videoFit, setVideoFit] = useState<'contain' | 'cover' | 'fill'>('contain');
  
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -279,6 +280,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     } else {
       alert('Fullscreen is not supported on this browser/device.');
     }
+  };
+
+  const cycleVideoFit = () => {
+    setVideoFit((prev) => {
+      if (prev === 'contain') return 'cover';
+      if (prev === 'cover') return 'fill';
+      return 'contain';
+    });
   };
 
   useEffect(() => {
@@ -596,7 +605,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 style={{
                   width: '100%',
                   height: '100%',
-                  objectFit: 'contain',
+                  objectFit: videoFit,
                   borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
                   outline: 'none',
                   cursor: isMeInControl ? 'crosshair' : 'default',
@@ -703,6 +712,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 title={showChat ? "Hide Chat" : "Show Chat"}
               >
                 <MessageSquare size={16} />
+              </button>
+              <button 
+                className="btn btn-ghost" 
+                style={{ padding: '0.4rem 0.6rem', fontSize: 'var(--text-xs)', fontWeight: 'bold', minWidth: '70px' }} 
+                onClick={cycleVideoFit}
+                title={`Current fit mode: ${videoFit.toUpperCase()}`}
+              >
+                {videoFit === 'contain' ? '📺 Fit' : videoFit === 'cover' ? '🔍 Zoom' : '↔️ Stretch'}
               </button>
               <button 
                 className="btn btn-ghost" 
