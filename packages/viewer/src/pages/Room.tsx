@@ -305,7 +305,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
-    if (document.fullscreenElement) {
+    if (!showChat) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
       }, 3000);
@@ -313,7 +313,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   };
 
   useEffect(() => {
-    if (isFullscreen) {
+    if (!showChat) {
       resetControlsTimeout();
     } else {
       setShowControls(true);
@@ -326,7 +326,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         clearTimeout(controlsTimeoutRef.current);
       }
     };
-  }, [isFullscreen]);
+  }, [showChat]);
 
   const isMeInControl =
     !!currentController &&
@@ -482,9 +482,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     if (target.closest('.room-header') || target.closest('.room-footer') || target.closest('.chat-drawer')) {
       return;
     }
-    if (document.fullscreenElement) {
-      setShowControls(prev => !prev);
-    }
+    setShowControls(prev => !prev);
     resetControlsTimeout();
   };
 
@@ -601,6 +599,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 onKeyUp={handleKeyUp}
                 className={isMeInControl ? 'glow-active' : ''}
                 style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
                   width: '100%',
                   height: '100%',
                   objectFit: videoFit,
