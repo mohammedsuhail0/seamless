@@ -3,13 +3,12 @@
 
 import { useState, useEffect } from 'react';
 import { Landing } from './pages/Landing';
-import { Onboarding } from './pages/Onboarding';
 import { Dashboard } from './pages/Dashboard';
 import { Room } from './pages/Room';
 import './index.css';
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<'landing' | 'onboarding' | 'dashboard' | 'room'>('landing');
+  const [currentPage, setCurrentPage] = useState<'landing' | 'dashboard' | 'room'>('landing');
   const [currentRoomCode, setCurrentRoomCode] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<any | null>(null);
 
@@ -31,7 +30,7 @@ export default function App() {
     }
   }, []);
 
-  const handleNavigate = (page: 'landing' | 'onboarding' | 'dashboard' | 'room', contextCode?: string) => {
+  const handleNavigate = (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => {
     if (page === 'room' && contextCode) {
       setCurrentRoomCode(contextCode);
     }
@@ -45,13 +44,6 @@ export default function App() {
         <Dashboard 
           userContext={userContext} 
           onNavigate={handleNavigate} 
-        />
-      );
-    case 'onboarding':
-      return (
-        <Onboarding
-          setAuthContext={setUserContext}
-          onNavigate={handleNavigate}
         />
       );
     case 'room':
@@ -72,4 +64,3 @@ export default function App() {
       );
   }
 }
-
