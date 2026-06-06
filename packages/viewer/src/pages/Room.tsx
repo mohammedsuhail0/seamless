@@ -235,6 +235,20 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     role,
   });
 
+  const handleStartCapture = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      alert("📺 Screen sharing is not supported on mobile devices. Please log in from a desktop browser (like Chrome, Edge, or Safari on Windows/macOS) to host and share your screen.");
+      return;
+    }
+    try {
+      await startCapture();
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        alert("Failed to start screen capture: " + (err?.message || err));
+      }
+    }
+  };
+
   // Attach stream to video tag
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -648,7 +662,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               {role === MemberRole.HOST && (
                 <button 
                   className={`btn ${stream ? 'btn-secondary' : 'btn-primary'}`} 
-                  onClick={stream ? stopCapture : startCapture}
+                  onClick={stream ? stopCapture : handleStartCapture}
                   style={{ width: 'auto', paddingInline: '0.75rem' }}
                 >
                   📡 <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
