@@ -9,9 +9,10 @@ import { Plus, Film, History, Calendar, Users, Clock, LogOut, Copy, Check } from
 interface DashboardProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   userContext: any;
+  setAuthContext?: (user: any | null) => void;
 }
 
-export function Dashboard({ onNavigate, userContext }: DashboardProps) {
+export function Dashboard({ onNavigate, userContext, setAuthContext }: DashboardProps) {
   const { logout } = useAuthStore();
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -90,6 +91,7 @@ export function Dashboard({ onNavigate, userContext }: DashboardProps) {
 
   const triggerLogout = async () => {
     await logout();
+    setAuthContext?.(null);
     onNavigate('landing');
   };
 

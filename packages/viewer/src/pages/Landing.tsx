@@ -179,7 +179,16 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Hi, {user?.displayName}</span>
               <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>Dashboard</button>
-              <button className="btn btn-ghost" onClick={logout}>Logout</button>
+              <button
+                className="btn btn-ghost"
+                onClick={async () => {
+                  await logout();
+                  setAuthContext(null);
+                  onNavigate('landing');
+                }}
+              >
+                Logout
+              </button>
             </div>
           ) : (
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>🍿 Ready for showtime!</span>

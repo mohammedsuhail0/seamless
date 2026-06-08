@@ -44,6 +44,7 @@ export default function App() {
         <Dashboard 
           userContext={userContext} 
           onNavigate={handleNavigate} 
+          setAuthContext={setUserContext}
         />
       );
     case 'room':
