@@ -18,13 +18,33 @@ export function useAuthStore() {
 
   const [tempGoogleSession, setTempGoogleSession] = useState<{ email: string; tempToken: string } | null>(null);
 
-  // Sync user profile from local cache on start
+  // Sync and validate user profile from local cache on start.
   useEffect(() => {
-    const cachedUser = localStorage.getItem('browsync_user');
-    if (cachedUser) {
-      setUser(JSON.parse(cachedUser));
-    }
-    setLoading(false);
+    const hydrateSession = async () => {
+      const cachedUser = localStorage.getItem('browsync_user');
+      const accessToken = localStorage.getItem('browsync_access_token');
+
+      if (!cachedUser || !accessToken) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const parsedUser = JSON.parse(cachedUser);
+        const profile = await api.get<UserProfile>('/api/auth/me');
+        setUser(profile || parsedUser);
+      } catch (err) {
+        localStorage.removeItem('browsync_access_token');
+        localStorage.removeItem('browsync_refresh_token');
+        localStorage.removeItem('browsync_user');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    hydrateSession();
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -142,4 +162,3 @@ export function useAuthStore() {
     logout,
   };
 }
-
