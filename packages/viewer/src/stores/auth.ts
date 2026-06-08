@@ -12,6 +12,8 @@ export interface UserProfile {
   createdAt: string;
 }
 
+const GOOGLE_TEMP_SESSION_KEY = 'browsync_google_temp_session';
+
 export function useAuthStore() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -21,6 +23,15 @@ export function useAuthStore() {
   // Sync and validate user profile from local cache on start.
   useEffect(() => {
     const hydrateSession = async () => {
+      const cachedTemp = sessionStorage.getItem(GOOGLE_TEMP_SESSION_KEY);
+      if (cachedTemp) {
+        try {
+          setTempGoogleSession(JSON.parse(cachedTemp));
+        } catch {
+          sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
+        }
+      }
+
       const cachedUser = localStorage.getItem('browsync_user');
       const accessToken = localStorage.getItem('browsync_access_token');
 
@@ -104,9 +115,11 @@ export function useAuthStore() {
         localStorage.setItem('browsync_access_token', data.accessToken);
         localStorage.setItem('browsync_refresh_token', data.refreshToken);
         localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
         setUser(data.user);
         setTempGoogleSession(null);
       } else if (data.status === 'ONBOARDING_REQUIRED') {
+        sessionStorage.setItem(GOOGLE_TEMP_SESSION_KEY, JSON.stringify(data.tempSession));
         setTempGoogleSession(data.tempSession);
       }
       return data;
@@ -124,6 +137,7 @@ export function useAuthStore() {
         localStorage.setItem('browsync_access_token', data.accessToken);
         localStorage.setItem('browsync_refresh_token', data.refreshToken);
         localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
         setUser(data.user);
         setTempGoogleSession(null);
       }
@@ -143,6 +157,7 @@ export function useAuthStore() {
       localStorage.removeItem('browsync_access_token');
       localStorage.removeItem('browsync_refresh_token');
       localStorage.removeItem('browsync_user');
+      sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
       setUser(null);
       setTempGoogleSession(null);
       setLoading(false);

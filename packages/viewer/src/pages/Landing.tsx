@@ -147,6 +147,12 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
     }
   };
 
+  useEffect(() => {
+    if (tempGoogleSession) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [tempGoogleSession]);
+
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
     if (roomCode.length !== 6) {
@@ -229,9 +235,21 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             </div>
           ) : (
             <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {tempGoogleSession && (
+                <div style={{ background: 'rgba(59, 130, 246, 0.10)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800 }}>
+                    <Chrome size={16} />
+                    Finish Google sign-up
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your BrowSync profile.
+                  </div>
+                </div>
+              )}
               
               {/* Tab Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
+              {!tempGoogleSession && (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
                 <button 
                   style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
                   onClick={() => { setIsLoginTab(true); setErrorMsg(''); }}
@@ -245,6 +263,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                   Create Account
                 </button>
               </div>
+              )}
 
               {errorMsg && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
