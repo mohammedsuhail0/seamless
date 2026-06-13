@@ -58,6 +58,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [videoFit, setVideoFit] = useState<'contain' | 'cover' | 'fill'>('contain');
+  const [videoPlaying, setVideoPlaying] = useState(false);
  
   // References
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -276,9 +277,16 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
       videoRef.current.muted = isMuted; // Sync with state to satisfy browser autoplay policies or user volume changes
-      videoRef.current.play().catch((err) => {
-        console.warn('⚠️ Autoplay prevented by browser:', err);
-      });
+      videoRef.current.play()
+        .then(() => {
+          setVideoPlaying(true);
+        })
+        .catch((err) => {
+          console.warn('⚠️ Autoplay prevented by browser:', err);
+          setVideoPlaying(false);
+        });
+    } else {
+      setVideoPlaying(false);
     }
   }, [stream, isMuted]);
 
@@ -641,32 +649,85 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               <span>🔄 Rotate phone for larger theater view</span>
             </div>
             {stream ? (
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted={isMuted}
-                tabIndex={0} // capture keyup/keydown events
-                onMouseMove={handleMouseMove}
-                onMouseDown={handleMouseDown}
-                onMouseUp={handleMouseUp}
-                onKeyDown={handleKeyDown}
-                onKeyUp={handleKeyUp}
-                className={isMeInControl ? 'glow-active' : ''}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  objectFit: videoFit,
-                  borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
-                  outline: 'none',
-                  cursor: isMeInControl ? 'crosshair' : 'default',
-                  border: isMeInControl ? '3px solid var(--color-primary)' : 'none',
-                  boxShadow: isFullscreen ? 'none' : '0 10px 40px rgba(0,0,0,0.6)',
-                }}
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted={isMuted}
+                  tabIndex={0} // capture keyup/keydown events
+                  onMouseMove={handleMouseMove}
+                  onMouseDown={handleMouseDown}
+                  onMouseUp={handleMouseUp}
+                  onKeyDown={handleKeyDown}
+                  onKeyUp={handleKeyUp}
+                  onPlay={() => setVideoPlaying(true)}
+                  onPause={() => setVideoPlaying(false)}
+                  className={isMeInControl ? 'glow-active' : ''}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: videoFit,
+                    borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
+                    outline: 'none',
+                    cursor: isMeInControl ? 'crosshair' : 'default',
+                    border: isMeInControl ? '3px solid var(--color-primary)' : 'none',
+                    boxShadow: isFullscreen ? 'none' : '0 10px 40px rgba(0,0,0,0.6)',
+                  }}
+                />
+                {!videoPlaying && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(10, 14, 39, 0.75)',
+                      backdropFilter: 'blur(10px)',
+                      WebkitBackdropFilter: 'blur(10px)',
+                      zIndex: 20,
+                      cursor: 'pointer',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (videoRef.current) {
+                        videoRef.current.play().catch(err => console.warn('Play attempt failed:', err));
+                      }
+                    }}
+                  >
+                    <div 
+                      className="glass"
+                      style={{
+                        padding: '1.75rem 2.5rem',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        boxShadow: 'var(--shadow-lg)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        textAlign: 'center',
+                        maxWidth: '280px',
+                      }}
+                    >
+                      <span style={{ fontSize: '3rem' }}>🍿</span>
+                      <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Host is Sharing Screen
+                      </h3>
+                      <button className="btn btn-primary" style={{ width: '100%', paddingInline: '1.5rem', fontSize: 'var(--text-xs)' }}>
+                        Click to Play Stream
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : role === MemberRole.HOST ? (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎬</div>

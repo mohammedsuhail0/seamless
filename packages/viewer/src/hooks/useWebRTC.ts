@@ -25,12 +25,22 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const activeViewersRef = useRef<Set<string>>(new Set());
+  const pendingIceCandidatesHostRef = useRef<Map<string, any[]>>(new Map());
 
-  // STUN servers configuration
+  // STUN/TURN servers configuration
   const iceConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      {
+        urls: [
+          'turn:openrelay.metered.ca:80',
+          'turn:openrelay.metered.ca:443',
+          'turn:openrelay.metered.ca:443?transport=tcp',
+        ],
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
     ],
   };
 
@@ -38,7 +48,18 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const ensurePeerForViewer = async (viewerId: string) => {
     const localStream = localStreamRef.current;
     if (!localStream) return;
-    if (peerConnectionsRef.current.has(viewerId)) return;
+
+    // If a connection already exists, verify it's still alive/active. If closed/failed, recreate it.
+    const existingPc = peerConnectionsRef.current.get(viewerId);
+    if (existingPc) {
+      if (existingPc.connectionState !== 'failed' && existingPc.connectionState !== 'closed') {
+        return;
+      }
+      console.log(`📡 Recreating failed/closed peer connection for viewer: ${viewerId}`);
+      try { existingPc.close(); } catch (e) {}
+      peerConnectionsRef.current.delete(viewerId);
+      pendingIceCandidatesHostRef.current.delete(viewerId);
+    }
 
     try {
       console.log(`📡 Establishing peer connection for viewer: ${viewerId}`);
@@ -150,6 +171,20 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           try {
             console.log('📬 RTC Answer received from Viewer:', payload.senderUserId);
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+
+            // Process any queued candidates for this viewer
+            const queuedCandidates = pendingIceCandidatesHostRef.current.get(payload.senderUserId);
+            if (queuedCandidates && queuedCandidates.length > 0) {
+              while (queuedCandidates.length > 0) {
+                const cand = queuedCandidates.shift();
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(cand));
+                  console.log(`✅ Added queued ICE candidate for viewer ${payload.senderUserId} successfully`);
+                } catch (err) {
+                  console.error(`❌ Failed to add queued ICE Candidate for viewer ${payload.senderUserId}:`, err);
+                }
+              }
+            }
           } catch (err) {
             console.error('❌ Failed to set RTC Answer:', err);
           }
@@ -160,7 +195,15 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         const pc = peerConnectionsRef.current.get(payload.senderUserId);
         if (pc) {
           try {
-            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } else {
+              console.log(`⏳ Remote description not set yet for viewer ${payload.senderUserId}. Queueing ICE candidate.`);
+              if (!pendingIceCandidatesHostRef.current.has(payload.senderUserId)) {
+                pendingIceCandidatesHostRef.current.set(payload.senderUserId, []);
+              }
+              pendingIceCandidatesHostRef.current.get(payload.senderUserId)!.push(payload.candidate);
+            }
           } catch (err) {
             console.error('❌ Failed to add ICE Candidate for viewer:', err);
           }
@@ -185,6 +228,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
             console.log(`👤 Viewer left: ${payload.userId}. Disconnecting peer...`);
             try { pc.close(); } catch (e) {}
             peerConnectionsRef.current.delete(payload.userId);
+            pendingIceCandidatesHostRef.current.delete(payload.userId);
           }
         }
       };
@@ -209,6 +253,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
               console.log(`Pruning stale peer connection for: ${viewerId}`);
               try { pc.close(); } catch (e) {}
               peerConnectionsRef.current.delete(viewerId);
+              pendingIceCandidatesHostRef.current.delete(viewerId);
             }
           });
         }
@@ -236,50 +281,67 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           try { pc.close(); } catch (e) {}
         });
         peerConnectionsRef.current.clear();
+        pendingIceCandidatesHostRef.current.clear();
         setStream(null);
       };
     } else {
       // Viewer-specific signaling events
-      const pc = new RTCPeerConnection(iceConfig);
-      peerConnectionRef.current = pc;
-
-      pc.oniceconnectionstatechange = () => {
-        setConnectionState(pc.iceConnectionState);
-        console.log('📡 WebRTC ICE Connection State Changed:', pc.iceConnectionState);
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          if (!hostUserIdRef.current) return;
-          socket.emit(SOCKET_EVENTS.RTC_ICE_CANDIDATE, {
-            targetUserId: hostUserIdRef.current,
-            candidate: event.candidate,
-          });
-        }
-      };
-
-      pc.ontrack = (event) => {
-        console.log('📺 Stream track received successfully');
-        if (event.streams && event.streams[0]) {
-          setStream(event.streams[0]);
-        }
-      };
-
-      pc.ondatachannel = (event) => {
-        const channel = event.channel;
-        console.log(`🔀 WebRTC Data Channel received: label=${channel.label}`);
-        
-        if (channel.label === 'input') {
-          inputChannelRef.current = channel;
-        } else if (channel.label === 'control') {
-          controlChannelRef.current = channel;
-        }
-      };
+      const pendingIceCandidatesRef = { current: [] as any[] };
 
       const handleOffer = async (payload: { senderUserId: string; sdp: any }) => {
         try {
-          console.log('📬 WebRTC Offer received from Host');
+          console.log('📬 WebRTC Offer received from Host. Creating fresh peer connection.');
           hostUserIdRef.current = payload.senderUserId;
+
+          // Close any existing connection first
+          if (peerConnectionRef.current) {
+            try { peerConnectionRef.current.close(); } catch (e) {}
+            peerConnectionRef.current = null;
+          }
+
+          const pc = new RTCPeerConnection(iceConfig);
+          peerConnectionRef.current = pc;
+
+          pc.oniceconnectionstatechange = () => {
+            setConnectionState(pc.iceConnectionState);
+            console.log('📡 WebRTC ICE Connection State Changed:', pc.iceConnectionState);
+            if (pc.iceConnectionState === 'disconnected' || 
+                pc.iceConnectionState === 'failed' || 
+                pc.iceConnectionState === 'closed') {
+              setStream(null);
+            }
+          };
+
+          pc.onicecandidate = (event) => {
+            if (event.candidate) {
+              if (!hostUserIdRef.current) return;
+              socket.emit(SOCKET_EVENTS.RTC_ICE_CANDIDATE, {
+                targetUserId: hostUserIdRef.current,
+                candidate: event.candidate,
+              });
+            }
+          };
+
+          pc.ontrack = (event) => {
+            console.log('📺 Stream track received successfully');
+            if (event.streams && event.streams[0]) {
+              setStream(event.streams[0]);
+            } else {
+              setStream(new MediaStream([event.track]));
+            }
+          };
+
+          pc.ondatachannel = (event) => {
+            const channel = event.channel;
+            console.log(`🔀 WebRTC Data Channel received: label=${channel.label}`);
+            
+            if (channel.label === 'input') {
+              inputChannelRef.current = channel;
+            } else if (channel.label === 'control') {
+              controlChannelRef.current = channel;
+            }
+          };
+
           await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
           
           const answer = await pc.createAnswer();
@@ -289,6 +351,17 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
             targetUserId: payload.senderUserId,
             sdp: answer,
           });
+
+          // Process queued candidates
+          while (pendingIceCandidatesRef.current.length > 0) {
+            const cand = pendingIceCandidatesRef.current.shift();
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+              console.log('✅ Added queued ICE candidate successfully');
+            } catch (err) {
+              console.error('❌ Failed to add queued ICE Candidate:', err);
+            }
+          }
         } catch (err) {
           console.error('❌ Failed to handle RTC Offer:', err);
         }
@@ -296,7 +369,13 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
 
       const handleIceCandidateViewer = async (payload: { senderUserId: string; candidate: any }) => {
         try {
-          await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          const pc = peerConnectionRef.current;
+          if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } else {
+            console.log('⏳ Remote description not set yet. Queueing ICE candidate.');
+            pendingIceCandidatesRef.current.push(payload.candidate);
+          }
         } catch (err) {
           console.error('❌ Failed to add ICE Candidate:', err);
         }
@@ -309,8 +388,10 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         socket.off(SOCKET_EVENTS.RTC_OFFER, handleOffer);
         socket.off(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateViewer);
         
-        pc.close();
-        peerConnectionRef.current = null;
+        if (peerConnectionRef.current) {
+          try { peerConnectionRef.current.close(); } catch (e) {}
+          peerConnectionRef.current = null;
+        }
         hostUserIdRef.current = null;
         setStream(null);
       };
