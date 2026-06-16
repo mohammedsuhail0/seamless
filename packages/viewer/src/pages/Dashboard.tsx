@@ -4,13 +4,42 @@
 import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { useAuthStore } from '../stores/auth';
-import { Plus, Film, History, Calendar, Users, Clock, LogOut, Copy, Check } from 'lucide-react';
+import { 
+  Plus, 
+  Film, 
+  Users, 
+  Clock, 
+  LogOut, 
+  Copy, 
+  Check, 
+  Ticket, 
+  Settings 
+} from 'lucide-react';
 
 interface DashboardProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   userContext: any;
   setAuthContext?: (user: any | null) => void;
 }
+
+const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
+    <defs>
+      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#9A7A35" />
+        <stop offset="25%" stopColor="#EAC775" />
+        <stop offset="50%" stopColor="#BE9648" />
+        <stop offset="75%" stopColor="#FDF1A9" />
+        <stop offset="100%" stopColor="#A1813C" />
+      </linearGradient>
+    </defs>
+    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
+    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export function Dashboard({ onNavigate, userContext, setAuthContext }: DashboardProps) {
   const { logout } = useAuthStore();
@@ -29,6 +58,13 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
   // Newly created room details
   const [createdRoom, setCreatedRoom] = useState<any | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Range slider capacity and navigation tab states
+  const [capacity, setCapacity] = useState(8);
+  const [activeTab, setActiveTab] = useState('suites');
+  const [showCinemaModal, setShowCinemaModal] = useState(false);
+  const [showSocialModal, setShowSocialModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Fetch hosted room history on load
   const fetchHistory = async () => {
@@ -96,213 +132,465 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
   };
 
   return (
-    <div style={{ minHeight: '100vh', position: 'relative' }}>
-      <div className="radial-glow" style={{ top: '-10%', right: '-10%' }} />
+    <div className="dashboard-page-root" style={{ position: 'relative' }}>
+      <div className="radial-glow" style={{ top: '-10%', right: '-10%', background: 'radial-gradient(circle, rgba(197, 168, 92, 0.08) 0%, rgba(0,0,0,0) 70%)' }} />
+      <div className="radial-glow" style={{ bottom: '-10%', left: '-10%', background: 'radial-gradient(circle, rgba(229, 9, 20, 0.05) 0%, rgba(0,0,0,0) 70%)' }} />
 
       {/* Header */}
-      <header className="glass dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
+      <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', background: '#000000', borderBottom: '1px solid rgba(197, 168, 92, 0.15)', position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
-          <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.5))' }}>
-            <defs>
-              <linearGradient id="logo-grad-dash" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#A855F7" />
-                <stop offset="100%" stopColor="#EC4899" />
-              </linearGradient>
-              <mask id="lightning-mask-dash">
-                <rect x="0" y="0" width="36" height="36" fill="white" />
-                <path d="M19 7 L10 19 H18 L14 29 L26 15 H17 L19 7 Z" fill="black" />
-              </mask>
-            </defs>
-            <path d="M8 5 L30 18 L8 31 Z" fill="url(#logo-grad-dash)" mask="url(#lightning-mask-dash)" />
-          </svg>
-          <span style={{ fontWeight: 800, fontSize: '1.35rem', letterSpacing: '0.5px', background: 'linear-gradient(to right, #A855F7, #EC4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Hypersync</span>
+          <GoldLogoSVG size={34} />
+          <span style={{ fontWeight: 700, fontSize: '1.35rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>Patron Lounge</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: 'var(--radius-full)', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-              {userContext?.displayName ? userContext.displayName[0].toUpperCase() : 'A'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1.5px solid var(--color-gold)', background: 'rgba(197, 168, 92, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--color-gold)', fontSize: 'var(--text-sm)' }}>
+              {userContext?.displayName ? userContext.displayName.slice(0, 2).toUpperCase() : 'JD'}
             </div>
-            <span style={{ fontWeight: 600 }}>{userContext?.displayName || 'Host'}</span>
+            <span style={{ fontWeight: 600, color: '#ffffff', fontSize: 'var(--text-sm)' }} className="hide-mobile">{userContext?.displayName || 'Patron'}</span>
           </div>
-          <button className="btn btn-ghost" onClick={triggerLogout} style={{ padding: '0.5rem' }}><LogOut size={18} /></button>
+          <button className="btn btn-ghost" onClick={triggerLogout} style={{ padding: '0.5rem', color: 'rgba(255,255,255,0.6)' }} title="Sign Out"><LogOut size={18} /></button>
         </div>
       </header>
 
       {/* Main Workspace Layout */}
-      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', gap: '3rem', position: 'relative', zIndex: 1 }}>
+      <main style={{ maxWidth: '680px', margin: '0 auto', padding: '2rem 1.5rem 6rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '2.25rem', position: 'relative', zIndex: 1 }}>
         
         {/* Banner Segment */}
-        <section className="dashboard-banner">
-          <div>
-            <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 800 }}>Welcome, {userContext?.displayName || 'Screen Host'}</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>Create a room, invite your friends, and start watching together with zero lag.</p>
-          </div>
-          <button className="btn btn-primary" onClick={() => { setShowCreateModal(true); setCreatedRoom(null); }} style={{ height: 'fit-content' }}>
-            <Plus size={18} /> Create New Room
-          </button>
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.5px' }}>
+            Welcome back, {userContext?.displayName ? userContext.displayName.split(' ')[0] : 'Patron'}
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>Sync with your friends and control your virtual theater in real-time.</p>
         </section>
 
         {/* Stats Section */}
-        <section className="stats-grid">
-          <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'rgba(79, 70, 229, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-              <Film size={20} color="#818cf8" />
+        <section className="stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="gold-stat-card">
+            <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
+              {historyCount > 0 ? Math.max(24, Math.floor(historyCount * 1.5)) : 24}
             </div>
-            <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Total Sessions Hosted</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{historyCount}</div>
-            </div>
-          </div>
-
-          <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-              <Users size={20} color="#34d399" />
-            </div>
-            <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Friends Invited</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{historyCount * 3}</div>
+            <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
+              Hours Synced
             </div>
           </div>
 
-          <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.75rem', borderRadius: 'var(--radius-md)' }}>
-              <Clock size={20} color="#fbbf24" />
+          <div className="gold-stat-card">
+            <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
+              {historyCount > 0 ? historyCount * 3 : 12}
             </div>
-            <div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>Hours Shared</div>
-              <div style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{Math.max(1, Math.floor(historyCount * 1.5))} hrs</div>
+            <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
+              Friends Active
             </div>
           </div>
         </section>
 
-        {/* History Log */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <History size={18} color="var(--text-secondary)" />
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Recent Rooms History</h2>
+        {/* Create Suite Form (Inline Form replacing previous modal trigger) */}
+        <section className="gold-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Plus size={20} color="var(--color-gold)" style={{ strokeWidth: '2.5px' }} />
+            <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ffffff' }}>Create Suite</h2>
           </div>
-
-          {loadingHistory ? (
-            <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)', color: 'var(--text-secondary)' }}>
-              Loading hosted history...
-            </div>
-          ) : history.length === 0 ? (
-            <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)', color: 'var(--text-muted)' }}>
-              You haven't hosted any co-browsing rooms yet. Click "Create New Room" to start!
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {history.map((room) => (
-                <div key={room.id} className="glass-card history-card" style={{ padding: '1.25rem 1.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1.05rem' }}>{room.name}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Calendar size={12} /> {new Date(room.createdAt).toLocaleDateString()}</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> {Math.ceil(room.duration / 60)} min</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Users size={12} /> {room.viewerCount} joined</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <span style={{ padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 'bold', background: room.status === 'CLOSED' ? 'rgba(255,255,255,0.06)' : 'rgba(16,185,129,0.1)', color: room.status === 'CLOSED' ? 'var(--text-secondary)' : 'var(--color-success)' }}>
-                      {room.status}
-                    </span>
-                    <button className="btn btn-ghost" onClick={() => onNavigate('room', room.roomCode)} style={{ padding: '0.4rem 0.8rem', fontSize: 'var(--text-xs)' }}>
-                      Enter Room
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </main>
-
-      {/* Immersive Glassmorphic Modal Overlay for Creating Rooms */}
-      {showCreateModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'var(--bg-overlay)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="glass modal-container" style={{ padding: '2.5rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid rgba(255,255,255,0.08)' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800 }}>Create New Screening</h2>
-              <button className="btn btn-ghost" onClick={() => setShowCreateModal(false)} style={{ padding: '0.3rem 0.6rem' }}>✕</button>
-            </div>
-
-            {createdRoom ? (
-              /* Success Room Created Display */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
-                <div style={{ fontSize: '3rem' }}>🎉</div>
-                <div>
-                  <h3 style={{ fontWeight: 700, fontSize: 'var(--text-base)' }}>Room Code Generated</h3>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2rem', fontWeight: 800, background: 'rgba(255,255,255,0.04)', padding: '0.5rem', borderRadius: 'var(--radius-md)', margin: '0.75rem 0', letterSpacing: '2px', color: '#c7d2fe' }}>
-                    {createdRoom.roomCode}
-                  </div>
-                </div>
-                
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>Share this link with your friends to start co-watching!</p>
-                
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="btn btn-secondary" onClick={handleCopyLink} style={{ flex: 1 }}>
-                    {copiedLink ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy Invite Link</>}
-                  </button>
-                  <button className="btn btn-primary" onClick={() => onNavigate('room', createdRoom.roomCode)} style={{ flex: 1 }}>
-                    Start Stream
-                  </button>
-                </div>
+          
+          <form onSubmit={handleCreateRoomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {creationError && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)' }}>
+                {creationError}
               </div>
-            ) : (
-              /* Room Creation Form */
-              <form onSubmit={handleCreateRoomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {creationError && (
-                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.5rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)' }}>
-                    {creationError}
-                  </div>
-                )}
+            )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Room Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="Movie Night 🍿" 
-                    value={roomName}
-                    onChange={(e) => setRoomName(e.target.value)}
-                    className="input-text"
-                  />
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <label style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>LOUNGE NAME</label>
+              <input 
+                type="text" 
+                required
+                placeholder="e.g., Midnight Screening" 
+                value={roomName}
+                onChange={(e) => setRoomName(e.target.value)}
+                className="premium-input"
+                style={{ width: '100%' }}
+              />
+            </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Default Quality Preset</label>
-                  <select 
-                    value={qualityPreset} 
-                    onChange={(e) => setQualityPreset(e.target.value)}
-                    className="input-text"
-                    style={{ background: 'rgba(10,14,39,0.9)' }}
-                  >
-                    <option value="AUTO">AUTO (Adaptive Bitrate)</option>
-                    <option value="HD_720">HD 720p</option>
-                    <option value="FHD_1080">FHD 1080p</option>
-                  </select>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>CAPACITY (MAX 20)</label>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-gold)' }}>{capacity}</span>
+              </div>
+              <input 
+                type="range" 
+                min={1} 
+                max={20} 
+                value={capacity}
+                onChange={(e) => setCapacity(Number(e.target.value))}
+                className="premium-slider"
+              />
+            </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+            {/* Advanced configurations inside grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>QUALITY PRESET</label>
+                <select 
+                  value={qualityPreset} 
+                  onChange={(e) => setQualityPreset(e.target.value)}
+                  className="premium-input"
+                  style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-xs)', background: '#111111', height: '38px' }}
+                >
+                  <option value="AUTO">AUTO (Adaptive)</option>
+                  <option value="HD_720">HD 720p</option>
+                  <option value="FHD_1080">FHD 1080p</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.35rem' }}>
+                <label style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>PRIVACY</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', height: '38px' }}>
                   <input 
                     type="checkbox" 
                     id="isPrivate"
                     checked={isPrivate} 
                     onChange={(e) => setIsPrivate(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-gold)' }}
                   />
-                  <label htmlFor="isPrivate" style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Make room private (Invite only)</label>
+                  <label htmlFor="isPrivate" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Private Suite</label>
                 </div>
+              </div>
+            </div>
 
-                <button type="submit" disabled={creationLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
-                  {creationLoading ? 'Creating Room...' : 'Create Room & Generate Code'}
+            <button type="submit" disabled={creationLoading} className="btn-red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.85rem', marginTop: '0.5rem' }}>
+              <Ticket size={16} style={{ strokeWidth: '2.5px' }} /> {creationLoading ? 'Host Screening...' : 'Host Screening'}
+            </button>
+          </form>
+        </section>
+
+        {/* Active Lobbies */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#e50914', boxShadow: '0 0 8px #e50914' }} />
+            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Active Lobbies</h2>
+          </div>
+
+          {loadingHistory ? (
+            <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              Loading active lobbies...
+            </div>
+          ) : history.length === 0 ? (
+            /* Fallback Beautiful Demo Active Lobbies to match the reference mockup */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="lobby-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>CINEMATIC UNIVERSE</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000' }}>JD</div>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e50914', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>AK</div>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#222222', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>+3</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>Dune: Part Two Watchparty</h3>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> Started 45m ago</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
+                  <div className="equalizer-box">
+                    <span className="equalizer-bar" />
+                    <span className="equalizer-bar" />
+                    <span className="equalizer-bar" />
+                  </div>
+                  <button className="btn-gold-rejoin" onClick={() => onNavigate('room', 'DEMO99')}>
+                    Rejoin Room
+                  </button>
+                </div>
+              </div>
+
+              <div className="lobby-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>INDIE SHOWCASE</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#444444', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff' }}>NR</div>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000', marginLeft: '-6px' }}>SL</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>A24 Marathon Night</h3>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> Started 2h ago</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
+                  <div className="equalizer-box" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
+                    <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '1px', display: 'inline-block' }} />
+                    <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '1px', display: 'inline-block', marginLeft: '3px' }} />
+                  </div>
+                  <button className="btn-gold-rejoin" style={{ borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)' }} disabled>
+                    Paused
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Render active/rejoinable lobbies based on history */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {history.map((room) => {
+                return (
+                  <div key={room.id} className="lobby-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>
+                        {room.qualityPreset === 'AUTO' ? 'CINEMATIC SYNC' : room.qualityPreset.replace('_', ' ')}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000' }}>
+                          {userContext?.displayName ? userContext.displayName[0] : 'P'}
+                        </div>
+                        {room.viewerCount > 0 && (
+                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#222222', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>
+                            +{room.viewerCount}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>{room.name}</h3>
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Clock size={12} /> Started {new Date(room.createdAt).toLocaleDateString()} ({Math.ceil(room.duration / 60)}m shared)
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
+                      {room.status === 'CLOSED' ? (
+                        <>
+                          <div className="equalizer-box" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
+                            <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.3)', borderRadius: '1px', display: 'inline-block' }} />
+                            <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.3)', borderRadius: '1px', display: 'inline-block', marginLeft: '3px' }} />
+                          </div>
+                          <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
+                            Rejoin Suite
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="equalizer-box">
+                            <span className="equalizer-bar" />
+                            <span className="equalizer-bar" />
+                            <span className="equalizer-bar" />
+                          </div>
+                          <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
+                            Join Lobby
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Recent Screenings Section */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '0.5rem' }}>
+          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Recent Screenings</h2>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            {/* Screening Card 1 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Film size={28} color="rgba(197, 168, 92, 0.2)" />
+                <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>2h 14m</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>Oppenheimer Sync</h3>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Yesterday</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#444', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>U1</div>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#777', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold', marginLeft: '-5px' }}>U2</div>
+                </div>
+                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>14 Guests</span>
+              </div>
+            </div>
+
+            {/* Screening Card 2 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Film size={28} color="rgba(197, 168, 92, 0.2)" />
+                <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>Ep. 4-10</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>Succession Watch</h3>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Oct 12</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#666', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>U3</div>
+                </div>
+                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>Just You</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+
+      {/* Interactive Sticky Bottom Navigation Bar */}
+      <nav className="sticky-bottom-nav">
+        <button className={`sticky-bottom-nav-item ${activeTab === 'cinema' ? 'active' : ''}`} onClick={() => { setActiveTab('cinema'); setShowCinemaModal(true); }}>
+          <Film size={18} />
+          Cinema
+        </button>
+        <button className={`sticky-bottom-nav-item ${activeTab === 'suites' ? 'active' : ''}`} onClick={() => { setActiveTab('suites'); setShowCinemaModal(false); setShowSocialModal(false); setShowSettingsModal(false); }}>
+          <Ticket size={18} />
+          Suites
+        </button>
+        <button className={`sticky-bottom-nav-item ${activeTab === 'social' ? 'active' : ''}`} onClick={() => { setActiveTab('social'); setShowSocialModal(true); }}>
+          <Users size={18} />
+          Social
+        </button>
+        <button className={`sticky-bottom-nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setActiveTab('settings'); setShowSettingsModal(true); }}>
+          <Settings size={18} />
+          Settings
+        </button>
+      </nav>
+
+      {/* Immersive Glassmorphic Modal Overlay for Creating Rooms - SUCCESS DIALOG ONLY */}
+      {showCreateModal && createdRoom && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass modal-container" style={{ padding: '2.5rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1.5px solid var(--color-gold)', background: '#0a0a0a', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', maxWidth: '440px', width: '100%' }}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#ffffff' }}>Screening Created!</h2>
+              <button className="btn btn-ghost" onClick={() => setShowCreateModal(false)} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '3rem' }}>🍿</div>
+              <div>
+                <h3 style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suite Invitation Code</h3>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.25rem', fontWeight: 800, background: 'rgba(255,255,255,0.04)', padding: '0.5rem', borderRadius: 'var(--radius-md)', margin: '0.75rem 0', letterSpacing: '3px', color: 'var(--color-gold)', border: '1px solid rgba(197, 168, 92, 0.2)' }}>
+                  {createdRoom.roomCode}
+                </div>
+              </div>
+              
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>Share this code or link with guests to sync browsing instantly.</p>
+              
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button className="btn btn-secondary" onClick={handleCopyLink} style={{ flex: 1, border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff' }}>
+                  {copiedLink ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy Link</>}
                 </button>
-              </form>
-            )}
+                <button className="btn-red" onClick={() => onNavigate('room', createdRoom.roomCode)} style={{ flex: 1 }}>
+                  Start Stream
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Interactive Overlays for Bottom Tabs */}
+      
+      {/* Cinema Overlay */}
+      {showCinemaModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Film size={18} color="var(--color-gold)" />
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Cinema Showcase</h2>
+              </div>
+              <button className="btn btn-ghost" onClick={() => { setShowCinemaModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+              {[
+                { title: 'Dune: Part Two', duration: '2h 46m', desc: 'Epic sci-fi action' },
+                { title: 'Oppenheimer', duration: '3h 00m', desc: 'Biographical historical drama' },
+                { title: 'Everything Everywhere All at Once', duration: '2h 19m', desc: 'Multiverse comedy drama' },
+                { title: 'Interstellar', duration: '2h 49m', desc: 'Space exploration masterpiece' }
+              ].map((movie, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{movie.title}</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{movie.desc} • {movie.duration}</span>
+                  </div>
+                  <button className="btn-gold-rejoin" style={{ padding: '0.25rem 0.5rem', fontSize: '10px' }} onClick={() => { setRoomName(`${movie.title} Suite 🍿`); setShowCinemaModal(false); setActiveTab('suites'); }}>
+                    Host
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>Selecting a movie pre-fills the lounge name in your suite builder.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Social Overlay */}
+      {showSocialModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Users size={18} color="var(--color-gold)" />
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Patron Network</h2>
+              </div>
+              <button className="btn btn-ghost" onClick={() => { setShowSocialModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
+              {[
+                { name: 'John Doe', status: 'Online', code: 'JD' },
+                { name: 'Alice Smith', status: 'In a Suite (Dune)', code: 'AS' },
+                { name: 'Bob Johnson', status: 'Offline', code: 'BJ' }
+              ].map((friend, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(197,168,92,0.15)', color: 'var(--color-gold)', border: '1px solid var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>{friend.code}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{friend.name}</span>
+                      <span style={{ fontSize: '10px', color: friend.status === 'Offline' ? 'var(--text-muted)' : 'var(--color-success)' }}>{friend.status}</span>
+                    </div>
+                  </div>
+                  {friend.status === 'Online' && (
+                    <button className="btn-gold-rejoin" style={{ padding: '0.25rem 0.5rem', fontSize: '10px' }} onClick={() => alert(`Invite sent to ${friend.name}!`)}>
+                      Invite
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Overlay */}
+      {showSettingsModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Settings size={18} color="var(--color-gold)" />
+                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Lounge Settings</h2>
+              </div>
+              <button className="btn btn-ghost" onClick={() => { setShowSettingsModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: '#ffffff' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>ACCOUNT HOLDER</span>
+                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{userContext?.displayName || 'Screen Host'}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{userContext?.email || 'patron@hypersync.com'}</span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>THEME PREFERENCE</span>
+                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-gold)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  ⚜️ Patron Lounge Premium (Rolls Royce & Netflix)
+                </span>
+              </div>
+
+              <button className="btn btn-danger" onClick={() => { setShowSettingsModal(false); triggerLogout(); }} style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', background: '#e50914' }}>
+                Sign Out from Lounge
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

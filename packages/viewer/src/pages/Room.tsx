@@ -24,7 +24,7 @@ import {
   Check,
   Signal,
   Volume2,
-  VolumeX,
+  VolumeX
 } from 'lucide-react';
 
 interface RoomProps {
@@ -32,6 +32,25 @@ interface RoomProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   userContext: any;
 }
+
+const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
+    <defs>
+      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#9A7A35" />
+        <stop offset="25%" stopColor="#EAC775" />
+        <stop offset="50%" stopColor="#BE9648" />
+        <stop offset="75%" stopColor="#FDF1A9" />
+        <stop offset="100%" stopColor="#A1813C" />
+      </linearGradient>
+    </defs>
+    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
+    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [roomInfo, setRoomInfo] = useState<any | null>(null);
@@ -542,11 +561,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   return (
     <div 
       ref={roomContainerRef}
-      className="room-container"
+      className="room-container room-page-root"
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
       onTouchStart={resetControlsTimeout}
-      style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: '#0a0e27' }}
+      style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: '#000000' }}
     >
       
       {/* Dynamic Floating reactions container */}
@@ -574,7 +593,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             zIndex: 9999,
             padding: '0.75rem 1.25rem',
             borderRadius: 'var(--radius-lg)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
+            border: '1.5px solid var(--color-gold)',
             boxShadow: 'var(--shadow-lg)',
             display: 'flex',
             flexDirection: 'column',
@@ -585,7 +604,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-gold)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             💬 {activeToast.displayName}
           </span>
           <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
@@ -596,18 +615,20 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
       {/* Header bar */}
       <header 
-        className="glass room-header" 
+        className="room-header" 
         style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          padding: '0.75rem 1.5rem', 
-          borderBottom: '1px solid var(--border-default)',
+          padding: '0.85rem 1.5rem', 
+          borderBottom: '1.5px solid var(--color-gold)',
           position: 'absolute',
           top: 0,
           left: 0,
           right: 0,
           zIndex: 30,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
           transition: 'opacity 0.3s ease, transform 0.3s ease',
           opacity: showControls ? 1 : 0,
           transform: showControls ? 'translateY(0)' : 'translateY(-100%)',
@@ -615,25 +636,28 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem' }}>
-            ✕<span className="hide-mobile"> Leaving</span>
+          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem', color: '#ffffff' }}>
+            ✕<span className="hide-mobile"> Leave Lounge</span>
           </button>
-          <div>
-            <h1 style={{ fontSize: 'var(--text-base)', fontWeight: 700 }}>{roomInfo?.name}</h1>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }} className="hide-mobile">Hosted by {roomInfo?.hostName}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '1rem' }}>
+            <GoldLogoSVG size={28} />
+            <div>
+              <h1 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)' }}>{roomInfo?.name}</h1>
+              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }} className="hide-mobile">Lounge Host: {roomInfo?.hostName}</span>
+            </div>
           </div>
         </div>
 
         {/* Invite link copying utility */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="room-code-tag" style={{ fontFamily: 'var(--font-mono)', background: 'rgba(255,255,255,0.04)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', letterSpacing: '0.5px' }}>
+          <span className="room-code-tag" style={{ fontFamily: 'var(--font-mono)', background: 'rgba(197, 168, 92, 0.05)', border: '1px solid rgba(197, 168, 92, 0.2)', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: 'var(--text-xs)', letterSpacing: '1px', fontWeight: 600, color: 'var(--color-gold)' }}>
             CODE: {roomCode}
           </span>
-          <button className="btn btn-secondary" onClick={handleCopyLink} style={{ padding: '0.25rem 0.75rem', fontSize: 'var(--text-xs)' }}>
+          <button className="btn-gold-rejoin" onClick={handleCopyLink} style={{ padding: '0.35rem 0.75rem', fontSize: 'var(--text-xs)' }}>
             {copiedLink ? (
-              <><Check size={12} /><span className="hide-mobile"> Copied</span></>
+              <><Check size={12} /><span> Copied</span></>
             ) : (
-              <><Copy size={12} /><span className="hide-mobile"> Copy Invite</span></>
+              <><Copy size={12} /><span> Copy Invite</span></>
             )}
           </button>
         </div>
@@ -643,12 +667,12 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       <div className="room-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
         
         {/* Left Side: Stream Viewer */}
-        <div className="stream-column" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#02040e' }}>
+        <div className="stream-column" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#000000' }}>
           
           {/* Active control badge overlay */}
           {isMeInControl && (
-            <div className="glass" style={{ position: 'absolute', top: '1rem', left: '50%', transform: 'translateX(-50%)', padding: '0.4rem 0.8rem', borderRadius: 'var(--radius-sm)', fontSize: 'var(--text-xs)', fontWeight: 'bold', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--color-primary)' }}>
-              <Gamepad2 size={12} color="var(--color-primary)" /> You are in control of the host browser
+            <div className="glass" style={{ position: 'absolute', top: '1.25rem', left: '50%', transform: 'translateX(-50%)', padding: '0.5rem 1rem', borderRadius: '4px', fontSize: 'var(--text-xs)', fontWeight: 'bold', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--color-gold)', background: 'rgba(0,0,0,0.85)', color: '#ffffff', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+              <Gamepad2 size={14} color="var(--color-gold)" /> You have browser sync control
             </div>
           )}
 
@@ -695,8 +719,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                     borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
                     outline: 'none',
                     cursor: isMeInControl ? 'crosshair' : 'default',
-                    border: isMeInControl ? '3px solid var(--color-primary)' : 'none',
-                    boxShadow: isFullscreen ? 'none' : '0 10px 40px rgba(0,0,0,0.6)',
+                    border: isMeInControl ? '2.5px solid var(--color-gold)' : 'none',
+                    boxShadow: isFullscreen ? 'none' : '0 15px 50px rgba(0,0,0,0.8)',
                   }}
                 />
                 {!videoPlaying && (
@@ -710,9 +734,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'rgba(10, 14, 39, 0.75)',
-                      backdropFilter: 'blur(10px)',
-                      WebkitBackdropFilter: 'blur(10px)',
+                      background: 'rgba(0, 0, 0, 0.8)',
+                      backdropFilter: 'blur(12px)',
+                      WebkitBackdropFilter: 'blur(12px)',
                       zIndex: 20,
                       cursor: 'pointer',
                     }}
@@ -726,10 +750,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                     <div 
                       className="glass"
                       style={{
-                        padding: '1.75rem 2.5rem',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        boxShadow: 'var(--shadow-lg)',
+                        padding: '2rem',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--color-gold)',
+                        background: '#0c0c0c',
+                        boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -739,10 +764,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                       }}
                     >
                       <span style={{ fontSize: '3rem' }}>🍿</span>
-                      <h3 style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', fontFamily: 'var(--font-serif)' }}>
                         Host is Sharing Screen
                       </h3>
-                      <button className="btn btn-primary" style={{ width: '100%', paddingInline: '1.5rem', fontSize: 'var(--text-xs)' }}>
+                      <button className="btn-red" style={{ width: '100%', fontSize: 'var(--text-xs)', padding: '0.65rem' }}>
                         Click to Play Stream
                       </button>
                     </div>
@@ -750,43 +775,45 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 )}
               </>
             ) : role === MemberRole.HOST ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎬</div>
-                <h3 style={{ fontWeight: 700, fontSize: 'var(--text-lg)' }}>Chamber Ready to Host</h3>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: '0.5rem', maxWidth: '400px', marginInline: 'auto' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>🎬</div>
+                <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Lounge Ready to Host</h3>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
                   Share a browser window or tab containing your content. All connected viewers will watch in real-time.
                 </p>
                 <button 
-                  className="btn btn-primary" 
+                  className="btn-red" 
                   onClick={startCapture} 
-                  style={{ marginTop: '1.5rem', width: 'auto', paddingInline: '2rem' }}
+                  style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem' }}
                 >
-                  📡 Start Screen Share
+                  📡 Start Lounge Stream
                 </button>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📡</div>
-                <h3 style={{ fontWeight: 600 }}>Waiting for host to start streaming...</h3>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Send invite link to friends to start watching together.</p>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>📡</div>
+                <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Waiting for Host to Screen...</h3>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Send invite link to friends to start watching together.</p>
               </div>
             )}
           </div>
 
           {/* Toolbar footer overlay */}
           <footer 
-            className="glass room-footer" 
+            className="room-footer" 
             style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
               padding: '0.75rem 1.5rem', 
-              borderTop: '1px solid var(--border-default)',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
               position: 'absolute',
               bottom: 0,
               left: 0,
               right: 0,
               zIndex: 30,
+              background: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(10px)',
               transition: 'opacity 0.3s ease, transform 0.3s ease',
               opacity: showControls ? 1 : 0,
               transform: showControls ? 'translateY(0)' : 'translateY(100%)',
@@ -796,9 +823,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             <div style={{ display: 'flex', gap: '1rem' }}>
               {role === MemberRole.HOST && (
                 <button 
-                  className={`btn ${stream ? 'btn-secondary' : 'btn-primary'}`} 
+                  className="btn-red" 
                   onClick={stream ? stopCapture : handleStartCapture}
-                  style={{ width: 'auto', paddingInline: '0.75rem' }}
+                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)' }}
                 >
                   📡 <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
                   <span className="show-mobile-only">{stream ? 'Stop' : 'Share'}</span>
@@ -826,7 +853,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               )}
               <button 
                 className="btn btn-ghost" 
-                style={{ padding: '0.4rem', color: showChat ? 'var(--color-primary)' : 'inherit' }} 
+                style={{ padding: '0.4rem', color: showChat ? 'var(--color-gold)' : 'inherit' }} 
                 onClick={() => setShowChat(!showChat)}
                 title={showChat ? "Hide Chat" : "Show Chat"}
               >
@@ -855,24 +882,25 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         {/* Right Side: Chat & Reaction Drawer */}
         {showChat && (
           <aside 
-            className="glass chat-drawer slide-in-right" 
+            className="chat-drawer slide-in-right" 
             style={{ 
               width: '340px', 
-              borderLeft: '1px solid var(--border-default)', 
+              borderLeft: '1.5px solid var(--color-gold)', 
               display: 'flex', 
               flexDirection: 'column', 
               overflow: 'hidden',
               paddingTop: '60px',
+              background: 'rgba(5, 5, 5, 0.95)',
             }}
           >
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <MessageSquare size={16} color="var(--text-secondary)" />
-              <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Room Chat</h2>
+              <MessageSquare size={16} color="var(--color-gold)" />
+              <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-gold)' }}>Lounge Chat</h2>
             </div>
             <button 
               className="btn btn-ghost" 
-              style={{ padding: '0.2rem', minWidth: 'auto', display: 'inline-flex', height: 'auto' }} 
+              style={{ padding: '0.2rem', minWidth: 'auto', display: 'inline-flex', height: 'auto', color: 'rgba(255,255,255,0.4)' }} 
               onClick={() => setShowChat(false)}
               title="Close Chat"
             >
@@ -895,15 +923,15 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 }}
               >
                 {msg.type === 'system' ? (
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.03)', padding: '0.2rem 0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.03)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
                     {msg.text}
                   </span>
                 ) : (
                   <>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: msg.userId === userContext?.id ? 'var(--color-primary)' : 'var(--text-secondary)' }}>
+                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: msg.userId === userContext?.id ? 'var(--color-gold)' : 'rgba(255,255,255,0.7)' }}>
                       {msg.displayName}
                     </span>
-                    <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '0 var(--radius-md) var(--radius-md) var(--radius-md)', fontSize: 'var(--text-sm)', width: 'fit-content', wordBreak: 'break-word', color: 'var(--text-primary)' }}>
+                    <div style={{ background: msg.userId === userContext?.id ? 'rgba(197, 168, 92, 0.08)' : 'rgba(255,255,255,0.04)', border: msg.userId === userContext?.id ? '1px solid rgba(197, 168, 92, 0.15)' : '1px solid rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '0 var(--radius-md) var(--radius-md) var(--radius-md)', fontSize: 'var(--text-sm)', width: 'fit-content', wordBreak: 'break-word', color: '#ffffff' }}>
                       {msg.text}
                     </div>
                   </>
@@ -915,7 +943,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
           {/* Emojis drawer overlay toggle */}
           {showEmojiPicker && (
-            <div className="glass" style={{ padding: '0.5rem', display: 'flex', justifyItems: 'center', justifyContent: 'space-around', borderTop: '1px solid var(--border-default)' }}>
+            <div className="glass" style={{ padding: '0.5rem', display: 'flex', justifyItems: 'center', justifyContent: 'space-around', borderTop: '1px solid var(--border-default)', background: '#0a0a0a' }}>
               {(['👍', '😂', '🔥', '❤️', '😮'] as const).map((emoji) => (
                 <button
                   key={emoji}
@@ -931,11 +959,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           )}
 
           {/* Message input footer */}
-          <form onSubmit={handleSendChat} style={{ padding: '1rem', borderTop: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem' }}>
+          <form onSubmit={handleSendChat} style={{ padding: '1rem', borderTop: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button 
               type="button" 
               className="btn btn-ghost" 
-              style={{ padding: '0.5rem' }}
+              style={{ padding: '0.5rem', color: 'var(--color-gold)' }}
               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             >
               <Smile size={18} />
@@ -945,10 +973,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               placeholder="Send message..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              className="input-text"
-              style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-sm)' }}
+              className="premium-input"
+              style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-sm)', flex: 1 }}
             />
-            <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem' }}>
+            <button type="submit" className="btn-red" style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', width: '36px', height: '36px' }}>
               <Send size={16} />
             </button>
           </form>
