@@ -529,18 +529,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   // ── Layout loading states ──────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-        Entering secure co-browsing chamber...
+      <div className="room-page-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-gold)', background: '#000000', gap: '1.25rem' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid rgba(197, 168, 92, 0.1)', borderTop: '3px solid var(--color-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, letterSpacing: '0.5px', fontFamily: 'var(--font-serif)' }}>Entering secure co-browsing chamber...</span>
       </div>
     );
   }
 
   if (errorMsg) {
     return (
-      <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem' }}>
-        <span style={{ fontSize: '3rem' }}>🔍</span>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800 }}>{errorMsg}</h2>
-        <button className="btn btn-primary" onClick={() => onNavigate('landing')}>Go to Home</button>
+      <div className="room-page-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', background: '#000000', color: '#ffffff' }}>
+        <span style={{ fontSize: '3.5rem', filter: 'drop-shadow(0 0 10px rgba(197, 168, 92, 0.3))' }}>🔍</span>
+        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#ffffff' }}>{errorMsg}</h2>
+        <button className="btn-red" onClick={() => onNavigate('dashboard')} style={{ padding: '0.75rem 2rem', fontSize: 'var(--text-sm)', fontWeight: 'bold' }}>
+          Go to Lounge
+        </button>
       </div>
     );
   }

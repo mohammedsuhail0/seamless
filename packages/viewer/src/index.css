@@ -951,7 +951,8 @@ button, input, select, textarea {
 }
 
 /* Gold Outline Rejoin Button */
-.dashboard-page-root .btn-gold-rejoin {
+.dashboard-page-root .btn-gold-rejoin,
+.room-page-root .btn-gold-rejoin {
   background: transparent !important;
   border: 1.5px solid var(--color-gold) !important;
   color: var(--color-gold) !important;
@@ -962,7 +963,8 @@ button, input, select, textarea {
   transition: all 0.2s ease !important;
   cursor: pointer;
 }
-.dashboard-page-root .btn-gold-rejoin:hover {
+.dashboard-page-root .btn-gold-rejoin:hover,
+.room-page-root .btn-gold-rejoin:hover {
   background: rgba(197, 168, 92, 0.1) !important;
   color: #ffffff !important;
   border-color: #ffffff !important;
@@ -1052,6 +1054,11 @@ button, input, select, textarea {
 .room-page-root .chat-drawer h2 {
   font-family: var(--font-sans) !important;
   color: var(--color-gold) !important;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 
