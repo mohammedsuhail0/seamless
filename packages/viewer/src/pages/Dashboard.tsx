@@ -101,9 +101,21 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
 
       {/* Header */}
       <header className="glass dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
-          <span style={{ fontSize: '1.75rem' }}>📡</span>
-          <span style={{ fontWeight: 800, fontSize: '1.25rem' }}>BrowSync</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
+          <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.5))' }}>
+            <defs>
+              <linearGradient id="logo-grad-dash" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#A855F7" />
+                <stop offset="100%" stopColor="#EC4899" />
+              </linearGradient>
+              <mask id="lightning-mask-dash">
+                <rect x="0" y="0" width="36" height="36" fill="white" />
+                <path d="M19 7 L10 19 H18 L14 29 L26 15 H17 L19 7 Z" fill="black" />
+              </mask>
+            </defs>
+            <path d="M8 5 L30 18 L8 31 Z" fill="url(#logo-grad-dash)" mask="url(#lightning-mask-dash)" />
+          </svg>
+          <span style={{ fontWeight: 800, fontSize: '1.35rem', letterSpacing: '0.5px', background: 'linear-gradient(to right, #A855F7, #EC4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Hypersync</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

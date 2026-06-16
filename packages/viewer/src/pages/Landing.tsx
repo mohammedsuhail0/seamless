@@ -170,9 +170,21 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Navbar */}
       <header className="glass landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.75rem' }}>📡</span>
-          <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '0.5px' }}>BrowSync</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.5))' }}>
+            <defs>
+              <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#A855F7" />
+                <stop offset="100%" stopColor="#EC4899" />
+              </linearGradient>
+              <mask id="lightning-mask">
+                <rect x="0" y="0" width="36" height="36" fill="white" />
+                <path d="M19 7 L10 19 H18 L14 29 L26 15 H17 L19 7 Z" fill="black" />
+              </mask>
+            </defs>
+            <path d="M8 5 L30 18 L8 31 Z" fill="url(#logo-grad)" mask="url(#lightning-mask)" />
+          </svg>
+          <span style={{ fontWeight: 800, fontSize: '1.35rem', letterSpacing: '0.5px', background: 'linear-gradient(to right, #A855F7, #EC4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Hypersync</span>
         </div>
         <div>
           {isAuthenticated ? (
@@ -251,7 +263,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                     Finish Google sign-up
                   </div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your BrowSync profile.
+                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your Hypersync profile.
                   </div>
                 </div>
               )}
@@ -349,7 +361,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                 </div>
 
                 <button type="submit" disabled={formLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
-                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Login to BrowSync' : 'Create Account'}
+                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Login to Hypersync' : 'Create Account'}
                 </button>
               </form>
 
@@ -391,7 +403,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Highlights Grid */}
       <section style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, textAlign: 'center', marginBottom: '3rem' }}>Why you'll love BrowSync</h2>
+        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, textAlign: 'center', marginBottom: '3rem' }}>Why you'll love Hypersync</h2>
         <div className="highlights-grid">
           
           <div className="glass-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -400,7 +412,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             </div>
             <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Share Your Real Browser</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Host from the browser session you already use. BrowSync is built for allowed screen sharing, live browsing, watch rooms, and collaborative sessions.
+              Host from the browser session you already use. Hypersync is built for allowed screen sharing, live browsing, watch rooms, and collaborative sessions.
             </p>
           </div>
 
