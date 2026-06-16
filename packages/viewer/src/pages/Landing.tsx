@@ -1,9 +1,9 @@
 // Agent: 🌐 Agent C (Viewer App Landing Page)
 // File: packages/viewer/src/pages/Landing.tsx
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
-import { Tv, Shield, Sparkles, ArrowRight } from 'lucide-react';
+import { Tv, Shield, Sparkles, ArrowRight, Chrome, AlertCircle } from 'lucide-react';
 
 interface LandingProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
@@ -11,7 +11,7 @@ interface LandingProps {
 }
 
 export function Landing({ onNavigate, setAuthContext }: LandingProps) {
-  const { user, login, register, isAuthenticated, logout } = useAuthStore();
+  const { user, login, register, isAuthenticated, logout, googleCallback, googleOnboard, tempGoogleSession } = useAuthStore();
   
   // Auth Form tabs state
   const [isLoginTab, setIsLoginTab] = useState(true);
@@ -20,11 +20,83 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  const [googleError, setGoogleError] = useState('');
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleInitRef = useRef(false);
 
   // Quick Room Join code
   const [roomCode, setRoomCode] = useState('');
 
+  const googleClientId = ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '';
 
+  useEffect(() => {
+    if (!googleClientId || googleInitRef.current || tempGoogleSession) return;
+
+    const scriptId = 'google-identity-script';
+    const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+    const initializeGoogle = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id || !googleButtonRef.current || googleInitRef.current) return;
+
+      google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: async (response: { credential?: string }) => {
+          if (!response?.credential) {
+            setGoogleError('Google sign-in did not return a token.');
+            return;
+          }
+
+          setGoogleError('');
+          setFormLoading(true);
+
+          try {
+            const result = await googleCallback(response.credential);
+            if (result.status === 'AUTHENTICATED') {
+              setAuthContext(result.user);
+              onNavigate('dashboard');
+            }
+          } catch (err: any) {
+            setGoogleError(err?.error?.message || 'Google sign-in failed.');
+          } finally {
+            setFormLoading(false);
+          }
+        },
+      });
+
+      google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        width: 360,
+        text: 'continue_with',
+        shape: 'rectangular',
+      });
+
+      googleInitRef.current = true;
+      setGoogleReady(true);
+    };
+
+    if (!existing) {
+      const script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogle;
+      script.onerror = () => setGoogleError('Could not load Google sign-in.');
+      document.body.appendChild(script);
+      return;
+    }
+
+    if ((window as any).google) {
+      initializeGoogle();
+      return;
+    }
+
+    existing.addEventListener('load', initializeGoogle);
+    return () => existing.removeEventListener('load', initializeGoogle);
+  }, [googleClientId, googleCallback, onNavigate, setAuthContext, tempGoogleSession]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +127,31 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
     }
   };
 
+  const handleGoogleOnboard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tempGoogleSession) return;
 
+    setErrorMsg('');
+    setFormLoading(true);
+
+    try {
+      const result = await googleOnboard(displayName.trim(), password, tempGoogleSession.tempToken);
+      if (result.status === 'AUTHENTICATED') {
+        setAuthContext(result.user);
+        onNavigate('dashboard');
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.error?.message || 'Google onboarding failed.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (tempGoogleSession) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [tempGoogleSession]);
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,9 +244,21 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             </div>
           ) : (
             <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {tempGoogleSession && (
+                <div style={{ background: 'rgba(59, 130, 246, 0.10)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800 }}>
+                    <Chrome size={16} />
+                    Finish Google sign-up
+                  </div>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your BrowSync profile.
+                  </div>
+                </div>
+              )}
               
               {/* Tab Selector */}
-              <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
+              {!tempGoogleSession && (
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
                 <button 
                   style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
                   onClick={() => { setIsLoginTab(true); setErrorMsg(''); }}
@@ -164,6 +272,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                   Create Account
                 </button>
               </div>
+              )}
 
               {errorMsg && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
@@ -172,22 +281,45 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               )}
 
               {/* Form Input elements */}
-              <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>{isLoginTab ? 'Username or Email' : 'Email'}</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder={isLoginTab ? 'e.g. arjun or arjun@email.com' : 'e.g. arjun@email.com'} 
-                    value={emailOrUsername}
-                    onChange={(e) => setEmailOrUsername(e.target.value)}
-                    className="input-text"
-                  />
-                </div>
+              <form onSubmit={tempGoogleSession ? handleGoogleOnboard : handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {tempGoogleSession ? (
+                  <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59,130,246,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Chrome size={14} />
+                    Google account detected: {tempGoogleSession.email}
+                  </div>
+                ) : null}
 
-                {!isLoginTab && (
+                {!tempGoogleSession && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>{isLoginTab ? 'Username or Email' : 'Email'}</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder={isLoginTab ? 'e.g. arjun or arjun@email.com' : 'e.g. arjun@email.com'} 
+                      value={emailOrUsername}
+                      onChange={(e) => setEmailOrUsername(e.target.value)}
+                      className="input-text"
+                    />
+                  </div>
+                )}
+
+                {!isLoginTab && !tempGoogleSession && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                     <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Display Name</label>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="e.g. Arjun" 
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="input-text"
+                    />
+                  </div>
+                )}
+
+                {tempGoogleSession && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Choose Display Name</label>
                     <input 
                       type="text" 
                       required
@@ -217,9 +349,41 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                 </div>
 
                 <button type="submit" disabled={formLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
-                  {formLoading ? 'Connecting Securely...' : isLoginTab ? 'Login to BrowSync' : 'Create Account'}
+                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Login to BrowSync' : 'Create Account'}
                 </button>
               </form>
+
+              {!tempGoogleSession && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+                    <span style={{ height: '1px', flex: 1, background: 'var(--border-default)' }} />
+                    <span>or</span>
+                    <span style={{ height: '1px', flex: 1, background: 'var(--border-default)' }} />
+                  </div>
+
+                  {googleClientId ? (
+                    <div>
+                      <div ref={googleButtonRef} />
+                      {!googleReady && !googleError && (
+                        <span style={{ display: 'block', marginTop: '0.5rem', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                          Loading Google sign-in...
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251,191,36,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <AlertCircle size={14} />
+                      Add `VITE_GOOGLE_CLIENT_ID` to enable Google sign-in.
+                    </div>
+                  )}
+
+                  {googleError && (
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)' }}>
+                      {googleError}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
