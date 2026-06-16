@@ -212,7 +212,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           </h1>
 
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
-            Stop fighting with blurry screen shares and annoying copyright blocks. BrowSync streams whatever is on your browser to friends in real time with crystal-clear, zero-lag video. Share your Netflix, watch regional shows, browse memes, or shop together. It's just like sharing the same screen on the same couch.
+            Watch and browse together from your own real browser. Start a room, share a tab or screen, and let friends join instantly for videos, live events, shopping, research, or casual browsing.
           </p>
 
           {/* Quick Join Segment */}
@@ -398,9 +398,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <div style={{ background: 'rgba(79, 70, 229, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
               <Shield size={24} color="#818cf8" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Watch Anything, Anywhere</h3>
+            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Share Your Real Browser</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Tired of seeing a black screen when sharing Netflix or Disney+? If it works on your browser, it works here. No copyright blockouts, no regional geo-blocks, and no streaming limits.
+              Host from the browser session you already use. BrowSync is built for allowed screen sharing, live browsing, watch rooms, and collaborative sessions.
             </p>
           </div>
 
@@ -408,9 +408,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
               <Tv size={24} color="#34d399" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>No Account Sharing Required</h3>
+            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Simple Invite Rooms</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Your friends don't need subscriptions to watch with you. Since you're hosting from your own computer, they can see exactly what you're playing. Just open a tab, hit play, and relax.
+              Friends join with a link or room code. The host controls what is shared, and viewers can watch, chat, and react without installing a separate viewer app.
             </p>
           </div>
 

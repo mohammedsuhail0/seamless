@@ -17,6 +17,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   
   // Viewer refs
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const inputChannelRef = useRef<RTCDataChannel | null>(null);
   const controlChannelRef = useRef<RTCDataChannel | null>(null);
   const hostUserIdRef = useRef<string | null>(null);
@@ -305,10 +306,9 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           pc.oniceconnectionstatechange = () => {
             setConnectionState(pc.iceConnectionState);
             console.log('📡 WebRTC ICE Connection State Changed:', pc.iceConnectionState);
-            if (pc.iceConnectionState === 'disconnected' || 
-                pc.iceConnectionState === 'failed' || 
-                pc.iceConnectionState === 'closed') {
+            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
               setStream(null);
+              remoteStreamRef.current = null;
             }
           };
 
@@ -324,11 +324,24 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
 
           pc.ontrack = (event) => {
             console.log('📺 Stream track received successfully');
-            if (event.streams && event.streams[0]) {
-              setStream(event.streams[0]);
-            } else {
-              setStream(new MediaStream([event.track]));
+            const remoteStream = remoteStreamRef.current ?? new MediaStream();
+            remoteStreamRef.current = remoteStream;
+
+            if (!remoteStream.getTracks().some((track) => track.id === event.track.id)) {
+              remoteStream.addTrack(event.track);
             }
+
+            setStream(remoteStream);
+
+            event.track.onended = () => {
+              remoteStream.removeTrack(event.track);
+              if (remoteStream.getTracks().length === 0) {
+                setStream(null);
+                remoteStreamRef.current = null;
+              } else {
+                setStream(new MediaStream(remoteStream.getTracks()));
+              }
+            };
           };
 
           pc.ondatachannel = (event) => {
@@ -393,6 +406,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           peerConnectionRef.current = null;
         }
         hostUserIdRef.current = null;
+        remoteStreamRef.current = null;
         setStream(null);
       };
     }
