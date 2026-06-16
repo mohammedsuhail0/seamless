@@ -66,6 +66,9 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
   const [showSocialModal, setShowSocialModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
 
+  const activeLobbies = history.filter(room => room.status !== 'CLOSED');
+  const recentScreenings = history.filter(room => room.status === 'CLOSED');
+
   // Fetch hosted room history on load
   const fetchHistory = async () => {
     try {
@@ -100,6 +103,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
       });
 
       setCreatedRoom(data);
+      setShowCreateModal(true);
       // Refresh history list
       fetchHistory();
     } catch (err: any) {
@@ -270,75 +274,28 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
             <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#e50914', boxShadow: '0 0 8px #e50914' }} />
             <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Active Lobbies</h2>
           </div>
-
           {loadingHistory ? (
             <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.05)' }}>
               Loading active lobbies...
             </div>
-          ) : history.length === 0 ? (
-            /* Fallback Beautiful Demo Active Lobbies to match the reference mockup */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="lobby-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>CINEMATIC UNIVERSE</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000' }}>JD</div>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#e50914', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>AK</div>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#222222', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>+3</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>Dune: Part Two Watchparty</h3>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> Started 45m ago</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
-                  <div className="equalizer-box">
-                    <span className="equalizer-bar" />
-                    <span className="equalizer-bar" />
-                    <span className="equalizer-bar" />
-                  </div>
-                  <button className="btn-gold-rejoin" onClick={() => onNavigate('room', 'DEMO99')}>
-                    Rejoin Room
-                  </button>
-                </div>
-              </div>
-
-              <div className="lobby-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>INDIE SHOWCASE</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#444444', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff' }}>NR</div>
-                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000', marginLeft: '-6px' }}>SL</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>A24 Marathon Night</h3>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={12} /> Started 2h ago</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
-                  <div className="equalizer-box" style={{ borderColor: 'rgba(255,255,255,0.2)' }}>
-                    <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '1px', display: 'inline-block' }} />
-                    <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.4)', borderRadius: '1px', display: 'inline-block', marginLeft: '3px' }} />
-                  </div>
-                  <button className="btn-gold-rejoin" style={{ borderColor: 'rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.4)' }} disabled>
-                    Paused
-                  </button>
-                </div>
-              </div>
+          ) : activeLobbies.length === 0 ? (
+            <div style={{ padding: '3rem 1.5rem', textAlign: 'center', borderRadius: '8px', color: 'rgba(255, 255, 255, 0.4)', border: '1px dashed rgba(197, 168, 92, 0.2)', background: 'rgba(12, 12, 12, 0.4)' }}>
+              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.75rem' }}>🍿</span>
+              <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'var(--font-serif)' }}>No Active Lobbies</h3>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>You haven't hosted or joined any suites yet. Use the Create Suite form above to host one!</p>
             </div>
           ) : (
-            /* Render active/rejoinable lobbies based on history */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {history.map((room) => {
+              {activeLobbies.map((room) => {
                 return (
                   <div key={room.id} className="lobby-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>
-                        {room.qualityPreset === 'AUTO' ? 'CINEMATIC SYNC' : room.qualityPreset.replace('_', ' ')}
+                        {!room.qualityPreset || room.qualityPreset === 'AUTO' ? 'CINEMATIC SYNC' : room.qualityPreset.replace('_', ' ')}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
                         <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000' }}>
-                          {userContext?.displayName ? userContext.displayName[0] : 'P'}
+                          {userContext?.displayName ? userContext.displayName[0].toUpperCase() : 'P'}
                         </div>
                         {room.viewerCount > 0 && (
                           <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#222222', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>
@@ -354,28 +311,14 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
-                      {room.status === 'CLOSED' ? (
-                        <>
-                          <div className="equalizer-box" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
-                            <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.3)', borderRadius: '1px', display: 'inline-block' }} />
-                            <span style={{ width: '2px', height: '14px', background: 'rgba(255,255,255,0.3)', borderRadius: '1px', display: 'inline-block', marginLeft: '3px' }} />
-                          </div>
-                          <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
-                            Rejoin Suite
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="equalizer-box">
-                            <span className="equalizer-bar" />
-                            <span className="equalizer-bar" />
-                            <span className="equalizer-bar" />
-                          </div>
-                          <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
-                            Join Lobby
-                          </button>
-                        </>
-                      )}
+                      <div className="equalizer-box">
+                        <span className="equalizer-bar" />
+                        <span className="equalizer-bar" />
+                        <span className="equalizer-bar" />
+                      </div>
+                      <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
+                        Join Lobby
+                      </button>
                     </div>
                   </div>
                 );
@@ -388,44 +331,48 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '0.5rem' }}>
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Recent Screenings</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {/* Screening Card 1 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Film size={28} color="rgba(197, 168, 92, 0.2)" />
-                <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>2h 14m</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>Oppenheimer Sync</h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Yesterday</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#444', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>U1</div>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#777', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold', marginLeft: '-5px' }}>U2</div>
-                </div>
-                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>14 Guests</span>
-              </div>
+          {recentScreenings.length === 0 ? (
+            <div style={{ padding: '2rem 1.5rem', textAlign: 'center', borderRadius: '8px', color: 'rgba(255, 255, 255, 0.4)', border: '1px dashed rgba(255, 255, 255, 0.08)', background: 'rgba(5, 5, 5, 0.2)' }}>
+              <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🎬</span>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>No completed screenings found.</p>
             </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              {recentScreenings.map((room) => {
+                const durationHrs = Math.floor(room.duration / 3600);
+                const durationMins = Math.ceil((room.duration % 3600) / 60);
+                const durationStr = durationHrs > 0 ? `${durationHrs}h ${durationMins}m` : `${durationMins}m`;
 
-            {/* Screening Card 2 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(255,255,255,0.06)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Film size={28} color="rgba(197, 168, 92, 0.2)" />
-                <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>Ep. 4-10</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>Succession Watch</h3>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Oct 12</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#666', border: '1px solid #000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>U3</div>
-                </div>
-                <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>Just You</span>
-              </div>
+                return (
+                  <div key={room.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(197, 168, 92, 0.15)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Film size={28} color="rgba(197, 168, 92, 0.2)" />
+                      <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>
+                        {durationStr}
+                      </span>
+                      <span style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(197, 168, 92, 0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', color: 'var(--color-gold)' }}>
+                        {(!room.qualityPreset || room.qualityPreset === 'AUTO') ? 'AUTO' : room.qualityPreset.replace('_', ' ')}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                      <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{room.name}</h3>
+                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{new Date(room.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
+                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(197, 168, 92, 0.15)', color: 'var(--color-gold)', border: '1px solid var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>
+                          {userContext?.displayName ? userContext.displayName[0].toUpperCase() : 'P'}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>
+                        {room.viewerCount} {room.viewerCount === 1 ? 'Guest' : 'Guests'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
+          )}
         </section>
 
       </main>

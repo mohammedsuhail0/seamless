@@ -227,6 +227,7 @@ router.get('/my/history', authenticateToken, async (req: AuthenticatedRequest, r
         createdAt: r.createdAt,
         closedAt: r.closedAt,
         duration,
+        qualityPreset: r.qualityPreset,
       };
     });
 
