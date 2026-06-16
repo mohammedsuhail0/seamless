@@ -643,7 +643,141 @@ button, input, select, textarea {
     display: flex;
   }
 }
+/* ── Scoped Landing Page Redesign (Netflix/Rolls Royce theme) ── */
+.landing-page-root {
+  --bg-primary: #000000;
+  --bg-secondary: #0c0c0c;
+  --bg-tertiary: #161616;
+  --bg-surface: rgba(255, 255, 255, 0.03);
+  
+  --color-primary: #e50914; /* Netflix Red */
+  --color-primary-hover: #c11119;
+  --color-primary-glow: rgba(229, 9, 20, 0.3);
+  
+  --color-gold: #c5a85c;
+  --color-gold-hover: #e3c578;
+  --color-gold-glow: rgba(197, 168, 92, 0.3);
+  
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.15);
+  
+  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+  min-height: 100vh;
+}
 
+/* Serif headings */
+.landing-page-root h1,
+.landing-page-root h2,
+.landing-page-root h3,
+.landing-page-root .serif-heading {
+  font-family: var(--font-serif) !important;
+  letter-spacing: -0.01em;
+  font-weight: 700;
+}
 
+/* Glass card styling overrides */
+.landing-page-root .glass {
+  background: rgba(12, 12, 12, 0.75) !important;
+  border: 1px solid rgba(197, 168, 92, 0.15) !important;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8) !important;
+}
 
+.landing-page-root .glass-card {
+  background: rgba(10, 10, 10, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.landing-page-root .glass-card:hover {
+  background: rgba(16, 16, 16, 0.85) !important;
+  border-color: rgba(197, 168, 92, 0.3) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* White inputs with black text */
+.landing-page-root .premium-input {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #ffffff !important;
+  border-radius: 4px !important;
+  font-size: var(--text-base) !important;
+  font-weight: 500 !important;
+  padding: 0.8rem 1rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.landing-page-root .premium-input:focus {
+  border-color: var(--color-gold) !important;
+  box-shadow: 0 0 0 3px rgba(197, 168, 92, 0.35) !important;
+}
+
+/* Netflix Style Red Button */
+.landing-page-root .btn-netflix {
+  background: var(--color-primary) !important;
+  color: #ffffff !important;
+  border-radius: 4px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  padding: 0.85rem 1.5rem !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 4px 12px rgba(229, 9, 20, 0.3) !important;
+}
+
+.landing-page-root .btn-netflix:hover {
+  background: var(--color-primary-hover) !important;
+  box-shadow: 0 6px 20px rgba(229, 9, 20, 0.5) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Gold Outline Button */
+.landing-page-root .btn-gold-outline {
+  background: transparent !important;
+  border: 1px solid var(--color-gold) !important;
+  color: var(--color-gold) !important;
+  font-weight: 600 !important;
+  font-size: var(--text-sm) !important;
+  padding: 0.5rem 1.25rem !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+}
+
+.landing-page-root .btn-gold-outline:hover {
+  background: rgba(197, 168, 92, 0.1) !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+/* Gold Icon Container */
+.landing-page-root .gold-icon-container {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1.5px solid rgba(197, 168, 92, 0.3) !important;
+  background: rgba(197, 168, 92, 0.05) !important;
+  border-radius: 8px !important;
+  width: 48px !important;
+  height: 48px !important;
+}
+
+/* Google Sign-in Button Scoped Override */
+.landing-page-root .google-btn-container {
+  background: #181818 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 4px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0.75rem 1rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.landing-page-root .google-btn-container:hover {
+  background: #222222 !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
 

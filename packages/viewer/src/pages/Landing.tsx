@@ -3,12 +3,31 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
-import { Tv, Shield, Sparkles, ArrowRight, Chrome, AlertCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, Chrome, AlertCircle, Globe, RefreshCw } from 'lucide-react';
 
 interface LandingProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   setAuthContext: any;
 }
+
+const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
+    <defs>
+      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#9A7A35" />
+        <stop offset="25%" stopColor="#EAC775" />
+        <stop offset="50%" stopColor="#BE9648" />
+        <stop offset="75%" stopColor="#FDF1A9" />
+        <stop offset="100%" stopColor="#A1813C" />
+      </linearGradient>
+    </defs>
+    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
+    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
 export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   const { user, login, register, isAuthenticated, logout, googleCallback, googleOnboard, tempGoogleSession } = useAuthStore();
@@ -66,7 +85,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       });
 
       google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
+        theme: 'filled_black',
         size: 'large',
         width: 360,
         text: 'continue_with',
@@ -163,34 +182,22 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   };
 
   return (
-    <div style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+    <div className="landing-page-root" style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
       {/* Decorative Radial Glow overlays */}
-      <div className="radial-glow" style={{ top: '-10%', left: '-10%' }} />
-      <div className="radial-glow" style={{ bottom: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, rgba(0,0,0,0) 70%)' }} />
+      <div className="radial-glow" style={{ top: '-10%', left: '-10%', background: 'radial-gradient(circle, rgba(197, 168, 92, 0.08) 0%, rgba(0,0,0,0) 70%)' }} />
+      <div className="radial-glow" style={{ bottom: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(229, 9, 20, 0.05) 0%, rgba(0,0,0,0) 70%)' }} />
 
       {/* Navbar */}
-      <header className="glass landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem', position: 'sticky', top: 0, zIndex: 10 }}>
+      <header className="landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(0, 0, 0, 0.75)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <svg width="32" height="32" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.5))' }}>
-            <defs>
-              <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#A855F7" />
-                <stop offset="100%" stopColor="#EC4899" />
-              </linearGradient>
-              <mask id="lightning-mask">
-                <rect x="0" y="0" width="36" height="36" fill="white" />
-                <path d="M19 7 L10 19 H18 L14 29 L26 15 H17 L19 7 Z" fill="black" />
-              </mask>
-            </defs>
-            <path d="M8 5 L30 18 L8 31 Z" fill="url(#logo-grad)" mask="url(#lightning-mask)" />
-          </svg>
-          <span style={{ fontWeight: 800, fontSize: '1.35rem', letterSpacing: '0.5px', background: 'linear-gradient(to right, #A855F7, #EC4899)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Hypersync</span>
+          <GoldLogoSVG size={36} />
+          <span style={{ fontWeight: 700, fontSize: '1.45rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>Hypersync</span>
         </div>
         <div>
           {isAuthenticated ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Hi, {user?.displayName}</span>
-              <button className="btn btn-secondary" onClick={() => onNavigate('dashboard')}>Dashboard</button>
+              <button className="btn btn-gold-outline" onClick={() => onNavigate('dashboard')}>Dashboard</button>
               <button
                 className="btn btn-ghost"
                 onClick={async () => {
@@ -203,7 +210,19 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               </button>
             </div>
           ) : (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>🍿 Ready for showtime!</span>
+            <button 
+              className="btn btn-gold-outline"
+              onClick={() => {
+                const card = document.getElementById('auth-form-card');
+                if (card) {
+                  card.scrollIntoView({ behavior: 'smooth' });
+                  const input = card.querySelector('input');
+                  if (input) input.focus();
+                }
+              }}
+            >
+              Sign In
+            </button>
           )}
         </div>
       </header>
@@ -213,23 +232,27 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
         
         {/* Left Hand: Hero Details */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(79, 70, 229, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(79,70,229,0.2)', width: 'fit-content' }}>
-            <Sparkles size={14} color="#a5b4fc" />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#c7d2fe', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(197, 168, 92, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(197, 168, 92, 0.25)', width: 'fit-content' }}>
+            <Sparkles size={14} color="#e3c578" />
+            <span style={{ fontSize: 'var(--text-xs)', color: '#e3c578', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
           </div>
 
-          <h1 style={{ fontSize: 'var(--text-5xl)', fontWeight: 800, lineHeight: 1.15 }}>
+          <h1 style={{ fontSize: 'var(--text-5xl)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
             Watch Together.<br />
-            <span className="title-gradient">For Real.</span>
+            <span>For Real.</span>
           </h1>
 
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
             Watch and browse together from your own real browser. Start a room, share a tab or screen, and let friends join instantly for videos, live events, shopping, research, or casual browsing.
           </p>
 
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', padding: '0.75rem 0', margin: '0.5rem 0', color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: 'var(--text-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            Real-time synchronization across any device.
+          </div>
+
           {/* Quick Join Segment */}
-          <div className="glass-card" style={{ padding: '1.5rem', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Join with invite code</h3>
+          <div className="glass-card" style={{ padding: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)' }}>
+            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#c5a85c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Join with invite code</h3>
             <form onSubmit={handleQuickJoin} style={{ display: 'flex', gap: '0.75rem' }}>
               <input 
                 type="text" 
@@ -237,10 +260,10 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 maxLength={6}
-                className="input-text"
+                className="premium-input"
                 style={{ flex: 1, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '1px' }}
               />
-              <button type="submit" className="btn btn-primary">Join Room <ArrowRight size={16} /></button>
+              <button type="submit" className="btn btn-netflix">Join Room <ArrowRight size={16} /></button>
             </form>
           </div>
         </section>
@@ -250,15 +273,15 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           {isAuthenticated ? (
             <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
               <div style={{ fontSize: '3rem' }}>🎉</div>
-              <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800 }}>Welcome Back!</h2>
+              <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700 }}>Welcome Back!</h2>
               <p style={{ color: 'var(--text-secondary)' }}>You are logged in as <strong>{user?.displayName}</strong>. You can create screening rooms or join your friends' rooms from the dashboard.</p>
-              <button className="btn btn-primary" onClick={() => onNavigate('dashboard')} style={{ padding: '0.8rem' }}>Go to Dashboard <ArrowRight size={18} /></button>
+              <button className="btn btn-netflix" onClick={() => onNavigate('dashboard')} style={{ padding: '0.8rem', width: '100%' }}>Go to Dashboard <ArrowRight size={18} /></button>
             </div>
           ) : (
-            <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div id="auth-form-card" className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)' }}>
               {tempGoogleSession && (
-                <div style={{ background: 'rgba(59, 130, 246, 0.10)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800 }}>
+                <div style={{ background: 'rgba(229, 9, 20, 0.1)', border: '1px solid rgba(229, 9, 20, 0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#ffffff' }}>
                     <Chrome size={16} />
                     Finish Google sign-up
                   </div>
@@ -271,19 +294,19 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               {/* Tab Selector */}
               {!tempGoogleSession && (
                 <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
-                <button 
-                  style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setIsLoginTab(true); setErrorMsg(''); }}
-                >
-                  Sign In
-                </button>
-                <button 
-                  style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: !isLoginTab ? 'var(--text-primary)' : 'var(--text-muted)', borderBottom: !isLoginTab ? '2px solid var(--color-primary)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                  onClick={() => { setIsLoginTab(false); setErrorMsg(''); }}
-                >
-                  Create Account
-                </button>
-              </div>
+                  <button 
+                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? '#ffffff' : 'var(--text-muted)', borderBottom: isLoginTab ? '2.5px solid var(--color-gold)' : 'none', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setIsLoginTab(true); setErrorMsg(''); }}
+                  >
+                    Sign In
+                  </button>
+                  <button 
+                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: !isLoginTab ? '#ffffff' : 'var(--text-muted)', borderBottom: !isLoginTab ? '2.5px solid var(--color-gold)' : 'none', fontWeight: 600, cursor: 'pointer' }}
+                    onClick={() => { setIsLoginTab(false); setErrorMsg(''); }}
+                  >
+                    Create Account
+                  </button>
+                </div>
               )}
 
               {errorMsg && (
@@ -295,7 +318,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               {/* Form Input elements */}
               <form onSubmit={tempGoogleSession ? handleGoogleOnboard : handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {tempGoogleSession ? (
-                  <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59,130,246,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ background: 'rgba(197, 168, 92, 0.08)', border: '1px solid rgba(197,168,92,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <Chrome size={14} />
                     Google account detected: {tempGoogleSession.email}
                   </div>
@@ -303,55 +326,55 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
                 {!tempGoogleSession && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>{isLoginTab ? 'Username or Email' : 'Email'}</label>
+                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>{isLoginTab ? 'Username or Email' : 'Email'}</label>
                     <input 
                       type="text" 
                       required
-                      placeholder={isLoginTab ? 'e.g. arjun or arjun@email.com' : 'e.g. arjun@email.com'} 
+                      placeholder={isLoginTab ? 'Enter username' : 'Enter email'} 
                       value={emailOrUsername}
                       onChange={(e) => setEmailOrUsername(e.target.value)}
-                      className="input-text"
+                      className="premium-input"
                     />
                   </div>
                 )}
 
                 {!isLoginTab && !tempGoogleSession && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Display Name</label>
+                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Display Name</label>
                     <input 
                       type="text" 
                       required
-                      placeholder="e.g. Arjun" 
+                      placeholder="Enter display name" 
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="input-text"
+                      className="premium-input"
                     />
                   </div>
                 )}
 
                 {tempGoogleSession && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Choose Display Name</label>
+                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Choose Display Name</label>
                     <input 
                       type="text" 
                       required
-                      placeholder="e.g. Arjun" 
+                      placeholder="Enter display name" 
                       value={displayName}
                       onChange={(e) => setDisplayName(e.target.value)}
-                      className="input-text"
+                      className="premium-input"
                     />
                   </div>
                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', fontWeight: 600 }}>Password</label>
+                  <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Password</label>
                   <input 
                     type="password" 
                     required
-                    placeholder="••••••••" 
+                    placeholder="Enter password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="input-text"
+                    className="premium-input"
                   />
                   {!isLoginTab && (
                     <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
@@ -360,8 +383,8 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                   )}
                 </div>
 
-                <button type="submit" disabled={formLoading} className="btn btn-primary" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
-                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Login to Hypersync' : 'Create Account'}
+                <button type="submit" disabled={formLoading} className="btn btn-netflix" style={{ padding: '0.85rem', marginTop: '0.5rem', width: '100%' }}>
+                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Continue' : 'Create Account'}
                 </button>
               </form>
 
@@ -403,33 +426,49 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Highlights Grid */}
       <section style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 800, textAlign: 'center', marginBottom: '3rem' }}>Why you'll love Hypersync</h2>
+        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#ffffff' }}>Why you'll love Hypersync</h2>
         <div className="highlights-grid">
           
-          <div className="glass-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ background: 'rgba(79, 70, 229, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
-              <Shield size={24} color="#818cf8" />
+          <div className="glass-card" style={{ padding: '2.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)', borderRadius: 'var(--radius-lg)' }}>
+            <div className="gold-icon-container">
+              <Globe size={24} color="var(--color-gold)" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Share Your Real Browser</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Host from the browser session you already use. Hypersync is built for allowed screen sharing, live browsing, watch rooms, and collaborative sessions.
-            </p>
+            <div>
+              <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Watch Anything, Anywhere</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                Stream directly from your browser to the room in 4K fidelity.
+              </p>
+            </div>
           </div>
 
-          <div className="glass-card" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.5rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
-              <Tv size={24} color="#34d399" />
+          <div className="glass-card" style={{ padding: '2.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)', borderRadius: 'var(--radius-lg)' }}>
+            <div className="gold-icon-container">
+              <RefreshCw size={24} color="var(--color-gold)" />
             </div>
-            <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700 }}>Simple Invite Rooms</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
-              Friends join with a link or room code. The host controls what is shared, and viewers can watch, chat, and react without installing a separate viewer app.
-            </p>
+            <div>
+              <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Synchronized Control</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                Perfectly aligned playback. No spoilers, no delays.
+              </p>
+            </div>
           </div>
-
-
 
         </div>
       </section>
+
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', background: '#000000', padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', zIndex: 1, position: 'relative' }}>
+        <GoldLogoSVG size={40} />
+        <div style={{ display: 'flex', gap: '2rem', fontSize: 'var(--text-sm)' }}>
+          <a href="#terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Terms</a>
+          <a href="#privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Privacy</a>
+          <a href="#support" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Support</a>
+          <a href="#contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Contact</a>
+        </div>
+        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
+          © 2024 Hypersync. Cinematic Excellence.
+        </p>
+      </footer>
     </div>
   );
 }
