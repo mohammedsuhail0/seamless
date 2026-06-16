@@ -11,6 +11,42 @@ interface UseWebRTCOptions {
   role: string | null;
 }
 
+function getIceConfig(): RTCConfiguration {
+  const env = (import.meta as any).env || {};
+  const turnUrls = String(env.VITE_TURN_URLS || '')
+    .split(',')
+    .map((url) => url.trim())
+    .filter(Boolean);
+
+  const iceServers: RTCIceServer[] = [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ];
+
+  if (turnUrls.length > 0 && env.VITE_TURN_USERNAME && env.VITE_TURN_CREDENTIAL) {
+    iceServers.push({
+      urls: turnUrls,
+      username: env.VITE_TURN_USERNAME,
+      credential: env.VITE_TURN_CREDENTIAL,
+    });
+  } else {
+    iceServers.push({
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    });
+  }
+
+  return {
+    iceServers,
+    iceTransportPolicy: env.VITE_FORCE_TURN === 'true' ? 'relay' : 'all',
+  };
+}
+
 export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [connectionState, setConnectionState] = useState<RTCIceConnectionState>('new');
@@ -27,22 +63,18 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const activeViewersRef = useRef<Set<string>>(new Set());
   const pendingIceCandidatesHostRef = useRef<Map<string, any[]>>(new Map());
+  const reconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // STUN/TURN servers configuration
-  const iceConfig = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      {
-        urls: [
-          'turn:openrelay.metered.ca:80',
-          'turn:openrelay.metered.ca:443',
-          'turn:openrelay.metered.ca:443?transport=tcp',
-        ],
-        username: 'openrelayproject',
-        credential: 'openrelayproject',
-      },
-    ],
+  const iceConfig = getIceConfig();
+
+  const recreatePeerForViewer = (viewerId: string) => {
+    const existingPc = peerConnectionsRef.current.get(viewerId);
+    if (existingPc) {
+      try { existingPc.close(); } catch (e) {}
+      peerConnectionsRef.current.delete(viewerId);
+    }
+    pendingIceCandidatesHostRef.current.delete(viewerId);
+    void ensurePeerForViewer(viewerId);
   };
 
   // Host helper: Create a WebRTC PeerConnection for a specific viewer
@@ -53,7 +85,13 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
     // If a connection already exists, verify it's still alive/active. If closed/failed, recreate it.
     const existingPc = peerConnectionsRef.current.get(viewerId);
     if (existingPc) {
-      if (existingPc.connectionState !== 'failed' && existingPc.connectionState !== 'closed') {
+      if (
+        existingPc.connectionState !== 'failed' &&
+        existingPc.connectionState !== 'closed' &&
+        existingPc.iceConnectionState !== 'failed' &&
+        existingPc.iceConnectionState !== 'closed' &&
+        existingPc.iceConnectionState !== 'disconnected'
+      ) {
         return;
       }
       console.log(`📡 Recreating failed/closed peer connection for viewer: ${viewerId}`);
@@ -69,9 +107,24 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
 
       pc.oniceconnectionstatechange = () => {
         console.log(`📡 Peer connection state for ${viewerId}:`, pc.iceConnectionState);
-        // Map viewer connection state to overall connection state
-        if (pc.iceConnectionState === 'connected') {
-          setConnectionState('connected');
+        setConnectionState(pc.iceConnectionState);
+
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          const timer = reconnectTimersRef.current.get(viewerId);
+          if (timer) clearTimeout(timer);
+          reconnectTimersRef.current.delete(viewerId);
+        }
+
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+          if (!reconnectTimersRef.current.has(viewerId)) {
+            const timer = setTimeout(() => {
+              reconnectTimersRef.current.delete(viewerId);
+              if (activeViewersRef.current.has(viewerId) && localStreamRef.current) {
+                recreatePeerForViewer(viewerId);
+              }
+            }, pc.iceConnectionState === 'failed' ? 500 : 3500);
+            reconnectTimersRef.current.set(viewerId, timer);
+          }
         }
       };
 
@@ -158,6 +211,8 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
       try { pc.close(); } catch (e) {}
     });
     peerConnectionsRef.current.clear();
+    reconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
+    reconnectTimersRef.current.clear();
     setConnectionState('new');
   };
 
@@ -283,6 +338,8 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         });
         peerConnectionsRef.current.clear();
         pendingIceCandidatesHostRef.current.clear();
+        reconnectTimersRef.current.forEach((timer) => clearTimeout(timer));
+        reconnectTimersRef.current.clear();
         setStream(null);
       };
     } else {

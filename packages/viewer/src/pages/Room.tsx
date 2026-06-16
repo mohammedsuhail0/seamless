@@ -1,7 +1,7 @@
 // Agent: 🌐 Agent C (Viewer Screening Room Interface)
 // File: packages/viewer/src/pages/Room.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Socket } from 'socket.io-client';
 import socketClient from '../lib/socket';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -69,6 +69,20 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const myUserIdRef = useRef<string | null>(null);
   const roomContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [role, setRole] = useState<MemberRole>(
+    roomInfo?.hostId && userContext?.id && roomInfo.hostId === userContext.id
+      ? MemberRole.HOST
+      : MemberRole.VIEWER
+  );
+
+  const joinSocketRoom = useCallback((targetSocket: Socket) => {
+    const token = localStorage.getItem('browsync_access_token') || undefined;
+    targetSocket.emit(SOCKET_EVENTS.ROOM_JOIN, {
+      roomCode: roomCode.toUpperCase(),
+      displayName: userContext?.displayName || `Guest_${Math.floor(Math.random() * 1000)}`,
+      token,
+    });
+  }, [roomCode, userContext?.displayName]);
 
   // 1. Fetch Room Meta Specs from REST API on join
   useEffect(() => {
@@ -93,15 +107,15 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     socketRef.current = nextSocket;
     setSocket(nextSocket);
 
-    // Retrieve access token
-    const token = localStorage.getItem('browsync_access_token') || undefined;
+    const handleSocketConnect = () => {
+      joinSocketRoom(nextSocket);
+    };
 
-    // Join Socket Room
-    nextSocket.emit(SOCKET_EVENTS.ROOM_JOIN, {
-      roomCode: roomCode.toUpperCase(),
-      displayName: userContext?.displayName || `Guest_${Math.floor(Math.random() * 1000)}`,
-      token,
-    });
+    nextSocket.on('connect', handleSocketConnect);
+
+    if (nextSocket.connected) {
+      joinSocketRoom(nextSocket);
+    }
 
     // Listeners: Room joined confirmation (authoritative role assignment)
     nextSocket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { 
@@ -215,6 +229,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
     return () => {
       nextSocket.emit(SOCKET_EVENTS.ROOM_LEAVE);
+      nextSocket.off('connect', handleSocketConnect);
       nextSocket.off(SOCKET_EVENTS.ROOM_JOINED);
       nextSocket.off(SOCKET_EVENTS.PRESENCE_SYNC);
       nextSocket.off(SOCKET_EVENTS.ROOM_ERROR);
@@ -228,7 +243,18 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       nextSocket.off(SOCKET_EVENTS.CONTROL_RELEASED);
       nextSocket.off(SOCKET_EVENTS.ROOM_CLOSED);
     };
-  }, [loading, errorMsg, roomCode]);
+  }, [loading, errorMsg, roomCode, joinSocketRoom]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const interval = window.setInterval(() => {
+      if (socket.connected) {
+        socket.emit(SOCKET_EVENTS.PRESENCE_HEARTBEAT);
+      }
+    }, 25000);
+
+    return () => window.clearInterval(interval);
+  }, [socket]);
 
   // Scroll to bottom of chat list
   useEffect(() => {
@@ -236,11 +262,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }, [chatMessages]);
 
   // 3. WebRTC Hooks setup
-  const [role, setRole] = useState<MemberRole>(
-    roomInfo?.hostId && userContext?.id && roomInfo.hostId === userContext.id
-      ? MemberRole.HOST
-      : MemberRole.VIEWER
-  );
 
   useEffect(() => {
     if (roomInfo?.hostId && userContext?.id) {

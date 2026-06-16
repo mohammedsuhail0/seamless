@@ -20,8 +20,12 @@ class SocketClient {
     // Connects to server (Vite proxies WS traffic perfectly on dev, direct Render URL on production)
     this.socket = io(BACKEND_URL, {
       autoConnect: false,
-      reconnectionAttempts: 10,
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
 
     this.socket.on('connect', () => {
