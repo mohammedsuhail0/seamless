@@ -705,6 +705,7 @@ button, input, select, textarea {
 
 /* White inputs with black text */
 .landing-page-root .premium-input {
+  width: 100% !important;
   background: #ffffff !important;
   color: #000000 !important;
   border: 1.5px solid #ffffff !important;
@@ -849,6 +850,7 @@ button, input, select, textarea {
 /* Premium Inputs */
 .dashboard-page-root .premium-input,
 .room-page-root .premium-input {
+  width: 100% !important;
   background: #111111 !important;
   color: #ffffff !important;
   border: 1.5px solid rgba(255, 255, 255, 0.1) !important;
@@ -1072,6 +1074,12 @@ button, input, select, textarea {
   display: grid !important;
   grid-template-columns: 1.15fr 0.85fr !important;
   gap: 4rem !important;
+  max-width: 1200px !important;
+  margin: 0 auto !important;
+  padding: 4rem 2rem !important;
+  align-items: center !important;
+  position: relative !important;
+  z-index: 1 !important;
 }
 
 .landing-features-grid {

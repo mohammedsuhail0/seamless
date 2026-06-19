@@ -228,7 +228,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       </header>
 
       {/* Main Grid Content */}
-      <main className="landing-main-grid" style={{ maxWidth: '1200px', margin: '0 auto', padding: '4rem 2rem', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+      <main className="landing-main-grid">
         
         {/* Left Hand: Hero Details */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
