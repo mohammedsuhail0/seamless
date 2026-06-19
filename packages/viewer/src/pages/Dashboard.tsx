@@ -45,7 +45,6 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
   const { logout } = useAuthStore();
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
-  const [historyCount, setHistoryCount] = useState(0);
 
   // New room modal inputs
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,12 +68,15 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
   const activeLobbies = history.filter(room => room.status !== 'CLOSED');
   const recentScreenings = history.filter(room => room.status === 'CLOSED');
 
+  const totalSeconds = history.reduce((sum, r) => sum + (r.duration || 0), 0);
+  const realHoursSynced = Math.round((totalSeconds / 3600) * 10) / 10;
+  const realFriendsActive = history.reduce((sum, r) => sum + (r.viewerCount || 0), 0);
+
   // Fetch hosted room history on load
   const fetchHistory = async () => {
     try {
-      const data = await api.get('/api/rooms/my/history?page=1&limit=5');
+      const data = await api.get('/api/rooms/my/history?page=1&limit=100');
       setHistory(data.rooms);
-      setHistoryCount(data.total);
     } catch (err) {
       console.error('Failed to load room history:', err);
     } finally {
@@ -172,7 +174,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
         <section className="stats-grid">
           <div className="gold-stat-card">
             <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
-              {historyCount > 0 ? Math.max(24, Math.floor(historyCount * 1.5)) : 24}
+              {realHoursSynced}
             </div>
             <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
               Hours Synced
@@ -181,7 +183,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
 
           <div className="gold-stat-card">
             <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
-              {historyCount > 0 ? historyCount * 3 : 12}
+              {realFriendsActive}
             </div>
             <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
               Friends Active
@@ -338,7 +340,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
             </div>
           ) : (
             <div className="screenings-grid">
-              {recentScreenings.map((room) => {
+              {recentScreenings.slice(0, 6).map((room) => {
                 const durationHrs = Math.floor(room.duration / 3600);
                 const durationMins = Math.ceil((room.duration % 3600) / 60);
                 const durationStr = durationHrs > 0 ? `${durationHrs}h ${durationMins}m` : `${durationMins}m`;

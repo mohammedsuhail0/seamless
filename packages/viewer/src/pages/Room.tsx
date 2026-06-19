@@ -189,8 +189,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     nextSocket.on(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED, (message: ChatMessage) => {
       setChatMessages((prev) => [...prev, message]);
       
-      // Trigger disappearing notification toast if the message is from someone else
-      if (message.type !== 'system' && message.userId !== myUserIdRef.current) {
+      // Trigger disappearing notification toast if the message is not a system message
+      if (message.type !== 'system') {
         if (toastTimeoutRef.current) {
           clearTimeout(toastTimeoutRef.current);
         }
