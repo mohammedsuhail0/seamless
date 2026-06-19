@@ -13,7 +13,8 @@ import {
   Copy, 
   Check, 
   Ticket, 
-  Settings 
+  Settings,
+  Trash2
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -128,6 +129,19 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
       navigator.clipboard.writeText(joinUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleCloseRoom = async (roomId: string) => {
+    if (!window.confirm('Are you sure you want to end and close this lounge session? Guests will be disconnected.')) {
+      return;
+    }
+    try {
+      await api.patch(`/api/rooms/${roomId}/close`);
+      fetchHistory();
+    } catch (err) {
+      console.error('Failed to close room:', err);
+      alert('Failed to close room session.');
     }
   };
 
@@ -318,9 +332,37 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
                         <span className="equalizer-bar" />
                         <span className="equalizer-bar" />
                       </div>
-                      <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
-                        Join Lobby
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                        <button 
+                          onClick={() => handleCloseRoom(room.id)}
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1.5px solid rgba(239, 68, 68, 0.3)',
+                            color: '#ef4444',
+                            padding: '0.45rem',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                            e.currentTarget.style.borderColor = '#ef4444';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                          }}
+                          title="Close & End Lounge Session"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
+                          Join Lobby
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
