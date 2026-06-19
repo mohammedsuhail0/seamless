@@ -74,7 +74,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(true);
-  const [showChat, setShowChat] = useState(true);
+  const [showChat, setShowChat] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [videoFit, setVideoFit] = useState<'contain' | 'cover' | 'fill'>('contain');
@@ -203,7 +203,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
         toastTimeoutRef.current = setTimeout(() => {
           setActiveToast(null);
-        }, 4000); // disappearing after 4 seconds
+        }, 5000); // disappearing after 5 seconds
       }
     });
 
@@ -984,34 +984,83 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
         </aside>
 
-        {/* Chat Notification Toast */}
+        {/* Chat Notification Toast (WhatsApp style) */}
         {activeToast && (
           <div 
             className="glass toast-notification-left" 
+            onClick={() => {
+              setShowChat(true);
+              setActiveToast(null);
+            }}
             style={{
               position: 'absolute',
               top: showControls ? '5.5rem' : '1.5rem',
               left: '1.5rem',
               zIndex: 99999,
-              padding: '0.75rem 1.25rem',
-              borderRadius: 'var(--radius-lg)',
-              border: '1.5px solid var(--color-gold)',
-              boxShadow: 'var(--shadow-lg)',
+              padding: '0.65rem 1rem',
+              borderRadius: '12px',
+              border: '1px solid rgba(197, 168, 92, 0.3)',
+              background: 'rgba(10, 10, 10, 0.9)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '0.2rem',
+              alignItems: 'center',
+              gap: '0.75rem',
               maxWidth: '320px',
-              width: 'max-content',
-              pointerEvents: 'none',
-              transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              width: 'calc(100% - 3rem)',
+              cursor: 'pointer',
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              userSelect: 'none',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.02)';
+              e.currentTarget.style.borderColor = 'rgba(197, 168, 92, 0.6)';
+              e.currentTarget.style.background = 'rgba(18, 18, 18, 0.95)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.borderColor = 'rgba(197, 168, 92, 0.3)';
+              e.currentTarget.style.background = 'rgba(10, 10, 10, 0.9)';
             }}
           >
-            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-gold)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              💬 {activeToast.displayName}
-            </span>
-            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-              {activeToast.text}
-            </span>
+            {/* Avatar block */}
+            <div style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(197, 168, 92, 0.15)',
+              border: '1px solid var(--color-gold)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              color: 'var(--color-gold)',
+              flexShrink: 0,
+            }}>
+              {activeToast.displayName.slice(0, 2).toUpperCase()}
+            </div>
+
+            {/* Content block */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', overflow: 'hidden', flex: 1 }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-gold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activeToast.displayName}
+              </span>
+              <span style={{ fontSize: 'var(--text-sm)', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {activeToast.text}
+              </span>
+            </div>
+            
+            {/* Indicator Dot */}
+            <div style={{
+              width: '6px',
+              height: '6px',
+              borderRadius: '50%',
+              background: '#e50914',
+              boxShadow: '0 0 6px #e50914',
+              flexShrink: 0,
+            }} />
           </div>
         )}
 
