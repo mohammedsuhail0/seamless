@@ -24,7 +24,8 @@ import {
   Check,
   Signal,
   Volume2,
-  VolumeX
+  VolumeX,
+  LogOut
 } from 'lucide-react';
 
 interface RoomProps {
@@ -585,36 +586,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         </div>
       ))}
 
-      {/* Chat Notification Toast */}
-      {activeToast && (
-        <div 
-          className="glass toast-notification-left" 
-          style={{
-            position: 'absolute',
-            top: showControls ? '5.5rem' : '1.5rem',
-            left: '1.5rem',
-            zIndex: 9999,
-            padding: '0.75rem 1.25rem',
-            borderRadius: 'var(--radius-lg)',
-            border: '1.5px solid var(--color-gold)',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.2rem',
-            maxWidth: '320px',
-            width: 'max-content',
-            pointerEvents: 'none',
-            transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-        >
-          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-gold)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            💬 {activeToast.displayName}
-          </span>
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-            {activeToast.text}
-          </span>
-        </div>
-      )}
+
 
       {/* Header bar */}
       <header 
@@ -639,8 +611,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem', color: '#ffffff' }}>
-            ✕<span className="hide-mobile"> Leave Lounge</span>
+          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <LogOut size={14} /><span className="hide-mobile"> Leave Lounge</span>
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '1rem' }}>
             <GoldLogoSVG size={28} />
@@ -770,8 +742,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                       <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', fontFamily: 'var(--font-serif)' }}>
                         Host is Sharing Screen
                       </h3>
-                      <button className="btn-red" style={{ width: '100%', fontSize: 'var(--text-xs)', padding: '0.65rem' }}>
-                        Click to Play Stream
+                      <button className="btn-red" style={{ width: '100%', fontSize: 'var(--text-xs)', padding: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <GoldLogoSVG size={14} /> Click to Play Stream
                       </button>
                     </div>
                   </div>
@@ -787,9 +759,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 <button 
                   className="btn-red" 
                   onClick={startCapture} 
-                  style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem' }}
+                  style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
                 >
-                  📡 Start Lounge Stream
+                  <GoldLogoSVG size={16} /> Start Lounge Stream
                 </button>
               </div>
             ) : (
@@ -828,9 +800,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 <button 
                   className="btn-red" 
                   onClick={stream ? stopCapture : handleStartCapture}
-                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)' }}
+                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                 >
-                  📡 <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
+                  <GoldLogoSVG size={14} />
+                  <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
                   <span className="show-mobile-only">{stream ? 'Stop' : 'Share'}</span>
                 </button>
               )}
@@ -977,12 +950,70 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               className="premium-input"
               style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-sm)', flex: 1 }}
             />
-            <button type="submit" className="btn-red" style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', width: '36px', height: '36px' }}>
+            <button 
+              type="submit" 
+              style={{ 
+                padding: '0.5rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                borderRadius: '50%', 
+                width: '36px', 
+                height: '36px',
+                background: 'var(--color-gold)',
+                color: '#000000',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(197, 168, 92, 0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--color-gold-hover)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(197, 168, 92, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--color-gold)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(197, 168, 92, 0.2)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
               <Send size={16} />
             </button>
           </form>
 
         </aside>
+
+        {/* Chat Notification Toast */}
+        {activeToast && (
+          <div 
+            className="glass toast-notification-left" 
+            style={{
+              position: 'absolute',
+              top: showControls ? '5.5rem' : '1.5rem',
+              left: '1.5rem',
+              zIndex: 99999,
+              padding: '0.75rem 1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '1.5px solid var(--color-gold)',
+              boxShadow: 'var(--shadow-lg)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.2rem',
+              maxWidth: '320px',
+              width: 'max-content',
+              pointerEvents: 'none',
+              transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-gold)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              💬 {activeToast.displayName}
+            </span>
+            <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+              {activeToast.text}
+            </span>
+          </div>
+        )}
 
       </div>
     </div>
