@@ -169,7 +169,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
         </section>
 
         {/* Stats Section */}
-        <section className="stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <section className="stats-grid">
           <div className="gold-stat-card">
             <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
               {historyCount > 0 ? Math.max(24, Math.floor(historyCount * 1.5)) : 24}
@@ -232,7 +232,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
             </div>
 
             {/* Advanced configurations inside grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.25rem' }}>
+            <div className="dashboard-form-grid">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                 <label style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>QUALITY PRESET</label>
                 <select 
@@ -289,7 +289,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
               {activeLobbies.map((room) => {
                 return (
                   <div key={room.id} className="lobby-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="lobby-card-header">
                       <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>
                         {!room.qualityPreset || room.qualityPreset === 'AUTO' ? 'CINEMATIC SYNC' : room.qualityPreset.replace('_', ' ')}
                       </span>
@@ -337,7 +337,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>No completed screenings found.</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="screenings-grid">
               {recentScreenings.map((room) => {
                 const durationHrs = Math.floor(room.duration / 3600);
                 const durationMins = Math.ceil((room.duration % 3600) / 60);
@@ -400,7 +400,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
       {/* Immersive Glassmorphic Modal Overlay for Creating Rooms - SUCCESS DIALOG ONLY */}
       {showCreateModal && createdRoom && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass modal-container" style={{ padding: '2.5rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1.5px solid var(--color-gold)', background: '#0a0a0a', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', maxWidth: '440px', width: '100%' }}>
+          <div className="glass modal-container success-modal-card" style={{ borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1.5px solid var(--color-gold)', background: '#0a0a0a', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', maxWidth: '440px', width: '100%' }}>
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#ffffff' }}>Screening Created!</h2>

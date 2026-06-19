@@ -654,13 +654,13 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         {/* Invite link copying utility */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span className="room-code-tag" style={{ fontFamily: 'var(--font-mono)', background: 'rgba(197, 168, 92, 0.05)', border: '1px solid rgba(197, 168, 92, 0.2)', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: 'var(--text-xs)', letterSpacing: '1px', fontWeight: 600, color: 'var(--color-gold)' }}>
-            CODE: {roomCode}
+            <span className="hide-mobile">CODE: </span>{roomCode}
           </span>
           <button className="btn-gold-rejoin" onClick={handleCopyLink} style={{ padding: '0.35rem 0.75rem', fontSize: 'var(--text-xs)' }}>
             {copiedLink ? (
-              <><Check size={12} /><span> Copied</span></>
+              <><Check size={12} /><span className="hide-mobile"> Copied</span></>
             ) : (
-              <><Copy size={12} /><span> Copy Invite</span></>
+              <><Copy size={12} /><span className="hide-mobile"> Copy Invite</span></>
             )}
           </button>
         </div>
@@ -883,19 +883,17 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         </div>
 
         {/* Right Side: Chat & Reaction Drawer */}
-        {showChat && (
-          <aside 
-            className="chat-drawer slide-in-right" 
-            style={{ 
-              width: '340px', 
-              borderLeft: '1.5px solid var(--color-gold)', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              overflow: 'hidden',
-              paddingTop: '60px',
-              background: 'rgba(5, 5, 5, 0.95)',
-            }}
-          >
+        <aside 
+          className={`chat-drawer ${showChat ? 'open' : ''}`} 
+          style={{ 
+            borderLeft: '1.5px solid var(--color-gold)', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            overflow: 'hidden',
+            paddingTop: '60px',
+            background: 'rgba(5, 5, 5, 0.95)',
+          }}
+        >
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <MessageSquare size={16} color="var(--color-gold)" />
@@ -985,7 +983,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           </form>
 
         </aside>
-        )}
 
       </div>
     </div>

@@ -228,7 +228,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       </header>
 
       {/* Main Grid Content */}
-      <main className="landing-hero-grid" style={{ maxWidth: '1200px', margin: '0 auto', padding: '4rem 2rem', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+      <main className="landing-main-grid" style={{ maxWidth: '1200px', margin: '0 auto', padding: '4rem 2rem', alignItems: 'center', position: 'relative', zIndex: 1 }}>
         
         {/* Left Hand: Hero Details */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -236,8 +236,8 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <Sparkles size={14} color="#e3c578" />
             <span style={{ fontSize: 'var(--text-xs)', color: '#e3c578', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
           </div>
-
-          <h1 style={{ fontSize: 'var(--text-5xl)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
+ 
+          <h1 style={{ fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
             Watch Together.<br />
             <span>For Real.</span>
           </h1>
