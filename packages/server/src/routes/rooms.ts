@@ -5,8 +5,9 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import { prisma, redis } from '../config/db';
 import { RedisKeys } from '../utils/redis-keys';
-import { roomCreateSchema } from '@browsync/shared';
+import { roomCreateSchema, SOCKET_EVENTS } from '@browsync/shared';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { Server } from 'socket.io';
 
 const router = Router();
 
@@ -293,6 +294,14 @@ router.patch('/:id/close', authenticateToken, async (req: AuthenticatedRequest, 
     // Set 1-hour expiry on metadata and chat history for post-session displays
     await redis.expire(RedisKeys.roomMeta(id), 3600);
     await redis.expire(RedisKeys.roomChat(id), 3600);
+
+    // Broadcast room closed to all clients in the channel
+    const io = req.app.get('io') as Server;
+    if (io) {
+      io.to(id).emit(SOCKET_EVENTS.ROOM_CLOSED, {
+        reason: 'The host has ended this lounge session',
+      });
+    }
 
     return res.status(200).json({
       id: updatedRoom.id,

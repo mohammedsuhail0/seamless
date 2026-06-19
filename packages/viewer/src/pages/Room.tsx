@@ -25,7 +25,8 @@ import {
   Signal,
   Volume2,
   VolumeX,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-react';
 
 interface RoomProps {
@@ -94,6 +95,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       ? MemberRole.HOST
       : MemberRole.VIEWER
   );
+  const roleRef = useRef<MemberRole>(role);
+  useEffect(() => {
+    roleRef.current = role;
+  }, [role]);
 
   const joinSocketRoom = useCallback((targetSocket: Socket) => {
     const token = localStorage.getItem('browsync_access_token') || undefined;
@@ -243,7 +248,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
 
     nextSocket.on(SOCKET_EVENTS.ROOM_CLOSED, (payload: { reason: string }) => {
-      alert(`Session Closed: ${payload.reason}`);
+      if (roleRef.current !== MemberRole.HOST) {
+        alert(`Session Closed: ${payload.reason}`);
+      }
       onNavigate('dashboard');
     });
 
@@ -527,6 +534,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     }
   };
 
+  const handleCloseRoom = async () => {
+    if (!roomInfo) return;
+    if (!window.confirm('Are you sure you want to end and close this lounge session? Guests will be disconnected.')) {
+      return;
+    }
+    try {
+      await api.patch(`/api/rooms/${roomInfo.id}/close`);
+      onNavigate('dashboard');
+    } catch (err) {
+      console.error('Failed to close room:', err);
+      alert('Failed to close room session.');
+    }
+  };
+
+
   // ── Layout loading states ──────────────────────────────────────────
   if (loading) {
     return (
@@ -610,10 +632,40 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           pointerEvents: showControls ? 'auto' : 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <LogOut size={14} /><span className="hide-mobile"> Leave Lounge</span>
           </button>
+          {role === MemberRole.HOST && (
+            <button 
+              onClick={handleCloseRoom} 
+              style={{ 
+                padding: '0.4rem 0.6rem', 
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1.5px solid rgba(239, 68, 68, 0.3)',
+                color: '#ef4444', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.35rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 600,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.borderColor = '#ef4444';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+              }}
+              title="Close & End Lounge Session"
+            >
+              <Trash2 size={14} /><span className="hide-mobile"> End Session</span>
+            </button>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '1rem' }}>
             <GoldLogoSVG size={28} />
             <div>
