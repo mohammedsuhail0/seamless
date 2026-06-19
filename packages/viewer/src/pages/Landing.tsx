@@ -251,9 +251,9 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           </div>
 
           {/* Quick Join Segment */}
-          <div className="glass-card" style={{ padding: '1.5rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)' }}>
+          <div className="quick-join-card">
             <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#c5a85c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Join with invite code</h3>
-            <form onSubmit={handleQuickJoin} style={{ display: 'flex', gap: '0.75rem' }}>
+            <form onSubmit={handleQuickJoin} className="quick-join-form">
               <input 
                 type="text" 
                 placeholder="ENTER CODE (e.g. X7K2M9)"
@@ -278,7 +278,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               <button className="btn btn-netflix" onClick={() => onNavigate('dashboard')} style={{ padding: '0.8rem', width: '100%' }}>Go to Dashboard <ArrowRight size={18} /></button>
             </div>
           ) : (
-            <div id="auth-form-card" className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', boxShadow: 'var(--shadow-lg)' }}>
+            <div id="auth-form-card" className="glass auth-form-card">
               {tempGoogleSession && (
                 <div style={{ background: 'rgba(229, 9, 20, 0.1)', border: '1px solid rgba(229, 9, 20, 0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#ffffff' }}>
