@@ -17,6 +17,17 @@ import { OAuth2Client } from 'google-auth-library';
 
 const router = Router();
 
+let oauthClient: OAuth2Client | null = null;
+
+function getOAuthClient(): OAuth2Client | null {
+  if (oauthClient) return oauthClient;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (clientId) {
+    oauthClient = new OAuth2Client(clientId);
+  }
+  return oauthClient;
+}
+
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
@@ -77,28 +88,31 @@ router.post('/register', async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    // Save session in PG
+    // Save session in PG and Redis in parallel
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        token: accessToken,
-        refreshToken,
-        expiresAt,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
-
-    // Cache session in Redis
     const sessionKey = RedisKeys.session(accessToken);
-    await redis.hset(sessionKey, {
-      userId: user.id,
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: user.createdAt.toISOString(),
-    });
-    await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours (matches access token expiry)
+
+    await Promise.all([
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+      (async () => {
+        await redis.hset(sessionKey, {
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+        });
+        await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours (matches access token expiry)
+      })()
+    ]);
 
     return res.status(201).json({
       user: {
@@ -176,28 +190,31 @@ router.post('/login', async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    // Save session in PG
+    // Save session in PG and Redis in parallel
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        token: accessToken,
-        refreshToken,
-        expiresAt,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
-
-    // Cache session in Redis
     const sessionKey = RedisKeys.session(accessToken);
-    await redis.hset(sessionKey, {
-      userId: user.id,
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: user.createdAt.toISOString(),
-    });
-    await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours
+
+    await Promise.all([
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+      (async () => {
+        await redis.hset(sessionKey, {
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+        });
+        await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours
+      })()
+    ]);
 
     return res.status(200).json({
       user: {
@@ -256,28 +273,31 @@ router.post('/google-login', async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    // Save session in PG
+    // Save session in PG and Redis in parallel
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        token: accessToken,
-        refreshToken,
-        expiresAt,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
-
-    // Cache session in Redis
     const sessionKey = RedisKeys.session(accessToken);
-    await redis.hset(sessionKey, {
-      userId: user.id,
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: user.createdAt.toISOString(),
-    });
-    await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours
+
+    await Promise.all([
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+      (async () => {
+        await redis.hset(sessionKey, {
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+        });
+        await redis.expire(sessionKey, 24 * 60 * 60); // 24 hours
+      })()
+    ]);
 
     return res.status(200).json({
       user: {
@@ -318,9 +338,9 @@ router.post('/google-callback', async (req, res) => {
 
     // Verify token using google-auth-library if configured, otherwise fallback to decode for mock test
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (clientId && !idToken.startsWith('mock_id_token_')) {
+    const client = getOAuthClient();
+    if (client && clientId && !idToken.startsWith('mock_id_token_')) {
       try {
-        const client = new OAuth2Client(clientId);
         const ticket = await client.verifyIdToken({
           idToken,
           audience: clientId,
@@ -379,28 +399,31 @@ router.post('/google-callback', async (req, res) => {
       const accessToken = generateAccessToken(tokenPayload);
       const refreshToken = generateRefreshToken(tokenPayload);
 
-      // Save session in PG
+      // Save session in PG and Redis in parallel
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      await prisma.session.create({
-        data: {
-          userId: user.id,
-          token: accessToken,
-          refreshToken,
-          expiresAt,
-          ipAddress: req.ip,
-          userAgent: req.headers['user-agent'],
-        },
-      });
-
-      // Cache session in Redis
       const sessionKey = RedisKeys.session(accessToken);
-      await redis.hset(sessionKey, {
-        userId: user.id,
-        displayName: user.displayName,
-        email: user.email,
-        createdAt: user.createdAt.toISOString(),
-      });
-      await redis.expire(sessionKey, 24 * 60 * 60);
+
+      await Promise.all([
+        prisma.session.create({
+          data: {
+            userId: user.id,
+            token: accessToken,
+            refreshToken,
+            expiresAt,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+          },
+        }),
+        (async () => {
+          await redis.hset(sessionKey, {
+            userId: user.id,
+            displayName: user.displayName,
+            email: user.email,
+            createdAt: user.createdAt.toISOString(),
+          });
+          await redis.expire(sessionKey, 24 * 60 * 60);
+        })()
+      ]);
 
       return res.status(200).json({
         status: 'AUTHENTICATED',
@@ -517,28 +540,31 @@ router.post('/google-onboard', async (req, res) => {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
 
-    // Save session in PG
+    // Save session in PG and Redis in parallel
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        token: accessToken,
-        refreshToken,
-        expiresAt,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
-
-    // Cache session in Redis
     const sessionKey = RedisKeys.session(accessToken);
-    await redis.hset(sessionKey, {
-      userId: user.id,
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: user.createdAt.toISOString(),
-    });
-    await redis.expire(sessionKey, 24 * 60 * 60);
+
+    await Promise.all([
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+      (async () => {
+        await redis.hset(sessionKey, {
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+        });
+        await redis.expire(sessionKey, 24 * 60 * 60);
+      })()
+    ]);
 
     return res.status(201).json({
       status: 'AUTHENTICATED',
