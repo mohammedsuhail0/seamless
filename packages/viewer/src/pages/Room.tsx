@@ -537,13 +537,12 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       {/* Chat Notification Toast */}
       {activeToast && (
         <div 
-          className="glass toast-notification" 
+          className="glass toast-notification-left" 
           style={{
             position: 'absolute',
-            top: '5.5rem',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 100,
+            top: showControls ? '5.5rem' : '1.5rem',
+            left: '1.5rem',
+            zIndex: 9999,
             padding: '0.75rem 1.25rem',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid rgba(255, 255, 255, 0.08)',
@@ -554,6 +553,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             maxWidth: '320px',
             width: 'max-content',
             pointerEvents: 'none',
+            transition: 'top 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
