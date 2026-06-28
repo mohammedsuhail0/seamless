@@ -249,6 +249,14 @@ button, input, select, textarea {
   animation: slideInRight 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@keyframes toastSlideIn {
+  0% { transform: translate(-50%, -20px); opacity: 0; }
+  100% { transform: translate(-50%, 0); opacity: 1; }
+}
+.toast-notification {
+  animation: toastSlideIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes floatUpEmoji {
   0% {
     transform: translateY(100px) scale(0.5);

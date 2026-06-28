@@ -48,6 +48,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [activeMembers, setActiveMembers] = useState<any[]>([]);
   const [currentController, setCurrentController] = useState<any | null>(null);
 
+  const [activeToast, setActiveToast] = useState<{ id: string; displayName: string; text: string } | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(true);
@@ -62,6 +65,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const activeMembersRef = useRef<any[]>([]);
+  const myUserIdRef = useRef<string | null>(null);
   const roomContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -111,6 +115,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       }
       if (payload?.userId) {
         setMyUserId(payload.userId);
+        myUserIdRef.current = payload.userId;
       }
       if (payload?.currentController) {
         setCurrentController(payload.currentController);
@@ -148,6 +153,23 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
     nextSocket.on(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED, (message: ChatMessage) => {
       setChatMessages((prev) => [...prev, message]);
+      
+      // Trigger disappearing notification toast if the message is from someone else
+      if (message.type !== 'system' && message.userId !== myUserIdRef.current) {
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+        }
+        
+        setActiveToast({
+          id: message.id || `${Date.now()}_${Math.random()}`,
+          displayName: message.displayName || 'Guest',
+          text: message.text,
+        });
+
+        toastTimeoutRef.current = setTimeout(() => {
+          setActiveToast(null);
+        }, 4000); // disappearing after 4 seconds
+      }
     });
 
     // Listeners: Ephemeral emoji reactions received
@@ -511,6 +533,37 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           {reaction.emoji}
         </div>
       ))}
+
+      {/* Chat Notification Toast */}
+      {activeToast && (
+        <div 
+          className="glass toast-notification" 
+          style={{
+            position: 'absolute',
+            top: '5.5rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
+            padding: '0.75rem 1.25rem',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: 'var(--shadow-lg)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.2rem',
+            maxWidth: '320px',
+            width: 'max-content',
+            pointerEvents: 'none',
+          }}
+        >
+          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            💬 {activeToast.displayName}
+          </span>
+          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+            {activeToast.text}
+          </span>
+        </div>
+      )}
 
       {/* Header bar */}
       <header 
