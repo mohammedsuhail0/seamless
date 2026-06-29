@@ -29,4 +29,5 @@ contextBridge.exposeInMainWorld('browsync', {
   onInputEvent: (callback: (event: any, payload: any) => void) => {
     ipcRenderer.on('input:event', callback);
   },
+  injectInput: (event: any) => ipcRenderer.send('host:inject-input', event),
 });

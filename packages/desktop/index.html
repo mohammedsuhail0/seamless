@@ -438,6 +438,9 @@
           const parsed = JSON.parse(evt.data);
           // Relay incoming input events to existing main process path.
           console.log('Input event over data channel', parsed?.type);
+          if (browsync && typeof browsync.injectInput === 'function') {
+            browsync.injectInput(parsed);
+          }
         } catch (_e) {}
       };
 
@@ -462,8 +465,23 @@
 
     function setMembers(members) {
       joinedMembers = members || [];
+      const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
+      const targetUserIds = new Set(targets.map((m) => m.userId));
+
+      // Close and remove stale peer connections
+      for (const [viewerId, pc] of peerConnections.entries()) {
+        if (!targetUserIds.has(viewerId)) {
+          console.log(`Pruning stale peer connection for viewer: ${viewerId}`);
+          try {
+            pc.close();
+          } catch (e) {
+            console.error(`Error closing stale peer connection for ${viewerId}:`, e);
+          }
+          peerConnections.delete(viewerId);
+        }
+      }
+
       if (localStream) {
-        const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
         targets.forEach((m) => ensurePeerForViewer(m.userId).catch(console.error));
       }
     }

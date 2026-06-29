@@ -179,3 +179,7 @@ ipcMain.on('host:rtc-ice-candidate', (_event: any, payload: { targetUserId: stri
   if (!hostSocket) return;
   hostSocket.emit(SOCKET_EVENTS.RTC_ICE_CANDIDATE, payload);
 });
+
+ipcMain.on('host:inject-input', (_event: any, payload: any) => {
+  injectInputEvent(payload);
+});
