@@ -279,14 +279,38 @@
 
     <!-- Display capture source selection cards -->
     <section class="card">
-      <h3 class="card-title">🔗 Room Session</h3>
-      <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(3, minmax(0, 1fr));">
-        <input id="roomCodeInput" placeholder="Room Code (e.g. C8VM6Y)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
-        <input id="displayNameInput" placeholder="Display Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
-        <input id="tokenInput" placeholder="Access Token (optional)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+      <h3 class="card-title">🔗 Host Session Controls</h3>
+      
+      <!-- Auto Create & Stream Section -->
+      <div id="createRoomSection" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-default);">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Quick Launch: Authenticate and auto-create a new streaming room instantly.
+        </p>
+        <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.75rem;">
+          <input id="hostEmailInput" value="arjun@test.com" placeholder="Host Email" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+          <input id="hostPasswordInput" type="password" value="TestPass123" placeholder="Host Password" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+        </div>
+        <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.75rem;">
+          <input id="hostDisplayNameInput" value="Arjun (Dev)" placeholder="Display Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+          <input id="roomNameInput" value="Co-Browsing Room" placeholder="Room Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+        </div>
+        <button class="btn btn-primary" id="autoCreateBtn" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); margin-top: 0.5rem;">⚡ Create Room & Start Streaming</button>
       </div>
-      <button class="btn btn-primary" id="joinRoomBtn">Join Room As Host Streamer</button>
-      <p id="joinStatus" style="margin-top:0.5rem;color:var(--text-muted);font-size:0.8rem;">Not joined</p>
+
+      <!-- Manual Join Section -->
+      <div id="manualJoinSection">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+          Or, join an existing pre-created room manually:
+        </p>
+        <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(3, minmax(0, 1fr));">
+          <input id="roomCodeInput" placeholder="Room Code (e.g. BYBNDR)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+          <input id="displayNameInput" placeholder="Display Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+          <input id="tokenInput" placeholder="Access Token (optional)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+        </div>
+        <button class="btn" id="joinRoomBtn" style="border: 1px solid var(--border-default); background: rgba(255,255,255,0.04); color: var(--text-primary); margin-top: 0.75rem;">Join Existing Room Code</button>
+      </div>
+
+      <p id="joinStatus" style="margin-top:0.75rem;color:var(--text-muted);font-size:0.85rem;font-family:var(--font-mono);background:rgba(0,0,0,0.2);padding:0.5rem;border-radius:4px;border:1.5px solid var(--border-default);">Not joined</p>
     </section>
 
     <section class="card">
@@ -327,6 +351,8 @@
     let joinedMembers = [];
     let localStream = null;
     const peerConnections = new Map();
+    let targetServerUrl = '';
+    let autoStreamAfterJoin = false;
 
     const SOCKET_EVENTS = {
       RTC_OFFER: 'rtc:offer',
@@ -344,9 +370,16 @@
       }
 
       sourcesGrid.innerHTML = '';
-      sources.forEach((source) => {
+      sources.forEach((source, index) => {
         const item = document.createElement('div');
         item.className = 'source-item';
+        
+        // Auto-select first source if none selected
+        if (!selectedSourceId && index === 0) {
+          selectedSourceId = source.id;
+          browsync.selectSource(source.id);
+        }
+
         if (selectedSourceId === source.id) item.classList.add('selected');
         
         item.innerHTML = `
@@ -486,6 +519,88 @@
       }
     }
 
+    const autoCreateBtn = document.getElementById('autoCreateBtn');
+    autoCreateBtn.onclick = async () => {
+      try {
+        const email = document.getElementById('hostEmailInput').value.trim();
+        const password = document.getElementById('hostPasswordInput').value.trim();
+        const displayName = document.getElementById('hostDisplayNameInput').value.trim() || 'Desktop Host';
+        const roomName = document.getElementById('roomNameInput').value.trim() || 'Co-Browsing Room';
+
+        if (!email || !password) {
+          alert('Host Email and Password are required to authenticate.');
+          return;
+        }
+
+        if (!targetServerUrl) {
+          alert('Signaling connection is offline or server URL not fetched yet.');
+          return;
+        }
+
+        autoCreateBtn.disabled = true;
+        autoCreateBtn.textContent = 'Authenticating...';
+        joinStatus.textContent = `Authenticating host account (${email})...`;
+
+        // 1. Authenticate with backend API
+        const loginRes = await fetch(`${targetServerUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const loginData = await loginRes.json();
+        if (!loginRes.ok) {
+          throw new Error(loginData?.error?.message || 'Authentication failed');
+        }
+        const token = loginData.accessToken;
+
+        // 2. Create the room
+        joinStatus.textContent = 'Creating room session on signaling node...';
+        autoCreateBtn.textContent = 'Creating Room...';
+        const roomRes = await fetch(`${targetServerUrl}/api/rooms`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: roomName,
+            isPrivate: false,
+            qualityPreset: 'AUTO'
+          })
+        });
+        const roomData = await roomRes.json();
+        if (!roomRes.ok) {
+          throw new Error(roomData?.error?.message || 'Failed to create room');
+        }
+
+        const roomCode = roomData.roomCode;
+        joinStatus.textContent = `Room ${roomCode} created! Auto-joining...`;
+
+        // 3. Mark flag for auto-streaming on join, and invoke join
+        autoStreamAfterJoin = true;
+        browsync.joinRoom({ roomCode, displayName, token });
+        
+        // Show join link in status so host can copy it
+        controllerStatus.innerHTML = `
+          <div style="background: rgba(79, 70, 229, 0.1); border: 1.5px dashed var(--color-primary); padding: 1rem; border-radius: 8px;">
+            <p style="font-weight:bold; color: #a5b4fc; margin-bottom: 0.5rem;">🚀 Room Live: ${roomCode}</p>
+            <p style="font-size:0.8rem; color:var(--text-secondary); word-break: break-all;">
+              Viewers URL: <strong style="color:var(--text-primary);">https://browsync.vercel.app</strong>
+            </p>
+            <p style="font-size:0.8rem; color:var(--text-secondary); margin-top: 0.25rem;">
+              Pass code: <strong style="color:var(--color-success);">${roomCode}</strong>
+            </p>
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        alert(`Auto Create & Stream failed: ${err.message || err}`);
+      } finally {
+        autoCreateBtn.disabled = false;
+        autoCreateBtn.textContent = '⚡ Create Room & Start Streaming';
+      }
+    };
+
     joinRoomBtn.onclick = () => {
       const roomCode = roomCodeInput.value.trim().toUpperCase();
       const displayName = displayNameInput.value.trim() || 'Desktop Host';
@@ -504,6 +619,7 @@
     // Attach IPC Preload alert listeners
     if (browsync) {
       browsync.getServerUrl().then((url) => {
+        targetServerUrl = url;
         joinStatus.textContent = `Connected target: ${url}. Not joined yet.`;
       }).catch(() => {});
 
@@ -518,6 +634,13 @@
         currentRoomId = payload.roomId;
         currentUserId = payload.userId || null;
         joinStatus.textContent = `Joined room ${payload.roomCode} as ${payload.displayName} (${payload.role}).`;
+
+        if (autoStreamAfterJoin) {
+          autoStreamAfterJoin = false;
+          setTimeout(() => {
+            startStreaming().catch(console.error);
+          }, 500);
+        }
       });
 
       browsync.onPresenceSync((_event, payload) => {
