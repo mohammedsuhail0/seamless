@@ -30,4 +30,9 @@ contextBridge.exposeInMainWorld('browsync', {
     ipcRenderer.on('input:event', callback);
   },
   injectInput: (event: any) => ipcRenderer.send('host:inject-input', event),
+  sendChatMessage: (roomId: string, text: string) => ipcRenderer.send('chat:send-message', { roomId, text }),
+  sendChatReaction: (roomId: string, emoji: string) => ipcRenderer.send('chat:send-reaction', { roomId, emoji }),
+  onChatHistory: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:history', callback),
+  onChatMessage: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:message-received', callback),
+  onChatReaction: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:reaction-received', callback),
 });

@@ -332,6 +332,61 @@
     </section>
   </div>
 
+  <!-- Immersive Host Screening Chamber -->
+  <div id="roomContainer" style="display: none; height: 100vh; flex-direction: column; overflow: hidden; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-primary); z-index: 1000;">
+    <!-- Room Header -->
+    <header class="glass" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-default); backdrop-filter: var(--glass-blur);">
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <span style="font-size: 1.5rem;">📡</span>
+        <h1 id="roomTitle" style="font-weight: 800; font-size: 1.15rem; color: #a5b4fc; margin: 0;">Browsync Host Chamber</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.75rem;">
+        <span id="roomCodeBadge" style="font-family: var(--font-mono); background: rgba(255,255,255,0.04); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px; border: 1px solid var(--border-default); color: var(--text-primary);">CODE: -----</span>
+        <button class="btn btn-primary" id="copyInviteBtn" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; width: auto; margin: 0; background: var(--color-primary);">Copy Invite Link</button>
+      </div>
+    </header>
+
+    <!-- Split View -->
+    <div style="flex: 1; display: flex; overflow: hidden;">
+      <!-- Left side: Live Video Frame Preview -->
+      <div style="flex: 1; position: relative; display: flex; flex-direction: column; background: #02040e; padding: 1rem; align-items: center; justify-content: center;">
+        <video id="localPreviewVideo" autoplay muted style="max-width: 100%; max-height: 100%; border-radius: var(--radius-md); box-shadow: 0 10px 40px rgba(0,0,0,0.6);"></video>
+        <div style="position: absolute; top: 1.5rem; left: 1.5rem; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: var(--color-success); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">
+          🔴 Live Stream Preview
+        </div>
+      </div>
+
+      <!-- Right side: Chat Sidebar -->
+      <aside class="glass" style="width: 320px; border-left: 1px solid var(--border-default); display: flex; flex-direction: column; overflow: hidden; backdrop-filter: var(--glass-blur);">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border-default);">
+          <h2 style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 0;">Room Chat</h2>
+        </div>
+        
+        <!-- Messages Stream -->
+        <div id="chatFeed" style="flex: 1; padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem;">
+        </div>
+
+        <!-- Chat form -->
+        <form id="chatForm" style="padding: 1rem; border-top: 1px solid var(--border-default); display: flex; gap: 0.5rem; margin: 0;">
+          <input id="chatInput" type="text" placeholder="Send message to viewers..." style="flex: 1; padding: 0.5rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-default); background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 0.85rem;" />
+          <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem; width: auto; margin: 0; background: var(--color-primary);">Send</button>
+        </form>
+      </aside>
+    </div>
+
+    <!-- Active controller segment log -->
+    <footer class="glass" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; border-top: 1px solid var(--border-default); backdrop-filter: var(--glass-blur);">
+      <div id="hostRoomControllerStatus">
+        <p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">Currently sharing view-only stream. No active remote controls.</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 1.5rem; color: var(--text-secondary); font-size: 0.75rem;">
+        <span id="viewerCountLabel">👤 0 Watching</span>
+        <button class="btn" id="endStreamBtn" style="padding: 0.4rem 1rem; font-size: 0.8rem; background: var(--color-error); color: white; width: auto; margin: 0; font-weight: 600; border: none; cursor: pointer; border-radius: 6px;">End Session</button>
+      </div>
+    </footer>
+  </div>
+
+
   <script>
     // Interface logic hooking contextBridge APIs
     const browsync = window.browsync;
@@ -353,6 +408,7 @@
     const peerConnections = new Map();
     let targetServerUrl = '';
     let autoStreamAfterJoin = false;
+    let lastJoinedRoomCode = '';
 
     const SOCKET_EVENTS = {
       RTC_OFFER: 'rtc:offer',
@@ -431,17 +487,29 @@
         localStream = stream;
       }
 
+      // Bind preview video element
+      const previewVideo = document.getElementById('localPreviewVideo');
+      previewVideo.srcObject = localStream;
+
+      // Show room container workspace
+      document.getElementById('roomContainer').style.display = 'flex';
+
+      // Set Room Code badge
+      const roomCodeBadge = document.getElementById('roomCodeBadge');
+      const manualCode = roomCodeInput.value.trim().toUpperCase();
+      const roomCode = manualCode || lastJoinedRoomCode || '-----';
+      roomCodeBadge.textContent = `CODE: ${roomCode}`;
+
+      const roomTitle = document.getElementById('roomTitle');
+      const roomNameVal = document.getElementById('roomNameInput').value.trim();
+      roomTitle.textContent = roomNameVal || 'Browsync Host Chamber';
+
       const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
-      if (targets.length === 0) {
-        alert('Streaming source ready. Waiting for viewers to join room...');
-        return;
-      }
-
+      
+      // Setup WebRTC peer loops for any viewers already inside the room
       for (const member of targets) {
-        await ensurePeerForViewer(member.userId);
+        await ensurePeerForViewer(member.userId).catch(console.error);
       }
-
-      alert(`Streaming started for ${targets.length} viewer(s).`);
     }
 
     async function ensurePeerForViewer(targetUserId) {
@@ -500,6 +568,12 @@
       joinedMembers = members || [];
       const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
       const targetUserIds = new Set(targets.map((m) => m.userId));
+
+      // Update viewer count label in room UI
+      const viewerCountLabel = document.getElementById('viewerCountLabel');
+      if (viewerCountLabel) {
+        viewerCountLabel.textContent = `👤 ${targets.length} Watching`;
+      }
 
       // Close and remove stale peer connections
       for (const [viewerId, pc] of peerConnections.entries()) {
@@ -578,6 +652,7 @@
 
         // 3. Mark flag for auto-streaming on join, and invoke join
         autoStreamAfterJoin = true;
+        lastJoinedRoomCode = roomCode;
         browsync.joinRoom({ roomCode, displayName, token });
         
         // Show join link in status so host can copy it
@@ -633,6 +708,7 @@
         if (!payload?.roomId) return;
         currentRoomId = payload.roomId;
         currentUserId = payload.userId || null;
+        lastJoinedRoomCode = payload.roomCode || '';
         joinStatus.textContent = `Joined room ${payload.roomCode} as ${payload.displayName} (${payload.role}).`;
 
         if (autoStreamAfterJoin) {
@@ -687,16 +763,28 @@
           browsync.grantControl(currentRoomId, viewerId);
           toast.remove();
           
+          const defaultHtml = `<p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">Currently sharing view-only stream. No active remote controls.</p>`;
+          const statusHtml = `
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              <span class="controller-badge" style="margin-top: 0;">🎮 Controlled by: ${viewerName}</span>
+              <button class="btn btn-danger" id="roomRevokeBtn" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; width: auto; margin: 0; background: var(--color-error); font-weight: bold; border: none; cursor: pointer; border-radius: 4px;">Revoke</button>
+            </div>
+          `;
           controllerStatus.innerHTML = `
             <div class="controller-badge">Currently Controlled by: ${viewerName}</div>
             <button class="btn btn-danger" id="revokeBtn" style="max-width: 180px; margin-top: 1rem; padding: 0.5rem 1rem; font-size: 0.8rem;">Revoke Control</button>
           `;
+          document.getElementById('hostRoomControllerStatus').innerHTML = statusHtml;
 
-          document.getElementById('revokeBtn').onclick = () => {
+          const bindRevoke = () => {
             if (!currentRoomId) return;
             browsync.revokeControl(currentRoomId);
             controllerStatus.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.875rem;">Currently sharing view-only stream. No active remote controls.</p>`;
+            document.getElementById('hostRoomControllerStatus').innerHTML = defaultHtml;
           };
+
+          document.getElementById('revokeBtn').onclick = bindRevoke;
+          document.getElementById('roomRevokeBtn').onclick = bindRevoke;
         };
 
         // Deny access click
@@ -713,7 +801,121 @@
       });
 
       browsync.onControlReleased((event, payload) => {
+        const defaultHtml = `<p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">Currently sharing view-only stream. No active remote controls.</p>`;
         controllerStatus.innerHTML = `<p style="color: var(--text-secondary); font-size: 0.875rem;">Currently sharing view-only stream. No active remote controls.</p>`;
+        document.getElementById('hostRoomControllerStatus').innerHTML = defaultHtml;
+      });
+
+      // ── Chat & Reactions utilities ────────────────────────────────
+      const chatFeed = document.getElementById('chatFeed');
+      const chatForm = document.getElementById('chatForm');
+      const chatInput = document.getElementById('chatInput');
+
+      function appendChatMessage(senderName, text, isSystem = false, isMe = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.style.display = 'flex';
+        msgDiv.style.flexDirection = 'column';
+        msgDiv.style.gap = '0.15rem';
+        msgDiv.style.width = '100%';
+
+        if (isSystem) {
+          msgDiv.style.alignSelf = 'center';
+          msgDiv.style.textAlign = 'center';
+          msgDiv.innerHTML = `
+            <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin: 0 auto;">
+              ${text}
+            </span>
+          `;
+        } else {
+          msgDiv.style.alignSelf = 'flex-start';
+          msgDiv.innerHTML = `
+            <span style="font-size: 0.75rem; font-weight: bold; color: ${isMe ? 'var(--color-primary)' : 'var(--text-secondary)'}">
+              ${senderName}
+            </span>
+            <div style="background: rgba(255,255,255,0.04); padding: 0.5rem 0.75rem; border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md); font-size: 0.85rem; width: fit-content; word-break: break-word; color: var(--text-primary);">
+              ${text}
+            </div>
+          `;
+        }
+
+        chatFeed.appendChild(msgDiv);
+        chatFeed.scrollTop = chatFeed.scrollHeight;
+      }
+
+      chatForm.onsubmit = (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text || !currentRoomId) return;
+
+        browsync.sendChatMessage(currentRoomId, text);
+        chatInput.value = '';
+        appendChatMessage('You', text, false, true);
+      };
+
+      // Invite Copy Handler
+      const copyInviteBtn = document.getElementById('copyInviteBtn');
+      copyInviteBtn.onclick = () => {
+        if (currentRoomId) {
+          const roomCode = document.getElementById('roomCodeBadge').textContent.replace('CODE: ', '');
+          const inviteText = `Join my BrowSync co-watching room!\nWebsite: https://browsync.vercel.app\nRoom Code: ${roomCode}`;
+          navigator.clipboard.writeText(inviteText).then(() => {
+            copyInviteBtn.textContent = 'Copied!';
+            setTimeout(() => {
+              copyInviteBtn.textContent = 'Copy Invite Link';
+            }, 2000);
+          });
+        }
+      };
+
+      // End Stream Handler
+      const endStreamBtn = document.getElementById('endStreamBtn');
+      endStreamBtn.onclick = () => {
+        if (confirm('Are you sure you want to end this streaming session?')) {
+          if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            localStream = null;
+          }
+          
+          for (const [viewerId, pc] of peerConnections.entries()) {
+            try { pc.close(); } catch (e) {}
+          }
+          peerConnections.clear();
+          
+          if (currentRoomId) {
+            browsync.revokeControl(currentRoomId);
+          }
+
+          document.getElementById('roomContainer').style.display = 'none';
+          chatFeed.innerHTML = '';
+          currentRoomId = null;
+          currentUserId = null;
+          joinStatus.textContent = 'Session ended. Select screen source to host another.';
+        }
+      };
+
+      // Chat Event Listeners
+      browsync.onChatHistory((_event, payload) => {
+        chatFeed.innerHTML = '';
+        if (payload?.messages) {
+          payload.messages.forEach(msg => {
+            if (msg.type === 'system') {
+              appendChatMessage('', msg.text, true);
+            } else {
+              const isMe = msg.userId === currentUserId;
+              appendChatMessage(isMe ? 'You' : msg.displayName, msg.text, false, isMe);
+            }
+          });
+        }
+      });
+
+      browsync.onChatMessage((_event, msg) => {
+        if (msg.userId !== currentUserId) {
+          appendChatMessage(msg.displayName, msg.text, false, false);
+        }
+      });
+
+      browsync.onChatReaction((_event, payload) => {
+        console.log(`Reaction received: ${payload.emoji} from ${payload.displayName}`);
       });
     }
   </script>

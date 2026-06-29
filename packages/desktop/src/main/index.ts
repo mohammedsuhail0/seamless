@@ -116,6 +116,18 @@ function initializeHostSocket() {
   hostSocket.on(SOCKET_EVENTS.RTC_ICE_CANDIDATE, (payload: any) => {
     mainWindow?.webContents.send('host:rtc-ice-candidate', payload);
   });
+
+  hostSocket.on(SOCKET_EVENTS.CHAT_HISTORY, (payload: any) => {
+    mainWindow?.webContents.send('chat:history', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.CHAT_MESSAGE_RECEIVED, (payload: any) => {
+    mainWindow?.webContents.send('chat:message-received', payload);
+  });
+
+  hostSocket.on(SOCKET_EVENTS.CHAT_REACTION_RECEIVED, (payload: any) => {
+    mainWindow?.webContents.send('chat:reaction-received', payload);
+  });
 }
 
 app.whenReady().then(() => {
@@ -182,4 +194,16 @@ ipcMain.on('host:rtc-ice-candidate', (_event: any, payload: { targetUserId: stri
 
 ipcMain.on('host:inject-input', (_event: any, payload: any) => {
   injectInputEvent(payload);
+});
+
+ipcMain.on('chat:send-message', (_event: any, { roomId, text }: any) => {
+  if (hostSocket) {
+    hostSocket.emit(SOCKET_EVENTS.CHAT_MESSAGE, { roomId, text });
+  }
+});
+
+ipcMain.on('chat:send-reaction', (_event: any, { roomId, emoji }: any) => {
+  if (hostSocket) {
+    hostSocket.emit(SOCKET_EVENTS.CHAT_REACTION, { roomId, emoji });
+  }
 });
