@@ -83,6 +83,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       token,
     });
 
+    // Listeners: Room joined confirmation (authoritative role assignment)
+    socket.on(SOCKET_EVENTS.ROOM_JOINED, (payload: { role?: MemberRole; roomCode?: string }) => {
+      if (payload?.roomCode && payload?.role) {
+        console.log('🔑 Authoritative role from server:', payload.role);
+        setRole(payload.role);
+      }
+    });
+
     // Listeners: Sync Room Members presences
     socket.on(SOCKET_EVENTS.PRESENCE_SYNC, (payload: { members: any[] }) => {
       setActiveMembers(payload.members);
@@ -159,8 +167,23 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }, [chatMessages]);
 
   // 3. WebRTC Hooks setup
-  const role = roomInfo?.hostName === userContext?.displayName ? MemberRole.HOST : MemberRole.VIEWER;
-  const { stream, connectionState, sendInputEvent } = useWebRTC({
+  const [role, setRole] = useState<MemberRole>(
+    roomInfo?.hostName && userContext?.displayName && roomInfo.hostName === userContext.displayName
+      ? MemberRole.HOST
+      : MemberRole.VIEWER
+  );
+
+  useEffect(() => {
+    if (roomInfo?.hostName && userContext?.displayName) {
+      if (roomInfo.hostName === userContext.displayName) {
+        setRole(MemberRole.HOST);
+      } else {
+        setRole(MemberRole.VIEWER);
+      }
+    }
+  }, [roomInfo, userContext]);
+
+  const { stream, connectionState, sendInputEvent, startCapture, stopCapture } = useWebRTC({
     socket: socketRef.current,
     roomId: roomInfo?.id || null,
     role,
@@ -170,8 +193,13 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
+      if (role === MemberRole.HOST) {
+        videoRef.current.muted = true;
+      } else {
+        videoRef.current.muted = false;
+      }
     }
-  }, [stream]);
+  }, [stream, role]);
 
   // 4. Coordinates Normalization Capture and Relay (P2P Remote Control)
   const isMeInControl = currentController?.userId === (userContext?.id || socketRef.current?.id);
@@ -372,6 +400,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             {stream ? (
               <video
                 ref={videoRef}
+                autoPlay
+                playsInline
                 tabIndex={0} // capture keyup/keydown events
                 onMouseMove={handleMouseMove}
                 onMouseDown={handleMouseDown}
@@ -389,6 +419,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                   boxShadow: '0 10px 40px rgba(0,0,0,0.6)',
                 }}
               />
+            ) : role === MemberRole.HOST ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎬</div>
+                <h3 style={{ fontWeight: 700, fontSize: 'var(--text-lg)' }}>Chamber Ready to Host</h3>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginTop: '0.5rem', maxWidth: '400px', marginInline: 'auto' }}>
+                  Share a browser window or tab containing your content. All connected viewers will watch in real-time.
+                </p>
+                <button 
+                  className="btn btn-primary" 
+                  onClick={startCapture} 
+                  style={{ marginTop: '1.5rem', width: 'auto', paddingInline: '2rem' }}
+                >
+                  📡 Start Screen Share
+                </button>
+              </div>
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📡</div>
@@ -401,14 +446,24 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           {/* Toolbar footer overlay */}
           <footer className="glass" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.5rem', borderTop: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', gap: '1rem' }}>
-              <button 
-                className={`btn ${isMeInControl ? 'btn-secondary' : 'btn-primary'}`} 
-                onClick={requestControlAccess}
-                disabled={currentController && !isMeInControl}
-              >
-                <Gamepad2 size={16} /> 
-                {isMeInControl ? 'Release Control' : currentController ? `${currentController.displayName} is in control` : 'Request Control'}
-              </button>
+              {role === MemberRole.HOST ? (
+                <button 
+                  className={`btn ${stream ? 'btn-secondary' : 'btn-primary'}`} 
+                  onClick={stream ? stopCapture : startCapture}
+                  style={{ width: 'auto' }}
+                >
+                  📡 {stream ? 'Stop Screen Share' : 'Start Screen Share'}
+                </button>
+              ) : (
+                <button 
+                  className={`btn ${isMeInControl ? 'btn-secondary' : 'btn-primary'}`} 
+                  onClick={requestControlAccess}
+                  disabled={currentController && !isMeInControl}
+                >
+                  <Gamepad2 size={16} /> 
+                  {isMeInControl ? 'Release Control' : currentController ? `${currentController.displayName} is in control` : 'Request Control'}
+                </button>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
