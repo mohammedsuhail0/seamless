@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  coturn:
+    image: coturn/coturn:4.6.2-alpine
+    container_name: hypersync-coturn
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      TURN_REALM: ${TURN_REALM}
+      TURN_USERNAME: ${TURN_USERNAME}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL}
+      TURN_MIN_PORT: ${TURN_MIN_PORT:-49160}
+      TURN_MAX_PORT: ${TURN_MAX_PORT:-49200}
+    command:
+      - sh
+      - -lc
+      - |
+        cat >/tmp/turnserver.conf <<EOF
+        listening-port=3478
+        min-port=${TURN_MIN_PORT}
+        max-port=${TURN_MAX_PORT}
+        fingerprint
+        lt-cred-mech
+        realm=${TURN_REALM}
+        server-name=${TURN_REALM}
+        user=${TURN_USERNAME}:${TURN_CREDENTIAL}
+        no-multicast-peers
+        no-loopback-peers
+        stale-nonce
+        syslog
+        simple-log
+        verbose
+        EOF
+        exec turnserver -c /tmp/turnserver.conf

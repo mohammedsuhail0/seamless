@@ -106,6 +106,14 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           socketId: socket.id,
         };
 
+        if (role === MemberRole.HOST) {
+          const pendingTimeout = hostDisconnectTimeouts.get(roomId);
+          if (pendingTimeout) {
+            clearTimeout(pendingTimeout);
+            hostDisconnectTimeouts.delete(roomId);
+          }
+        }
+
         // 5. If host joined and room was WAITING, set status to ACTIVE
         if (role === MemberRole.HOST) {
           if (room.status === RoomStatus.WAITING) {
@@ -256,12 +264,12 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
 
   // ── room:leave event ─────────────────────────────────────────────
   socket.on(SOCKET_EVENTS.ROOM_LEAVE, async () => {
-    await handleUserLeavingRoom(io, socket);
+    await handleUserLeavingRoom(io, socket, true);
   });
 
   // ── socket disconnect ────────────────────────────────────────────
   socket.on('disconnect', async () => {
-    await handleUserLeavingRoom(io, socket);
+    await handleUserLeavingRoom(io, socket, false);
   });
 }
 
@@ -290,11 +298,28 @@ async function getActivePresenceMembers(roomId: string): Promise<any[]> {
 }
 
 // Primary cleanup when a host or viewer drops/leaves
-async function handleUserLeavingRoom(io: Server, socket: Socket) {
+async function handleUserLeavingRoom(io: Server, socket: Socket, immediate = false) {
   const { roomId, userId, displayName, role } = socket.data;
   if (!roomId || !userId) return;
 
   try {
+    if (role === MemberRole.HOST && !immediate) {
+      if (!hostDisconnectTimeouts.has(roomId)) {
+        const timeout = setTimeout(() => {
+          hostDisconnectTimeouts.delete(roomId);
+          void handleUserLeavingRoom(io, socket, true);
+        }, 60000);
+        hostDisconnectTimeouts.set(roomId, timeout);
+      }
+      return;
+    }
+
+    const pendingTimeout = hostDisconnectTimeouts.get(roomId);
+    if (pendingTimeout) {
+      clearTimeout(pendingTimeout);
+      hostDisconnectTimeouts.delete(roomId);
+    }
+
     const presenceKey = RedisKeys.roomPresence(roomId);
     
     // Load members from presence

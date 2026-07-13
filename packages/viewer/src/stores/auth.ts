@@ -20,42 +20,38 @@ export function useAuthStore() {
 
   const [tempGoogleSession, setTempGoogleSession] = useState<{ email: string; tempToken: string } | null>(null);
 
-  // Sync and validate user profile from local cache on start.
+  // Sync cached session on start without blocking the first paint.
   useEffect(() => {
-    const hydrateSession = async () => {
-      const cachedTemp = sessionStorage.getItem(GOOGLE_TEMP_SESSION_KEY);
-      if (cachedTemp) {
-        try {
-          setTempGoogleSession(JSON.parse(cachedTemp));
-        } catch {
-          sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
-        }
-      }
-
-      const cachedUser = localStorage.getItem('browsync_user');
-      const accessToken = localStorage.getItem('browsync_access_token');
-
-      if (!cachedUser || !accessToken) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
+    const cachedTemp = sessionStorage.getItem(GOOGLE_TEMP_SESSION_KEY);
+    if (cachedTemp) {
       try {
-        const parsedUser = JSON.parse(cachedUser);
-        const profile = await api.get<UserProfile>('/api/auth/me');
-        setUser(profile || parsedUser);
-      } catch (err) {
-        localStorage.removeItem('browsync_access_token');
-        localStorage.removeItem('browsync_refresh_token');
-        localStorage.removeItem('browsync_user');
-        setUser(null);
-      } finally {
-        setLoading(false);
+        setTempGoogleSession(JSON.parse(cachedTemp));
+      } catch {
+        sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
       }
-    };
+    }
 
-    hydrateSession();
+    const cachedUser = localStorage.getItem('browsync_user');
+    const accessToken = localStorage.getItem('browsync_access_token');
+
+    if (!cachedUser || !accessToken) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setUser(JSON.parse(cachedUser));
+    } catch {
+      localStorage.removeItem('browsync_access_token');
+      localStorage.removeItem('browsync_refresh_token');
+      localStorage.removeItem('browsync_user');
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {

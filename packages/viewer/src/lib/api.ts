@@ -3,6 +3,7 @@
 
 interface RequestOptions extends RequestInit {
   json?: any;
+  silent?: boolean;
 }
 
 class ApiClient {
@@ -83,7 +84,9 @@ class ApiClient {
         options.headers = headers;
         response = await fetch(`${this.getBaseUrl()}${path}`, options);
       } else {
-        window.location.href = '/';
+        if (!options.silent) {
+          window.location.href = '/';
+        }
         throw new Error('Session expired');
       }
     }

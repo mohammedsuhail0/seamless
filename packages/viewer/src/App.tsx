@@ -16,7 +16,12 @@ export default function App() {
   useEffect(() => {
     const cachedUser = localStorage.getItem('browsync_user');
     if (cachedUser) {
-      setUserContext(JSON.parse(cachedUser));
+      try {
+        setUserContext(JSON.parse(cachedUser));
+        setCurrentPage((current) => current === 'room' ? current : 'dashboard');
+      } catch {
+        localStorage.removeItem('browsync_user');
+      }
     }
 
     // Direct invite link pathname routing (e.g., /room/38XTER)

@@ -3,7 +3,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, TokenPayload } from '../utils/jwt';
-import { prisma, redis } from '../config/db';
+import { redis } from '../config/db';
 import { RedisKeys } from '../utils/redis-keys';
 
 export interface AuthenticatedRequest extends Request {
@@ -32,23 +32,16 @@ export async function authenticateToken(
     // Verify token structure
     const payload = verifyAccessToken(token);
 
-    // Verify user exists in database (handles DB wipes/resets)
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-    });
-    
-    if (!user) {
+    // Verify token is not revoked in Redis (if logged out)
+    const sessionExists = await redis.exists(RedisKeys.session(token));
+    if (!sessionExists) {
       return res.status(401).json({
         error: {
           code: 'UNAUTHORIZED',
-          message: 'User session invalid or account deleted',
+          message: 'Session expired or invalid',
         },
       });
     }
-
-    // Verify token is not revoked in Redis (if logged out)
-    const sessionExists = await redis.exists(RedisKeys.session(token));
-    const databaseFallback = false; // We can verify cache
 
     req.user = payload;
     req.token = token;

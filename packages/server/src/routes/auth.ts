@@ -3,6 +3,7 @@
 
 import { Router, Response } from 'express';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { prisma, redis } from '../config/db';
 import { RedisKeys } from '../utils/redis-keys';
 import {
@@ -384,75 +385,63 @@ router.post('/google-callback', async (req, res) => {
       });
     }
 
-    // Check if user exists in the database
-    const user = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
-    if (user) {
-      // Fork 1: User exists -> Log them in immediately
-      const tokenPayload = {
-        userId: user.id,
+    const user = existingUser || await prisma.user.create({
+      data: {
+        email: email.toLowerCase(),
+        displayName: (email.split('@')[0] || 'hypersync-user').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24) || 'hypersync-user',
+        passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+        avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email.split('@')[0] || email)}`,
+      },
+    });
+
+    const tokenPayload = {
+      userId: user.id,
+      email: user.email,
+      displayName: user.displayName,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const sessionKey = RedisKeys.session(accessToken);
+
+    await Promise.all([
+      prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+      (async () => {
+        await redis.hset(sessionKey, {
+          userId: user.id,
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: user.createdAt.toISOString(),
+        });
+        await redis.expire(sessionKey, 24 * 60 * 60);
+      })()
+    ]);
+
+    return res.status(200).json({
+      status: 'AUTHENTICATED',
+      user: {
+        id: user.id,
         email: user.email,
         displayName: user.displayName,
-      };
-      const accessToken = generateAccessToken(tokenPayload);
-      const refreshToken = generateRefreshToken(tokenPayload);
-
-      // Save session in PG and Redis in parallel
-      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      const sessionKey = RedisKeys.session(accessToken);
-
-      await Promise.all([
-        prisma.session.create({
-          data: {
-            userId: user.id,
-            token: accessToken,
-            refreshToken,
-            expiresAt,
-            ipAddress: req.ip,
-            userAgent: req.headers['user-agent'],
-          },
-        }),
-        (async () => {
-          await redis.hset(sessionKey, {
-            userId: user.id,
-            displayName: user.displayName,
-            email: user.email,
-            createdAt: user.createdAt.toISOString(),
-          });
-          await redis.expire(sessionKey, 24 * 60 * 60);
-        })()
-      ]);
-
-      return res.status(200).json({
-        status: 'AUTHENTICATED',
-        user: {
-          id: user.id,
-          email: user.email,
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-        },
-        accessToken,
-        refreshToken,
-      });
-    } else {
-      // Fork 2: User is new -> Generate signed temporary token for Onboarding
-      const tempTokenSecret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET || 'browsync_refresh_secret_772233';
-      const tempToken = jwt.sign(
-        { email, googleId, purpose: 'onboarding' },
-        tempTokenSecret,
-        { expiresIn: '15m' }
-      );
-
-      return res.status(200).json({
-        status: 'ONBOARDING_REQUIRED',
-        tempSession: {
-          email,
-          tempToken,
-        },
-      });
-    }
+        avatarUrl: user.avatarUrl,
+      },
+      accessToken,
+      refreshToken,
+    });
   } catch (error: any) {
     console.error('❌ Google callback error:', error);
     return res.status(500).json({

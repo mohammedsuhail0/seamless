@@ -88,6 +88,10 @@ cd ../..
 npm run dev
 ```
 
+### TURN relay for production
+
+If you need a self-hosted relay for weak networks, use `docs/08_TURN_Deployment_Guide.md` and `infra/coturn/`.
+
 ---
 
 ## 📋 Roadmap
