@@ -109,7 +109,7 @@ async function bootstrap() {
     console.log('🐘 Connected to PostgreSQL database');
 
     server.listen(PORT, () => {
-      console.log(`🚀 BrowSync Server listening on port ${PORT}`);
+      console.log(`🚀 Hypersync Server listening on port ${PORT}`);
     });
   } catch (error) {
     console.error('❌ Failed to bootstrap server:', error);

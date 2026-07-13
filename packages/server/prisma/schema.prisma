@@ -1,5 +1,5 @@
 // ================================================================
-// BrowSync Database Schema
+// Hypersync Database Schema
 // Agent: 🖥️ Agent B (Server)
 // Database: PostgreSQL 16
 // ORM: Prisma 5.x

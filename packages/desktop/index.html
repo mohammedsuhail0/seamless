@@ -5,7 +5,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrowSync Host Console</title>
+  <title>Hypersync Host Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -272,7 +272,7 @@
     <header>
       <div class="logo">
         <span>📡</span>
-        <h1>BrowSync Host Panel</h1>
+        <h1>Hypersync Host Panel</h1>
       </div>
       <span class="status-badge">Signaling Online</span>
     </header>
@@ -284,7 +284,7 @@
       <!-- Auto Create & Stream Section -->
       <div id="createRoomSection" style="margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-default);">
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-          Quick Launch: Authenticate and auto-create a new streaming room instantly.
+          Quick Launch: authenticate and auto-create a new streaming room instantly.
         </p>
         <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.75rem;">
           <input id="hostEmailInput" value="arjun@test.com" placeholder="Host Email" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
@@ -300,7 +300,7 @@
       <!-- Manual Join Section -->
       <div id="manualJoinSection">
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-          Or, join an existing pre-created room manually:
+          Or join an existing room manually:
         </p>
         <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(3, minmax(0, 1fr));">
           <input id="roomCodeInput" placeholder="Room Code (e.g. BYBNDR)" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
@@ -338,7 +338,7 @@
     <header class="glass" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border-default); backdrop-filter: var(--glass-blur);">
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <span style="font-size: 1.5rem;">📡</span>
-        <h1 id="roomTitle" style="font-weight: 800; font-size: 1.15rem; color: #a5b4fc; margin: 0;">Browsync Host Chamber</h1>
+        <h1 id="roomTitle" style="font-weight: 800; font-size: 1.15rem; color: #a5b4fc; margin: 0;">Hypersync Host Chamber</h1>
       </div>
       <div style="display: flex; align-items: center; gap: 0.75rem;">
         <span id="roomCodeBadge" style="font-family: var(--font-mono); background: rgba(255,255,255,0.04); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; letter-spacing: 0.5px; border: 1px solid var(--border-default); color: var(--text-primary);">CODE: -----</span>
@@ -660,7 +660,7 @@
           <div style="background: rgba(79, 70, 229, 0.1); border: 1.5px dashed var(--color-primary); padding: 1rem; border-radius: 8px;">
             <p style="font-weight:bold; color: #a5b4fc; margin-bottom: 0.5rem;">🚀 Room Live: ${roomCode}</p>
             <p style="font-size:0.8rem; color:var(--text-secondary); word-break: break-all;">
-              Viewers URL: <strong style="color:var(--text-primary);">https://browsync.vercel.app</strong>
+              Viewers URL: <strong style="color:var(--text-primary);">https://hypersync-app.vercel.app</strong>
             </p>
             <p style="font-size:0.8rem; color:var(--text-secondary); margin-top: 0.25rem;">
               Pass code: <strong style="color:var(--color-success);">${roomCode}</strong>
@@ -857,7 +857,7 @@
       copyInviteBtn.onclick = () => {
         if (currentRoomId) {
           const roomCode = document.getElementById('roomCodeBadge').textContent.replace('CODE: ', '');
-          const inviteText = `Join my BrowSync co-watching room!\nWebsite: https://browsync.vercel.app\nRoom Code: ${roomCode}`;
+          const inviteText = `Join my Hypersync co-watching room!\nWebsite: https://hypersync-app.vercel.app\nRoom Code: ${roomCode}`;
           navigator.clipboard.writeText(inviteText).then(() => {
             copyInviteBtn.textContent = 'Copied!';
             setTimeout(() => {

@@ -239,7 +239,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
  
           <h1 style={{ fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
             Watch Together.<br />
-            <span>For Real.</span>
+            <span>From Your Real Browser.</span>
           </h1>
 
           <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
@@ -434,10 +434,10 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               <Globe size={24} color="var(--color-gold)" />
             </div>
             <div>
-              <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Watch Anything, Anywhere</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-                Stream directly from your browser to the room in 4K fidelity.
-              </p>
+            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Shared Browser Rooms</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                Host a live browser session and let friends watch, chat, and browse with you.
+            </p>
             </div>
           </div>
 
@@ -446,10 +446,10 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               <RefreshCw size={24} color="var(--color-gold)" />
             </div>
             <div>
-              <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Synchronized Control</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-                Perfectly aligned playback. No spoilers, no delays.
-              </p>
+            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Controlled Sharing</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
+                The host stays in charge while viewers join instantly and follow along.
+            </p>
             </div>
           </div>
 
@@ -466,7 +466,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           <a href="#contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Contact</a>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-          © 2024 Hypersync. Cinematic Excellence.
+          © 2026 Hypersync.
         </p>
       </footer>
     </div>

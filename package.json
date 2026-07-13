@@ -2,7 +2,7 @@
   "name": "browsync",
   "version": "1.0.0",
   "private": true,
-  "description": "BrowSync — P2P browser streaming with remote control",
+  "description": "Hypersync — shared browser rooms for watch parties and collaboration",
   "workspaces": [
     "packages/shared",
     "packages/server",
@@ -21,6 +21,6 @@
   "engines": {
     "node": ">=20"
   },
-  "author": "BrowSync Team",
+  "author": "Hypersync Team",
   "license": "MIT"
 }

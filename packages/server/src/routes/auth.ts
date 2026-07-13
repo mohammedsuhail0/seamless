@@ -259,7 +259,7 @@ router.post('/google-login', async (req, res) => {
       return res.status(404).json({
         error: {
           code: 'NOT_FOUND',
-          message: 'No BrowSync account registered with this Google email. Please Sign Up first.',
+          message: 'No Hypersync account registered with this Google email. Please Sign Up first.',
         },
       });
     }
