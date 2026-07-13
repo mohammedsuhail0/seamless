@@ -71,7 +71,7 @@ function initializeHostSocket() {
   hostSocket = io(serverUrl);
 
   hostSocket.on('connect', () => {
-  console.log('🔌 Hypersync host signaling node connected to server');
+    console.log('🔌 Hypersync host signaling node connected to server');
     mainWindow?.webContents.send('host:socket-connected', { socketId: hostSocket?.id });
   });
 
