@@ -8,6 +8,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import authRouter from './routes/auth';
+import adminRouter from './routes/admin';
 import roomsRouter from './routes/rooms';
 import { registerRoomHandlers } from './socket/room.handler';
 import { registerWebRTCHandlers } from './socket/webrtc.handler';
@@ -29,6 +30,7 @@ app.use(express.json());
 
 // ── REST Routes ──────────────────────────────────────────────────
 app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api/rooms', roomsRouter);
 
 // Health check endpoint
