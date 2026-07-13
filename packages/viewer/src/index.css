@@ -651,14 +651,14 @@ button, input, select, textarea {
     display: flex;
   }
 }
-/* ── Scoped Landing Page Redesign (Netflix/Rolls Royce theme) ── */
+/* ── Scoped Landing Page Redesign (Hypersync premium theme) ── */
 .landing-page-root {
   --bg-primary: #000000;
   --bg-secondary: #0c0c0c;
   --bg-tertiary: #161616;
   --bg-surface: rgba(255, 255, 255, 0.03);
   
-  --color-primary: #e50914; /* Netflix Red */
+  --color-primary: #e50914; /* Accent Red */
   --color-primary-hover: #c11119;
   --color-primary-glow: rgba(229, 9, 20, 0.3);
   
@@ -724,7 +724,7 @@ button, input, select, textarea {
   box-shadow: 0 0 0 3px rgba(197, 168, 92, 0.35) !important;
 }
 
-/* Netflix Style Red Button */
+/* Accent Red Button */
 .landing-page-root .btn-netflix {
   background: var(--color-primary) !important;
   color: #ffffff !important;
@@ -799,7 +799,7 @@ button, input, select, textarea {
   --border-default: rgba(197, 168, 92, 0.15);
   --border-hover: rgba(197, 168, 92, 0.3);
   
-  --color-primary: #e50914; /* Netflix Red */
+  --color-primary: #e50914; /* Accent Red */
   --color-primary-hover: #c11119;
   
   --color-gold: #c5a85c;
@@ -1025,7 +1025,7 @@ button, input, select, textarea {
   --bg-primary: #000000;
   --bg-secondary: #0c0c0c;
   --border-default: rgba(197, 168, 92, 0.15);
-  --color-primary: #e50914; /* Netflix Red */
+  --color-primary: #e50914; /* Accent Red */
   --color-primary-hover: #c11119;
   
   --color-gold: #c5a85c;
@@ -1238,6 +1238,5 @@ button, input, select, textarea {
     gap: 1rem !important;
   }
 }
-
 
 

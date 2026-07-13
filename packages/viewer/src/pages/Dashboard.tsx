@@ -570,7 +570,7 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
                 <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>THEME PREFERENCE</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-gold)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  ⚜️ Patron Lounge Premium (Rolls Royce & Netflix)
+                  ⚜️ Hypersync Premium Lounge
                 </span>
               </div>
 
