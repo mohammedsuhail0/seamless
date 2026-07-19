@@ -1065,7 +1065,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         <div
           className="glass toast-notification-left"
             onClick={() => {
-              setShowChat(true);
               setActiveToast(null);
             }}
             style={{
