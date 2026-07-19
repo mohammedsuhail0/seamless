@@ -926,8 +926,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </div>
 
       {/* Right Side: Chat & Reaction Drawer */}
+      {showChat && (
       <aside
-        className={`chat-drawer ${showChat ? 'open' : ''}`}
+        className="chat-drawer open"
         style={{
           borderLeft: '1.5px solid var(--color-gold)',
           display: 'flex',
@@ -950,6 +951,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 event.preventDefault();
                 event.stopPropagation();
                 setShowChat(false);
+                setShowEmojiPicker(false);
               }}
               onTouchStart={(event) => event.stopPropagation()}
               title="Close Chat"
@@ -1059,6 +1061,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           </form>
 
       </aside>
+      )}
 
       {/* Chat Notification Toast (WhatsApp style) */}
       {activeToast && (
