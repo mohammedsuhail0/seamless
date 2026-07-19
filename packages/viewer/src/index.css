@@ -1694,3 +1694,70 @@ button, input, select, textarea {
     padding-inline: 0.5rem !important;
   }
 }
+
+/* Keep room media full-width even when chat/message events update state. */
+.room-page-root {
+  overflow: hidden !important;
+}
+
+.room-page-root .room-content {
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+.room-page-root .stream-column {
+  flex: 0 0 100vw !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  min-width: 100vw !important;
+}
+
+.room-page-root .video-render-area,
+.room-page-root .video-render-area video {
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+.room-page-root .chat-drawer {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  left: auto !important;
+  width: min(380px, 92vw) !important;
+  max-width: 92vw !important;
+  height: 100dvh !important;
+  z-index: 120 !important;
+  transform: translateX(0) !important;
+}
+
+.room-page-root .chat-drawer:not(.open) {
+  width: min(380px, 92vw) !important;
+  max-width: 92vw !important;
+  padding-top: 60px !important;
+  transform: translateX(104%) !important;
+  opacity: 1 !important;
+  border-left: 1.5px solid var(--color-gold) !important;
+}
+
+.room-page-root .toast-notification-left {
+  position: fixed !important;
+  max-width: min(320px, calc(100vw - 2rem)) !important;
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+  .room-page-root .chat-drawer {
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    transform: translateY(0) !important;
+  }
+
+  .room-page-root .chat-drawer:not(.open) {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    transform: translateY(104%) !important;
+  }
+}
