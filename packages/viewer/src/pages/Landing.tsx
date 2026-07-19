@@ -256,7 +256,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
             <form onSubmit={handleQuickJoin} className="quick-join-form">
               <input 
                 type="text" 
-                placeholder="ENTER CODE (e.g. X7K2M9)"
+                placeholder="ROOM CODE"
                 value={roomCode}
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 maxLength={6}

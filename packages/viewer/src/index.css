@@ -1695,6 +1695,76 @@ button, input, select, textarea {
   }
 }
 
+/* Prevent mobile landing cards and form controls from overflowing the viewport. */
+@media (max-width: 768px) {
+  html,
+  body,
+  #root,
+  .landing-page-root {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+
+  .landing-main-grid,
+  .landing-hero-copy,
+  .landing-auth-panel,
+  .quick-join-card,
+  .auth-form-card {
+    width: 100% !important;
+    max-width: calc(100vw - 2rem) !important;
+    min-width: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .landing-main-grid {
+    box-sizing: border-box !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .quick-join-card,
+  .auth-form-card {
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .quick-join-form,
+  .auth-form-card form {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .landing-page-root .premium-input,
+  .landing-page-root .btn-netflix,
+  .landing-page-root .btn-gold-outline {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .quick-join-form .premium-input {
+    font-size: 0.95rem !important;
+    letter-spacing: 0.08em !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .landing-main-grid,
+  .landing-hero-copy,
+  .landing-auth-panel,
+  .quick-join-card,
+  .auth-form-card {
+    max-width: calc(100vw - 1.25rem) !important;
+  }
+
+  .landing-main-grid {
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
+}
+
 /* Keep room media full-width even when chat/message events update state. */
 .room-page-root {
   overflow: hidden !important;
