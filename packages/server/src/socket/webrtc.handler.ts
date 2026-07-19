@@ -49,4 +49,16 @@ export function registerWebRTCHandlers(io: Server, socket: Socket) {
       candidate,
     });
   });
+
+  // Viewer asks the host to create a fresh offer after a failed/stalled peer connection.
+  socket.on(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, (payload: { targetUserId: string }) => {
+    const senderUserId = socket.data.userId;
+    const { targetUserId } = payload;
+
+    if (!senderUserId || !targetUserId) return;
+
+    socket.to(targetUserId).emit(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, {
+      senderUserId,
+    });
+  });
 }

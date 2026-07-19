@@ -57,6 +57,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const inputChannelRef = useRef<RTCDataChannel | null>(null);
   const controlChannelRef = useRef<RTCDataChannel | null>(null);
   const hostUserIdRef = useRef<string | null>(null);
+  const viewerReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Host refs
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -315,8 +316,16 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         }
       };
 
+      const handleReconnectRequest = (payload: { senderUserId: string }) => {
+        if (payload.senderUserId && activeViewersRef.current.has(payload.senderUserId)) {
+          console.log(`📡 Viewer requested fresh WebRTC offer: ${payload.senderUserId}`);
+          recreatePeerForViewer(payload.senderUserId);
+        }
+      };
+
       socket.on(SOCKET_EVENTS.RTC_ANSWER, handleAnswer);
       socket.on(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateHost);
+      socket.on(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, handleReconnectRequest);
       socket.on(SOCKET_EVENTS.ROOM_JOINED, handleViewerJoined);
       socket.on(SOCKET_EVENTS.ROOM_LEFT, handleViewerLeft);
       socket.on(SOCKET_EVENTS.PRESENCE_SYNC, handlePresenceSync);
@@ -324,6 +333,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
       return () => {
         socket.off(SOCKET_EVENTS.RTC_ANSWER, handleAnswer);
         socket.off(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateHost);
+        socket.off(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, handleReconnectRequest);
         socket.off(SOCKET_EVENTS.ROOM_JOINED, handleViewerJoined);
         socket.off(SOCKET_EVENTS.ROOM_LEFT, handleViewerLeft);
         socket.off(SOCKET_EVENTS.PRESENCE_SYNC, handlePresenceSync);
@@ -346,6 +356,19 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
       // Viewer-specific signaling events
       const pendingIceCandidatesRef = { current: [] as any[] };
 
+      const requestFreshOffer = () => {
+        const targetUserId = hostUserIdRef.current;
+        if (!targetUserId || !socket.connected) return;
+
+        if (viewerReconnectTimerRef.current) {
+          clearTimeout(viewerReconnectTimerRef.current);
+        }
+
+        viewerReconnectTimerRef.current = setTimeout(() => {
+          socket.emit(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, { targetUserId });
+        }, 800);
+      };
+
       const handleOffer = async (payload: { senderUserId: string; sdp: any }) => {
         try {
           console.log('📬 WebRTC Offer received from Host. Creating fresh peer connection.');
@@ -363,9 +386,21 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           pc.oniceconnectionstatechange = () => {
             setConnectionState(pc.iceConnectionState);
             console.log('📡 WebRTC ICE Connection State Changed:', pc.iceConnectionState);
-            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'closed') {
+            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+              if (viewerReconnectTimerRef.current) {
+                clearTimeout(viewerReconnectTimerRef.current);
+                viewerReconnectTimerRef.current = null;
+              }
+            }
+
+            if (
+              pc.iceConnectionState === 'failed' ||
+              pc.iceConnectionState === 'closed' ||
+              pc.iceConnectionState === 'disconnected'
+            ) {
               setStream(null);
               remoteStreamRef.current = null;
+              requestFreshOffer();
             }
           };
 
@@ -457,6 +492,10 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
       return () => {
         socket.off(SOCKET_EVENTS.RTC_OFFER, handleOffer);
         socket.off(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateViewer);
+        if (viewerReconnectTimerRef.current) {
+          clearTimeout(viewerReconnectTimerRef.current);
+          viewerReconnectTimerRef.current = null;
+        }
         
         if (peerConnectionRef.current) {
           try { peerConnectionRef.current.close(); } catch (e) {}

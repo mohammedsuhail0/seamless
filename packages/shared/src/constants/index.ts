@@ -17,6 +17,7 @@ export const SOCKET_EVENTS = {
   RTC_OFFER: 'rtc:offer',
   RTC_ANSWER: 'rtc:answer',
   RTC_ICE_CANDIDATE: 'rtc:ice-candidate',
+  RTC_RECONNECT_REQUEST: 'rtc:reconnect-request',
 
   // Interactive remote control request queue events
   CONTROL_REQUEST: 'control:request',
