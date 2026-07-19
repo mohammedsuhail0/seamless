@@ -189,13 +189,13 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Navbar */}
       <header className="landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(0, 0, 0, 0.75)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="landing-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <GoldLogoSVG size={36} />
           <span style={{ fontWeight: 700, fontSize: '1.45rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>Hypersync</span>
         </div>
         <div>
           {isAuthenticated ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="landing-user-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <span style={{ color: 'var(--text-secondary)' }}>Hi, {user?.displayName}</span>
               <button className="btn btn-gold-outline" onClick={() => onNavigate('dashboard')}>Dashboard</button>
               <button
@@ -231,22 +231,22 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       <main className="landing-main-grid">
         
         {/* Left Hand: Hero Details */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(197, 168, 92, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(197, 168, 92, 0.25)', width: 'fit-content' }}>
+        <section className="landing-hero-copy" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div className="landing-kicker" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(197, 168, 92, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(197, 168, 92, 0.25)', width: 'fit-content' }}>
             <Sparkles size={14} color="#e3c578" />
             <span style={{ fontSize: 'var(--text-xs)', color: '#e3c578', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
           </div>
  
-          <h1 style={{ fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
+          <h1 className="landing-title" style={{ fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
             Watch Together.<br />
             <span>From Your Real Browser.</span>
           </h1>
 
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
+          <p className="landing-subtitle" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
             Watch and browse together from your own real browser. Start a room, share a tab or screen, and let friends join instantly for videos, live events, shopping, research, or casual browsing.
           </p>
 
-          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', padding: '0.75rem 0', margin: '0.5rem 0', color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: 'var(--text-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="landing-trust-line" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', padding: '0.75rem 0', margin: '0.5rem 0', color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: 'var(--text-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             Real-time synchronization across any device.
           </div>
 
@@ -269,7 +269,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
         </section>
 
         {/* Right Hand: Immersive Card Tabs Form */}
-        <section style={{ display: 'flex', justifyContent: 'center' }}>
+        <section className="landing-auth-panel" style={{ display: 'flex', justifyContent: 'center' }}>
           {isAuthenticated ? (
             <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
               <div style={{ fontSize: '3rem' }}>🎉</div>
@@ -425,7 +425,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       </main>
 
       {/* Highlights Grid */}
-      <section style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
+      <section className="landing-highlights-section" style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
         <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#ffffff' }}>Why you'll love Hypersync</h2>
         <div className="highlights-grid">
           

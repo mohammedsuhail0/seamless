@@ -362,22 +362,30 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       if (!document.fullscreenElement) {
         roomContainerRef.current.requestFullscreen().then(() => {
           setIsFullscreen(true);
+          try {
+            const orientation = screen.orientation as any;
+            if (orientation?.lock && window.matchMedia('(max-width: 768px)').matches) {
+              orientation.lock('landscape').catch(() => {});
+            }
+          } catch {}
         }).catch(err => {
           console.error('Fullscreen failed:', err);
+          setIsFullscreen(true);
         });
       } else {
-        document.exitFullscreen();
-        setIsFullscreen(false);
+        document.exitFullscreen().finally(() => setIsFullscreen(false));
       }
     } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
       // Graceful fallback for iOS (iPhone) Safari
       try {
         (videoRef.current as any).webkitEnterFullscreen();
+        setIsFullscreen(true);
       } catch (err) {
         console.error('iOS Fullscreen failed:', err);
+        setIsFullscreen((current) => !current);
       }
     } else {
-      alert('Fullscreen is not supported on this browser/device.');
+      setIsFullscreen((current) => !current);
     }
   };
 
@@ -596,7 +604,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   return (
     <div 
       ref={roomContainerRef}
-      className="room-container room-page-root"
+      className={`room-container room-page-root ${isFullscreen ? 'is-room-expanded' : ''} ${showChat ? 'chat-is-open' : ''}`}
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
       onTouchStart={resetControlsTimeout}
@@ -935,8 +943,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             </div>
             <button 
               className="btn btn-ghost" 
-              style={{ padding: '0.2rem', minWidth: 'auto', display: 'inline-flex', height: 'auto', color: 'rgba(255,255,255,0.4)' }} 
-              onClick={() => setShowChat(false)}
+              type="button"
+              style={{ padding: '0.45rem', minWidth: '44px', width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.75)', position: 'relative', zIndex: 3 }}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setShowChat(false);
+              }}
+              onTouchStart={(event) => event.stopPropagation()}
               title="Close Chat"
             >
               ✕
