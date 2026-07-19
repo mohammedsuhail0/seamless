@@ -182,7 +182,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   };
 
   return (
-    <div className="landing-page-root" style={{ position: 'relative', overflow: 'hidden', minHeight: '100vh' }}>
+    <div className="landing-page-root" style={{ position: 'relative', overflowX: 'hidden', overflowY: 'auto', height: '100dvh', minHeight: '100vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       {/* Decorative Radial Glow overlays */}
       <div className="radial-glow" style={{ top: '-10%', left: '-10%', background: 'radial-gradient(circle, rgba(197, 168, 92, 0.08) 0%, rgba(0,0,0,0) 70%)' }} />
       <div className="radial-glow" style={{ bottom: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(229, 9, 20, 0.05) 0%, rgba(0,0,0,0) 70%)' }} />
