@@ -708,10 +708,10 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </header>
 
       {/* Main split work area */}
-      <div className="room-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', display: 'flex', overflow: 'hidden' }}>
+      <div className="room-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100%', display: 'block', overflow: 'hidden' }}>
         
         {/* Left Side: Stream Viewer */}
-        <div className="stream-column" style={{ flex: 1, position: 'relative', display: 'flex', flexDirection: 'column', background: '#000000' }}>
+        <div className="stream-column" style={{ width: '100vw', minWidth: '100vw', position: 'relative', display: 'flex', flexDirection: 'column', background: '#000000' }}>
           
           {/* Active control badge overlay */}
           {isMeInControl && (
@@ -923,19 +923,20 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             </div>
           </footer>
         </div>
+      </div>
 
-        {/* Right Side: Chat & Reaction Drawer */}
-        <aside 
-          className={`chat-drawer ${showChat ? 'open' : ''}`} 
-          style={{ 
-            borderLeft: '1.5px solid var(--color-gold)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            overflow: 'hidden',
-            paddingTop: '60px',
-            background: 'rgba(5, 5, 5, 0.95)',
-          }}
-        >
+      {/* Right Side: Chat & Reaction Drawer */}
+      <aside
+        className={`chat-drawer ${showChat ? 'open' : ''}`}
+        style={{
+          borderLeft: '1.5px solid var(--color-gold)',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          paddingTop: '60px',
+          background: 'rgba(5, 5, 5, 0.95)',
+        }}
+      >
           <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <MessageSquare size={16} color="var(--color-gold)" />
@@ -1057,12 +1058,12 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             </button>
           </form>
 
-        </aside>
+      </aside>
 
-        {/* Chat Notification Toast (WhatsApp style) */}
-        {activeToast && (
-          <div 
-            className="glass toast-notification-left" 
+      {/* Chat Notification Toast (WhatsApp style) */}
+      {activeToast && (
+        <div
+          className="glass toast-notification-left"
             onClick={() => {
               setShowChat(true);
               setActiveToast(null);
@@ -1137,10 +1138,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               boxShadow: '0 0 6px #e50914',
               flexShrink: 0,
             }} />
-          </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
 }
