@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import authRouter from './routes/auth';
 import adminRouter from './routes/admin';
 import roomsRouter from './routes/rooms';
+import rtcRouter from './routes/rtc';
 import { registerRoomHandlers } from './socket/room.handler';
 import { registerWebRTCHandlers } from './socket/webrtc.handler';
 import { registerChatHandlers } from './socket/chat.handler';
@@ -32,6 +33,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/rooms', roomsRouter);
+app.use('/api/rtc', rtcRouter);
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {

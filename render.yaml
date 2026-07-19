@@ -25,3 +25,11 @@ services:
         generateValue: true
       - key: REFRESH_TOKEN_SECRET
         generateValue: true
+      - key: TURN_URLS
+        sync: false
+      - key: TURN_USERNAME
+        sync: false
+      - key: TURN_CREDENTIAL
+        sync: false
+      - key: FORCE_TURN
+        value: false

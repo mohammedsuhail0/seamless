@@ -11,7 +11,7 @@ interface UseWebRTCOptions {
   role: string | null;
 }
 
-function getIceConfig(): RTCConfiguration {
+function getFallbackIceConfig(): RTCConfiguration {
   const env = (import.meta as any).env || {};
   const turnUrls = String(env.VITE_TURN_URLS || '')
     .split(',')
@@ -28,16 +28,6 @@ function getIceConfig(): RTCConfiguration {
       urls: turnUrls,
       username: env.VITE_TURN_USERNAME,
       credential: env.VITE_TURN_CREDENTIAL,
-    });
-  } else {
-    iceServers.push({
-      urls: [
-        'turn:openrelay.metered.ca:80',
-        'turn:openrelay.metered.ca:443',
-        'turn:openrelay.metered.ca:443?transport=tcp',
-      ],
-      username: 'openrelayproject',
-      credential: 'openrelayproject',
     });
   }
 
@@ -65,8 +55,41 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   const activeViewersRef = useRef<Set<string>>(new Set());
   const pendingIceCandidatesHostRef = useRef<Map<string, any[]>>(new Map());
   const reconnectTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const iceConfigRef = useRef<RTCConfiguration>(getFallbackIceConfig());
+  const iceConfigPromiseRef = useRef<Promise<RTCConfiguration> | null>(null);
 
-  const iceConfig = getIceConfig();
+  const loadIceConfig = () => {
+    if (!iceConfigPromiseRef.current) {
+      iceConfigPromiseRef.current = fetch('/api/rtc/ice-config', {
+        headers: { Accept: 'application/json' },
+      })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`ICE config request failed: ${response.status}`);
+          const data = await response.json();
+          const nextConfig: RTCConfiguration = {
+            iceServers: data.iceServers || [],
+            iceTransportPolicy: data.iceTransportPolicy || 'all',
+          };
+          iceConfigRef.current = nextConfig;
+          return nextConfig;
+        })
+        .catch((err) => {
+          console.warn('⚠️ Falling back to bundled ICE config:', err);
+          return iceConfigRef.current;
+        });
+    }
+
+    return iceConfigPromiseRef.current;
+  };
+
+  const getCurrentIceConfig = async () => {
+    await loadIceConfig();
+    return iceConfigRef.current;
+  };
+
+  useEffect(() => {
+    void loadIceConfig();
+  }, []);
 
   const recreatePeerForViewer = (viewerId: string) => {
     const existingPc = peerConnectionsRef.current.get(viewerId);
@@ -103,7 +126,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
 
     try {
       console.log(`📡 Establishing peer connection for viewer: ${viewerId}`);
-      const pc = new RTCPeerConnection(iceConfig);
+      const pc = new RTCPeerConnection(await getCurrentIceConfig());
       peerConnectionsRef.current.set(viewerId, pc);
 
       pc.oniceconnectionstatechange = () => {
@@ -380,7 +403,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
             peerConnectionRef.current = null;
           }
 
-          const pc = new RTCPeerConnection(iceConfig);
+          const pc = new RTCPeerConnection(await getCurrentIceConfig());
           peerConnectionRef.current = pc;
 
           pc.oniceconnectionstatechange = () => {

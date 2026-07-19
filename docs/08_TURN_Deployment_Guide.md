@@ -38,20 +38,22 @@ cd infra/coturn
 docker compose up -d
 ```
 
-## Viewer env vars
+## Render API env vars
 
-Set these in Vercel for `packages/viewer`:
+Set these on the Render `browsync-api` service:
 
-- `VITE_TURN_URLS=turn:turn.hypersync.app:3478?transport=udp,turn:turn.hypersync.app:3478?transport=tcp`
-- `VITE_TURN_USERNAME=turn-user`
-- `VITE_TURN_CREDENTIAL=replace-with-the-same-password`
-- `VITE_FORCE_TURN=false`
+- `TURN_URLS=turn:turn.hypersync.app:3478?transport=udp,turn:turn.hypersync.app:3478?transport=tcp`
+- `TURN_USERNAME=turn-user`
+- `TURN_CREDENTIAL=replace-with-the-same-password`
+- `FORCE_TURN=false`
 
-If you want to force relay mode for testing, set `VITE_FORCE_TURN=true` temporarily.
+If you want to force relay mode for testing, set `FORCE_TURN=true` temporarily.
+
+The viewer reads ICE configuration from `/api/rtc/ice-config`, so TURN credential changes only require redeploying or restarting the Render API service.
 
 ## Verification
 
-- Rebuild and redeploy the viewer after changing Vercel env vars.
+- Restart the Render API service after changing TURN env vars.
 - Open a room from one network and join from a different network.
 - If the peer connection stays in `connected` or `completed`, TURN is working.
 - If the viewer still drops on join, check the VPS firewall first.
