@@ -274,13 +274,22 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   useEffect(() => {
     if (!socket) return;
-    const interval = window.setInterval(() => {
+    const sendHeartbeat = () => {
       if (socket.connected) {
         socket.emit(SOCKET_EVENTS.PRESENCE_HEARTBEAT);
       }
-    }, 25000);
+    };
 
-    return () => window.clearInterval(interval);
+    sendHeartbeat();
+    const interval = window.setInterval(sendHeartbeat, 15000);
+    window.addEventListener('focus', sendHeartbeat);
+    document.addEventListener('visibilitychange', sendHeartbeat);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', sendHeartbeat);
+      document.removeEventListener('visibilitychange', sendHeartbeat);
+    };
   }, [socket]);
 
   // Scroll to bottom of chat list

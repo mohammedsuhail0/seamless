@@ -29,11 +29,24 @@ function getFallbackIceConfig(): RTCConfiguration {
       username: env.VITE_TURN_USERNAME,
       credential: env.VITE_TURN_CREDENTIAL,
     });
+  } else {
+    iceServers.push({
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turn:openrelay.metered.ca:443?transport=tcp',
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    });
   }
 
   return {
     iceServers,
     iceTransportPolicy: env.VITE_FORCE_TURN === 'true' ? 'relay' : 'all',
+    iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
   };
 }
 
@@ -69,6 +82,9 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           const nextConfig: RTCConfiguration = {
             iceServers: data.iceServers || [],
             iceTransportPolicy: data.iceTransportPolicy || 'all',
+            iceCandidatePoolSize: data.iceCandidatePoolSize || 10,
+            bundlePolicy: data.bundlePolicy || 'max-bundle',
+            rtcpMuxPolicy: data.rtcpMuxPolicy || 'require',
           };
           iceConfigRef.current = nextConfig;
           return nextConfig;
