@@ -2,7 +2,7 @@
 
 > **Watch Together. For Real.**
 
-BrowSync captures the host's **real browser** and streams it directly to friends over WebRTC — exactly like how NVIDIA GeForce NOW works, except for browsing. No virtual browser. No geo-blocks. No "buy a plan" errors. Because it's literally YOUR browser, YOUR Netflix account, YOUR Airtel Xstream login — just mirrored to friends in real time.
+BroSync captures the host's **real browser** and streams it directly to friends over WebRTC — exactly like how NVIDIA GeForce NOW works, except for browsing. No virtual browser. No geo-blocks. No "buy a plan" errors. Because it's literally YOUR browser, YOUR Netflix account, YOUR Airtel Xstream login — just mirrored to friends in real time.
 
 ---
 
