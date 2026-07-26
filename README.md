@@ -1,4 +1,4 @@
-# 🔄 BrowSync
+# 🔄 BroSync
 
 > **Watch Together. For Real.**
 
