@@ -7,6 +7,7 @@ interface RequestOptions extends RequestInit {
 }
 
 class ApiClient {
+  private sessionInvalid = false;
   private getBaseUrl(): string {
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? ''
@@ -22,6 +23,7 @@ class ApiClient {
   }
 
   private setTokens(accessToken: string, refreshToken: string) {
+    this.sessionInvalid = false;
     localStorage.setItem('browsync_access_token', accessToken);
     localStorage.setItem('browsync_refresh_token', refreshToken);
   }
@@ -43,16 +45,18 @@ class ApiClient {
         body: JSON.stringify({ refreshToken }),
       });
 
-      if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
         this.clearTokens();
+        this.sessionInvalid = true;
         return false;
       }
+
+      if (!response.ok) return false;
 
       const data = await response.json();
       this.setTokens(data.accessToken, data.refreshToken);
       return true;
     } catch (err) {
-      this.clearTokens();
       return false;
     }
   }
@@ -84,10 +88,10 @@ class ApiClient {
         options.headers = headers;
         response = await fetch(`${this.getBaseUrl()}${path}`, options);
       } else {
-        if (!options.silent) {
+        if (!options.silent && this.sessionInvalid) {
           window.location.href = '/';
         }
-        throw new Error('Session expired');
+        throw new Error(this.sessionInvalid ? 'Session expired' : 'Connection temporarily unavailable');
       }
     }
 

@@ -7,14 +7,30 @@ import { RedisKeys } from '../utils/redis-keys';
 import { verifyAccessToken } from '../utils/jwt';
 import { SOCKET_EVENTS, MemberRole, RoomStatus } from '@browsync/shared';
 
-// Tracks host disconnect timeouts to allow 60s reconnection
-const hostDisconnectTimeouts = new Map<string, NodeJS.Timeout>();
+// Keep a place for a reconnecting participant instead of treating a brief
+// network drop as a permanent leave. The key also works for anonymous guests.
+const disconnectTimeouts = new Map<string, NodeJS.Timeout>();
+const VIEWER_RECONNECT_GRACE_MS = 45_000;
+const HOST_RECONNECT_GRACE_MS = 60_000;
+
+function disconnectKey(roomId: string, userId: string) {
+  return `${roomId}:${userId}`;
+}
+
+function clearDisconnectGrace(roomId: string, userId: string) {
+  const key = disconnectKey(roomId, userId);
+  const timeout = disconnectTimeouts.get(key);
+  if (timeout) {
+    clearTimeout(timeout);
+    disconnectTimeouts.delete(key);
+  }
+}
 
 export function registerRoomHandlers(io: Server, socket: Socket) {
   // ── room:join event ──────────────────────────────────────────────
   socket.on(
     SOCKET_EVENTS.ROOM_JOIN,
-    async (payload: { roomCode: string; displayName: string; token?: string }) => {
+    async (payload: { roomCode: string; displayName: string; token?: string; participantId?: string }) => {
       try {
         const { roomCode, displayName, token } = payload;
 
@@ -73,22 +89,24 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
         const roomId = room.id;
         const presenceKey = RedisKeys.roomPresence(roomId);
 
+        // Keep a stable identity for an anonymous viewer across socket reconnects.
+        const suppliedParticipantId = typeof payload.participantId === 'string' && /^guest_[a-zA-Z0-9_-]{8,100}$/.test(payload.participantId)
+          ? payload.participantId
+          : null;
+        const socketUserId = userId || suppliedParticipantId || `guest_${socket.id.substring(0, 8)}`;
+
+        // Prune stale presence before enforcing capacity. A reconnecting user is
+        // excluded from the count so it cannot fill the room with old sockets.
+        const activePresenceRecords = await getActivePresenceRecords(roomId);
+
         // 3. Enforce Max Viewers (7 viewers max, host does not count as viewer)
         if (role !== MemberRole.HOST) {
-          const currentCount = await redis.zcard(presenceKey);
-          
-          // Get host state from presence to see if host is online
-          const presenceMembers = await redis.zrange(presenceKey, 0, -1);
-          let hostIsPresent = false;
-          for (const memberStr of presenceMembers) {
-            const m = JSON.parse(memberStr);
-            if (m.role === MemberRole.HOST) {
-              hostIsPresent = true;
-              break;
-            }
-          }
-          
-          const viewerCount = hostIsPresent ? currentCount - 1 : currentCount;
+          const activeViewerIds = new Set(
+            activePresenceRecords
+              .filter((member) => member.role !== MemberRole.HOST && member.userId !== socketUserId)
+              .map((member) => member.userId),
+          );
+          const viewerCount = activeViewerIds.size;
           if (viewerCount >= 7) {
             return socket.emit(SOCKET_EVENTS.ROOM_ERROR, {
               code: 'ROOM_FULL',
@@ -97,22 +115,21 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
           }
         }
 
-        // 4. Create unique guest or viewer ID if not logged in
-        const socketUserId = userId || `guest_${socket.id.substring(0, 8)}`;
+        // 4. Replace any old socket presence for this logical participant.
+        // Socket.IO assigns a new socket id after every reconnect.
+        for (const member of activePresenceRecords) {
+          if (member.userId === socketUserId) {
+            await redis.zrem(presenceKey, member.raw);
+          }
+        }
+        clearDisconnectGrace(roomId, socketUserId);
+
         const presenceMember = {
           userId: socketUserId,
           displayName: finalDisplayName,
           role,
           socketId: socket.id,
         };
-
-        if (role === MemberRole.HOST) {
-          const pendingTimeout = hostDisconnectTimeouts.get(roomId);
-          if (pendingTimeout) {
-            clearTimeout(pendingTimeout);
-            hostDisconnectTimeouts.delete(roomId);
-          }
-        }
 
         // 5. If host joined and room was WAITING, set status to ACTIVE
         if (role === MemberRole.HOST) {
@@ -273,8 +290,9 @@ export function registerRoomHandlers(io: Server, socket: Socket) {
   });
 }
 
-// Helper to scrape Redis for active presence members
-async function getActivePresenceMembers(roomId: string): Promise<any[]> {
+// Remove stale heartbeats and return the raw records needed for reconnect-safe
+// replacement and capacity checks.
+async function getActivePresenceRecords(roomId: string): Promise<Array<any & { raw: string }>> {
   try {
     const presenceKey = RedisKeys.roomPresence(roomId);
     
@@ -283,13 +301,12 @@ async function getActivePresenceMembers(roomId: string): Promise<any[]> {
     await redis.zremrangebyscore(presenceKey, '-inf', cutoff);
 
     const membersJson = await redis.zrange(presenceKey, 0, -1);
-    return membersJson.map((str) => {
-      const parsed = JSON.parse(str);
-      return {
-        userId: parsed.userId,
-        displayName: parsed.displayName,
-        role: parsed.role,
-      };
+    return membersJson.flatMap((raw) => {
+      try {
+        return [{ ...JSON.parse(raw), raw }];
+      } catch {
+        return [];
+      }
     });
   } catch (err) {
     console.error('❌ Error syncing active presence list:', err);
@@ -297,28 +314,33 @@ async function getActivePresenceMembers(roomId: string): Promise<any[]> {
   }
 }
 
-// Primary cleanup when a host or viewer drops/leaves
+// Helper to expose the client-safe form of active presence members.
+async function getActivePresenceMembers(roomId: string): Promise<any[]> {
+  const members = await getActivePresenceRecords(roomId);
+  return members.map(({ userId, displayName, role }) => ({ userId, displayName, role }));
+}
+
+// Primary cleanup when a host or viewer leaves. Socket disconnects are delayed
+// so a network hiccup can reconnect without changing the room roster.
 async function handleUserLeavingRoom(io: Server, socket: Socket, immediate = false) {
   const { roomId, userId, displayName, role } = socket.data;
   if (!roomId || !userId) return;
 
   try {
-    if (role === MemberRole.HOST && !immediate) {
-      if (!hostDisconnectTimeouts.has(roomId)) {
+    const key = disconnectKey(roomId, userId);
+    if (!immediate) {
+      if (!disconnectTimeouts.has(key)) {
+        const gracePeriod = role === MemberRole.HOST ? HOST_RECONNECT_GRACE_MS : VIEWER_RECONNECT_GRACE_MS;
         const timeout = setTimeout(() => {
-          hostDisconnectTimeouts.delete(roomId);
+          disconnectTimeouts.delete(key);
           void handleUserLeavingRoom(io, socket, true);
-        }, 60000);
-        hostDisconnectTimeouts.set(roomId, timeout);
+        }, gracePeriod);
+        disconnectTimeouts.set(key, timeout);
       }
       return;
     }
 
-    const pendingTimeout = hostDisconnectTimeouts.get(roomId);
-    if (pendingTimeout) {
-      clearTimeout(pendingTimeout);
-      hostDisconnectTimeouts.delete(roomId);
-    }
+    clearDisconnectGrace(roomId, userId);
 
     const presenceKey = RedisKeys.roomPresence(roomId);
     
@@ -327,12 +349,20 @@ async function handleUserLeavingRoom(io: Server, socket: Socket, immediate = fal
     let targetMemberStr = '';
     
     for (const memberStr of presenceListJson) {
-      const m = JSON.parse(memberStr);
-      if (m.userId === userId && m.socketId === socket.id) {
-        targetMemberStr = memberStr;
-        break;
+      try {
+        const m = JSON.parse(memberStr);
+        if (m.userId === userId && m.socketId === socket.id) {
+          targetMemberStr = memberStr;
+          break;
+        }
+      } catch {
+        await redis.zrem(presenceKey, memberStr);
       }
     }
+
+    // The participant has already rejoined from a new socket. The old timeout
+    // must never remove or announce the newly restored session.
+    if (!targetMemberStr) return;
 
     if (targetMemberStr) {
       await redis.zrem(presenceKey, targetMemberStr);

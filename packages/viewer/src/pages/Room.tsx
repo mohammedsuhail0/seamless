@@ -102,10 +102,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   const joinSocketRoom = useCallback((targetSocket: Socket) => {
     const token = localStorage.getItem('browsync_access_token') || undefined;
+    const participantKey = `browsync_room_participant:${roomCode.toUpperCase()}`;
+    let participantId = sessionStorage.getItem(participantKey);
+    if (!participantId) {
+      const suffix = typeof crypto?.randomUUID === 'function'
+        ? crypto.randomUUID().replace(/-/g, '')
+        : `${Date.now()}${Math.random().toString(36).slice(2)}`;
+      participantId = `guest_${suffix}`;
+      sessionStorage.setItem(participantKey, participantId);
+    }
+
     targetSocket.emit(SOCKET_EVENTS.ROOM_JOIN, {
       roomCode: roomCode.toUpperCase(),
       displayName: userContext?.displayName || `Guest_${Math.floor(Math.random() * 1000)}`,
       token,
+      participantId,
     });
   }, [roomCode, userContext?.displayName]);
 

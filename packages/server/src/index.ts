@@ -86,6 +86,10 @@ const io = new Server(server, {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true,
+  },
 });
 app.set('io', io);
 
