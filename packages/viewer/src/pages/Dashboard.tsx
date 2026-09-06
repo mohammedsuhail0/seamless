@@ -564,13 +564,13 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>ACCOUNT HOLDER</span>
                 <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{userContext?.displayName || 'Screen Host'}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{userContext?.email || 'patron@hypersync.com'}</span>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{userContext?.email || 'patron@brosync.com'}</span>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
                 <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>THEME PREFERENCE</span>
                 <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-gold)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  ⚜️ Hypersync Premium Lounge
+                  ⚜️ BroSync Premium Lounge
                 </span>
               </div>
 

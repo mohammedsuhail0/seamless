@@ -260,7 +260,7 @@ router.post('/google-login', async (req, res) => {
       return res.status(404).json({
         error: {
           code: 'NOT_FOUND',
-          message: 'No Hypersync account registered with this Google email. Please Sign Up first.',
+          message: 'No BroSync account registered with this Google email. Please Sign Up first.',
         },
       });
     }
@@ -392,7 +392,7 @@ router.post('/google-callback', async (req, res) => {
     const user = existingUser || await prisma.user.create({
       data: {
         email: email.toLowerCase(),
-        displayName: (email.split('@')[0] || 'hypersync-user').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24) || 'hypersync-user',
+        displayName: (email.split('@')[0] || 'brosync-user').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 24) || 'brosync-user',
         passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(email.split('@')[0] || email)}`,
       },

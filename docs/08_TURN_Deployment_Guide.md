@@ -1,6 +1,6 @@
 # TURN Deployment Guide
 
-Option 2 for Hypersync is a self-hosted TURN relay using Coturn on a VPS.
+Option 2 for BroSync is a self-hosted TURN relay using Coturn on a VPS.
 
 ## What this changes
 
@@ -25,7 +25,7 @@ Option 2 for Hypersync is a self-hosted TURN relay using Coturn on a VPS.
 
 ## Deploy steps
 
-1. Point a DNS record at the VPS, for example `turn.hypersync.app`.
+1. Point a DNS record at the VPS, for example `turn.brosync.app`.
 2. Copy `infra/coturn/.env.example` to `infra/coturn/.env`.
 3. Fill in the real values:
    - `TURN_REALM`
@@ -42,7 +42,7 @@ docker compose up -d
 
 Set these on the Render `browsync-api` service:
 
-- `TURN_URLS=turn:turn.hypersync.app:3478?transport=udp,turn:turn.hypersync.app:3478?transport=tcp`
+- `TURN_URLS=turn:turn.brosync.app:3478?transport=udp,turn:turn.brosync.app:3478?transport=tcp`
 - `TURN_USERNAME=turn-user`
 - `TURN_CREDENTIAL=replace-with-the-same-password`
 - `FORCE_TURN=false`

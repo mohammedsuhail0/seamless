@@ -191,7 +191,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       <header className="landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(0, 0, 0, 0.75)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
         <div className="landing-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <GoldLogoSVG size={36} />
-          <span style={{ fontWeight: 700, fontSize: '1.45rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>Hypersync</span>
+          <span style={{ fontWeight: 700, fontSize: '1.45rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>BroSync</span>
         </div>
         <div>
           {isAuthenticated ? (
@@ -286,7 +286,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                     Finish Google sign-up
                   </div>
                   <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your Hypersync profile.
+                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your BroSync profile.
                   </div>
                 </div>
               )}
@@ -426,7 +426,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
       {/* Highlights Grid */}
       <section className="landing-highlights-section" style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#ffffff' }}>Why you'll love Hypersync</h2>
+        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#ffffff' }}>Why you'll love BroSync</h2>
         <div className="highlights-grid">
           
           <div className="glass-card" style={{ padding: '2.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)', borderRadius: 'var(--radius-lg)' }}>
@@ -466,7 +466,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
           <a href="#contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Contact</a>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-          © 2026 Hypersync.
+          © 2026 BroSync.
         </p>
       </footer>
     </div>

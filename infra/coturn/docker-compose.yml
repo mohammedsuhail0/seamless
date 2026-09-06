@@ -3,7 +3,7 @@ version: "3.8"
 services:
   coturn:
     image: coturn/coturn:4.6.2-alpine
-    container_name: hypersync-coturn
+    container_name: brosync-coturn
     network_mode: host
     restart: unless-stopped
     environment:

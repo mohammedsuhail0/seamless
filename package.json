@@ -1,8 +1,8 @@
 {
-  "name": "hypersync",
+  "name": "brosync",
   "version": "1.0.0",
   "private": true,
-  "description": "Hypersync — shared browser rooms for watch parties and collaboration",
+  "description": "BroSync — shared browser rooms for watch parties and collaboration",
   "workspaces": [
     "packages/shared",
     "packages/server",
@@ -21,6 +21,6 @@
   "engines": {
     "node": ">=20"
   },
-  "author": "Hypersync Team",
+  "author": "BroSync Team",
   "license": "MIT"
 }

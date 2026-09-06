@@ -24,7 +24,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    title: 'Hypersync Host Terminal',
+    title: 'BroSync Host Terminal',
     backgroundColor: '#0a0e27',
   });
 
@@ -36,7 +36,7 @@ function createWindow() {
     mainWindow?.loadURL(
       `data:text/html,<html>
         <head>
-          <title>Hypersync Host</title>
+          <title>BroSync Host</title>
           <style>
             body { font-family: sans-serif; background: %230a0e27; color: %23f1f5f9; padding: 2rem; }
             .card { background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; border: 1.5px solid rgba(255,255,255,0.08); margin-top: 1.5rem; }
@@ -45,7 +45,7 @@ function createWindow() {
           </style>
         </head>
         <body>
-          <h1>📡 Hypersync Host App</h1>
+          <h1>📡 BroSync Host App</h1>
           <p>Local screening node is active and ready to stream your browser tab or window.</p>
           <div class="card">
             <h3>⚡ Signaling Connection</h3>
@@ -71,7 +71,7 @@ function initializeHostSocket() {
   hostSocket = io(serverUrl);
 
   hostSocket.on('connect', () => {
-    console.log('🔌 Hypersync host signaling node connected to server');
+    console.log('🔌 BroSync host signaling node connected to server');
     mainWindow?.webContents.send('host:socket-connected', { socketId: hostSocket?.id });
   });
 
