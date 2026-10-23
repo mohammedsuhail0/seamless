@@ -1067,6 +1067,10 @@ button, input, select, textarea {
   to { transform: rotate(360deg); }
 }
 
+.spin {
+  animation: spin 1s linear infinite;
+}
+
 /* ── Responsive UI Helper Classes ── */
 
 .landing-main-grid {

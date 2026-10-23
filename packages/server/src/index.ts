@@ -35,7 +35,16 @@ app.use('/api/admin', adminRouter);
 app.use('/api/rooms', roomsRouter);
 app.use('/api/rtc', rtcRouter);
 
-// Health check endpoint
+// Fast health check endpoints for keepalive monitors and warmup pings
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', uptime: process.uptime() });
+});
+
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
+// Comprehensive deep health check endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Check DB connection

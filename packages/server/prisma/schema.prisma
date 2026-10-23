@@ -31,6 +31,7 @@ model User {
   memberships  RoomMember[]
   sessions     Session[]
 
+  @@index([displayName])
   @@map("users")
 }
 

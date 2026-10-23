@@ -4,14 +4,58 @@
 interface RequestOptions extends RequestInit {
   json?: any;
   silent?: boolean;
+  timeoutMs?: number;
 }
 
 class ApiClient {
   private sessionInvalid = false;
-  private getBaseUrl(): string {
+  private isWarm = false;
+  private warmupPromise: Promise<boolean> | null = null;
+
+  public getBaseUrl(): string {
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? ''
       : 'https://browsync-api.onrender.com';
+  }
+
+  public isServerWarm(): boolean {
+    return this.isWarm;
+  }
+
+  /**
+   * Eager background server pre-warming.
+   * Wakes up the Render container before the user finishes typing credentials.
+   */
+  public async warmup(): Promise<boolean> {
+    if (this.isWarm) return true;
+    if (this.warmupPromise) return this.warmupPromise;
+
+    this.warmupPromise = (async () => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 65000);
+        
+        const res = await fetch(`${this.getBaseUrl()}/health`, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' },
+        });
+        clearTimeout(timer);
+
+        if (res.ok) {
+          this.isWarm = true;
+          return true;
+        }
+        return false;
+      } catch {
+        // Cold-boot in progress or network delay — silent catch
+        return false;
+      } finally {
+        this.warmupPromise = null;
+      }
+    })();
+
+    return this.warmupPromise;
   }
 
   private getAccessToken(): string | null {
@@ -62,45 +106,87 @@ class ApiClient {
   }
 
   public async request<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
-    const headers = new Headers(options.headers || {});
-    
-    // Inject access token if available
-    const token = this.getAccessToken();
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
+    const maxRetries = 2;
+    const timeoutMs = options.timeoutMs ?? 70000; // 70s threshold for cold-boot leeway
+    let attempt = 0;
 
-    if (options.json) {
-      headers.set('Content-Type', 'application/json');
-      options.body = JSON.stringify(options.json);
-    }
+    const executeFetch = async (): Promise<Response> => {
+      const headers = new Headers(options.headers || {});
+      const token = this.getAccessToken();
+      if (token) {
+        headers.set('Authorization', `Bearer ${token}`);
+      }
 
-    options.headers = headers;
+      const fetchOptions: RequestInit = { ...options };
 
-    let response = await fetch(`${this.getBaseUrl()}${path}`, options);
+      if (options.json) {
+        headers.set('Content-Type', 'application/json');
+        fetchOptions.body = JSON.stringify(options.json);
+      }
+      fetchOptions.headers = headers;
 
-    // Auto-refresh token if unauthorized
-    if (response.status === 401 && this.getRefreshToken()) {
-      const refreshed = await this.refreshTokens();
-      if (refreshed) {
-        // Retry request with new token
-        headers.set('Authorization', `Bearer ${this.getAccessToken()}`);
-        options.headers = headers;
-        response = await fetch(`${this.getBaseUrl()}${path}`, options);
-      } else {
-        if (!options.silent && this.sessionInvalid) {
-          window.location.href = '/';
+      // Setup timeout controller
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      fetchOptions.signal = controller.signal;
+
+      try {
+        const res = await fetch(`${this.getBaseUrl()}${path}`, fetchOptions);
+        clearTimeout(timeoutId);
+        return res;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          throw new Error('Server request timed out. The cloud instance is taking unusually long to boot.');
         }
-        throw new Error(this.sessionInvalid ? 'Session expired' : 'Connection temporarily unavailable');
+        throw err;
+      }
+    };
+
+    while (attempt <= maxRetries) {
+      try {
+        let response = await executeFetch();
+
+        // If Render returns 502/503/504 while waking up, wait and retry
+        if ([502, 503, 504].includes(response.status) && attempt < maxRetries) {
+          attempt++;
+          await new Promise((r) => setTimeout(r, 2500));
+          continue;
+        }
+
+        // Auto-refresh token if unauthorized
+        if (response.status === 401 && this.getRefreshToken()) {
+          const refreshed = await this.refreshTokens();
+          if (refreshed) {
+            response = await executeFetch();
+          } else {
+            if (!options.silent && this.sessionInvalid) {
+              window.location.href = '/';
+            }
+            throw new Error(this.sessionInvalid ? 'Session expired' : 'Connection temporarily unavailable');
+          }
+        }
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          throw data || { error: { message: `Request failed with status ${response.status}` } };
+        }
+
+        this.isWarm = true;
+        return data as T;
+      } catch (err: any) {
+        // If network failed during cold-boot container launch, retry once or twice
+        if (attempt < maxRetries && (err?.message?.includes('Failed to fetch') || err?.message?.includes('NetworkError'))) {
+          attempt++;
+          await new Promise((r) => setTimeout(r, 2500));
+          continue;
+        }
+        throw err;
       }
     }
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw data;
-    }
-
-    return data as T;
+    throw new Error('Unable to connect to server after multiple attempts.');
   }
 
   public get<T = any>(path: string, options?: RequestOptions) {

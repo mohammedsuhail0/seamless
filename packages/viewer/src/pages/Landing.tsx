@@ -3,6 +3,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
+import api from '../lib/api';
 import { Sparkles, ArrowRight, Chrome, AlertCircle, Globe, RefreshCw } from 'lucide-react';
 
 interface LandingProps {
@@ -39,6 +40,20 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+
+  useEffect(() => {
+    let interval: any;
+    if (formLoading) {
+      setLoadingElapsed(0);
+      interval = setInterval(() => {
+        setLoadingElapsed((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setLoadingElapsed(0);
+    }
+    return () => clearInterval(interval);
+  }, [formLoading]);
   const [googleReady, setGoogleReady] = useState(false);
   const [googleError, setGoogleError] = useState('');
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
@@ -278,7 +293,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
               <button className="btn btn-netflix" onClick={() => onNavigate('dashboard')} style={{ padding: '0.8rem', width: '100%' }}>Go to Dashboard <ArrowRight size={18} /></button>
             </div>
           ) : (
-            <div id="auth-form-card" className="glass auth-form-card">
+            <div id="auth-form-card" className="glass auth-form-card" onMouseEnter={() => api.warmup()} onFocusCapture={() => api.warmup()}>
               {tempGoogleSession && (
                 <div style={{ background: 'rgba(229, 9, 20, 0.1)', border: '1px solid rgba(229, 9, 20, 0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#ffffff' }}>
@@ -384,8 +399,30 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                 </div>
 
                 <button type="submit" disabled={formLoading} className="btn btn-netflix" style={{ padding: '0.85rem', marginTop: '0.5rem', width: '100%' }}>
-                  {formLoading ? 'Connecting Securely...' : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Continue' : 'Create Account'}
+                  {formLoading ? (loadingElapsed >= 3 ? `Connecting (${loadingElapsed}s)...` : 'Connecting Securely...') : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Continue' : 'Create Account'}
                 </button>
+
+                {formLoading && loadingElapsed >= 2 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'rgba(197, 168, 92, 0.08)',
+                    border: '1px solid rgba(197, 168, 92, 0.25)',
+                    fontSize: 'var(--text-xs)',
+                    color: '#e3c578',
+                    lineHeight: 1.4,
+                  }}>
+                    <RefreshCw size={14} className="spin" style={{ flexShrink: 0 }} />
+                    <span>
+                      {loadingElapsed >= 6
+                        ? `Waking up cloud backend (${loadingElapsed}s)... Free tier instances sleep when idle. Hang tight, almost ready!`
+                        : `Connecting to secure backend (${loadingElapsed}s)...`}
+                    </span>
+                  </div>
+                )}
               </form>
 
               {!tempGoogleSession && (
@@ -397,12 +434,35 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
                   </div>
 
                   {googleClientId ? (
-                    <div>
+                    <div onMouseEnter={() => api.warmup()} onFocusCapture={() => api.warmup()}>
                       <div ref={googleButtonRef} />
                       {!googleReady && !googleError && (
                         <span style={{ display: 'block', marginTop: '0.5rem', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                           Loading Google sign-in...
                         </span>
+                      )}
+
+                      {formLoading && (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                          marginTop: '0.75rem',
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: 'var(--radius-md)',
+                          background: 'rgba(197, 168, 92, 0.08)',
+                          border: '1px solid rgba(197, 168, 92, 0.25)',
+                          fontSize: 'var(--text-xs)',
+                          color: '#e3c578',
+                          lineHeight: 1.4,
+                        }}>
+                          <RefreshCw size={14} className="spin" style={{ flexShrink: 0 }} />
+                          <span>
+                            {loadingElapsed >= 5
+                              ? `Signing in with Google & waking cloud server (${loadingElapsed}s)... Almost ready!`
+                              : `Authenticating with Google (${loadingElapsed}s)...`}
+                          </span>
+                        </div>
                       )}
                     </div>
                   ) : (

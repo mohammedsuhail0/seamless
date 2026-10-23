@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { Room } from './pages/Room';
+import api from './lib/api';
 import './index.css';
 
 export default function App() {
@@ -12,8 +13,11 @@ export default function App() {
   const [currentRoomCode, setCurrentRoomCode] = useState<string | null>(null);
   const [userContext, setUserContext] = useState<any | null>(null);
 
-  // Sync user context cache and check path routing on mount
+  // Sync user context cache, warmup backend, and check path routing on mount
   useEffect(() => {
+    // Eagerly pre-warm backend API to eradicate cold-boot latency before user logs in
+    api.warmup();
+
     const cachedUser = localStorage.getItem('browsync_user');
     if (cachedUser) {
       try {
