@@ -13,9 +13,12 @@ class SocketClient {
       return this.socket;
     }
 
-    const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? ''
-      : (import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com');
+    const BACKEND_URL = (typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.()) ||
+      window.location.protocol === 'capacitor:' || window.location.protocol === 'file:'
+      ? 'https://brosync-api.onrender.com'
+      : (window.location.port === '5173' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+          ? ''
+          : (import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com'));
 
     // Connects to server (Vite proxies WS traffic perfectly on dev, direct Render URL on production)
     this.socket = io(BACKEND_URL, {

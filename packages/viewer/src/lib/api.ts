@@ -13,9 +13,16 @@ class ApiClient {
   private warmupPromise: Promise<boolean> | null = null;
 
   public getBaseUrl(): string {
-    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? ''
-      : (import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com');
+    if (typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.()) {
+      return 'https://brosync-api.onrender.com';
+    }
+    if (window.location.protocol === 'capacitor:' || window.location.protocol === 'file:') {
+      return 'https://brosync-api.onrender.com';
+    }
+    if (window.location.port === '5173' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      return '';
+    }
+    return import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com';
   }
 
   public isServerWarm(): boolean {
