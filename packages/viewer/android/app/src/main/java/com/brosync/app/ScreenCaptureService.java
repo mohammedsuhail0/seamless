@@ -8,6 +8,10 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
+import android.media.AudioFormat;
+import android.media.AudioPlaybackCaptureConfiguration;
+import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.os.Build;
@@ -23,9 +27,12 @@ import org.webrtc.*;
 import org.webrtc.audio.AudioDeviceModule;
 import org.webrtc.audio.JavaAudioDeviceModule;
 
+import java.lang.reflect.Field;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.socket.client.IO;
 import io.socket.client.Socket;
@@ -57,6 +64,14 @@ public class ScreenCaptureService extends Service {
     private String roomCode;
     private String serverUrl;
     private final Map<String, PeerConnection> peerConnections = new ConcurrentHashMap<>();
+
+    // Internal system & media audio playback capture (YouTube, Gallery, Music, Games)
+    private AudioRecord internalAudioRecord;
+    private Thread internalAudioThread;
+    private volatile boolean isInternalAudioCapturing = false;
+    private final ConcurrentLinkedQueue<byte[]> internalAudioQueue = new ConcurrentLinkedQueue<>();
+    private ByteBuffer cachedWebRtcByteBuffer = null;
+    private boolean isByteBufferLookupAttempted = false;
 
     @Override
     public void onCreate() {
@@ -116,7 +131,11 @@ public class ScreenCaptureService extends Service {
 
             if (resultData != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    startForeground(NOTIFICATION_ID, buildNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+                    int serviceType = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        serviceType |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+                    }
+                    startForeground(NOTIFICATION_ID, buildNotification(), serviceType);
                 } else {
                     startForeground(NOTIFICATION_ID, buildNotification());
                 }
@@ -149,6 +168,14 @@ public class ScreenCaptureService extends Service {
                         .setAudioSource(MediaRecorder.AudioSource.MIC)
                         .setUseHardwareAcousticEchoCanceler(false)
                         .setUseHardwareNoiseSuppressor(false)
+                        .setUseStereoInput(true)
+                        .setUseStereoOutput(true)
+                        .setSamplesReadyCallback(new JavaAudioDeviceModule.SamplesReadyCallback() {
+                            @Override
+                            public void onWebRtcAudioRecordSamplesReady(JavaAudioDeviceModule.AudioSamples samples) {
+                                handleAudioSamples(samples);
+                            }
+                        })
                         .createAudioDeviceModule();
 
                 peerConnectionFactory = PeerConnectionFactory.builder()
@@ -208,6 +235,7 @@ public class ScreenCaptureService extends Service {
             }
             Log.i(TAG, "Dynamic capture resolution calculated: " + captureWidth + "x" + captureHeight + " @ 30fps (native: " + width + "x" + height + ")");
             screenCapturer.startCapture(captureWidth, captureHeight, 30);
+            startInternalAudioCapture();
             videoTrack = peerConnectionFactory.createVideoTrack("BROSYNC_MOBILE_SCREEN_TRACK", videoSource);
             videoTrack.setEnabled(true);
 
@@ -493,6 +521,25 @@ public class ScreenCaptureService extends Service {
                 videoSource = null;
             }
 
+            isInternalAudioCapturing = false;
+            if (internalAudioThread != null) {
+                try {
+                    internalAudioThread.interrupt();
+                } catch (Exception ignored) {}
+                internalAudioThread = null;
+            }
+
+            if (internalAudioRecord != null) {
+                try {
+                    internalAudioRecord.stop();
+                    internalAudioRecord.release();
+                } catch (Exception ignored) {}
+                internalAudioRecord = null;
+            }
+            internalAudioQueue.clear();
+            cachedWebRtcByteBuffer = null;
+            isByteBufferLookupAttempted = false;
+
             if (audioTrack != null) {
                 audioTrack.dispose();
                 audioTrack = null;
@@ -525,6 +572,183 @@ public class ScreenCaptureService extends Service {
 
         } catch (Exception e) {
             Log.e(TAG, "Error stopping stream", e);
+        }
+    }
+
+    private void startInternalAudioCapture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            Log.i(TAG, "AudioPlaybackCapture requires Android 10+ (API 29). Falling back to microphone audio.");
+            return;
+        }
+
+        try {
+            MediaProjection mediaProjection = extractMediaProjection();
+            if (mediaProjection == null) {
+                Log.w(TAG, "Could not extract active MediaProjection from screen capturer; internal audio disabled");
+                return;
+            }
+
+            AudioPlaybackCaptureConfiguration config = new AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                    .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                    .build();
+
+            int sampleRate = 48000;
+            int channelConfig = AudioFormat.CHANNEL_IN_STEREO;
+            int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+            int minBufSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioEncoding);
+            int bufferSize = Math.max(minBufSize * 2, 1920 * 8);
+
+            internalAudioRecord = new AudioRecord.Builder()
+                    .setAudioPlaybackCaptureConfig(config)
+                    .setAudioFormat(new AudioFormat.Builder()
+                            .setEncoding(audioEncoding)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(channelConfig)
+                            .build())
+                    .setBufferSizeInBytes(bufferSize)
+                    .build();
+
+            internalAudioRecord.startRecording();
+            isInternalAudioCapturing = true;
+
+            internalAudioThread = new Thread(() -> {
+                android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
+                // 10ms frame at 48kHz, 16-bit stereo = 480 frames * 4 bytes/frame = 1920 bytes
+                byte[] readBuf = new byte[1920];
+                while (isInternalAudioCapturing && internalAudioRecord != null) {
+                    try {
+                        int read = internalAudioRecord.read(readBuf, 0, readBuf.length);
+                        if (read > 0) {
+                            byte[] chunk = Arrays.copyOf(readBuf, read);
+                            // Zero-lag queue: keep maximum 4 chunks (~40ms) buffered
+                            while (internalAudioQueue.size() >= 4) {
+                                internalAudioQueue.poll();
+                            }
+                            internalAudioQueue.offer(chunk);
+                        }
+                    } catch (Exception err) {
+                        Log.w(TAG, "Error reading internal audio chunk: " + err.getMessage());
+                        break;
+                    }
+                }
+            }, "BroSyncInternalAudioThread");
+            internalAudioThread.setPriority(Thread.MAX_PRIORITY);
+            internalAudioThread.start();
+            Log.i(TAG, "Internal system/media playback audio capture started successfully (YouTube/Gallery/Music/Games enabled)");
+
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to start internal playback audio capture", e);
+        }
+    }
+
+    private MediaProjection extractMediaProjection() {
+        if (screenCapturer == null) return null;
+        try {
+            try {
+                Field f = ScreenCapturerAndroid.class.getDeclaredField("mediaProjection");
+                f.setAccessible(true);
+                Object obj = f.get(screenCapturer);
+                if (obj instanceof MediaProjection) return (MediaProjection) obj;
+            } catch (NoSuchFieldException ignored) {}
+
+            for (Field f : ScreenCapturerAndroid.class.getDeclaredFields()) {
+                if (MediaProjection.class.isAssignableFrom(f.getType())) {
+                    f.setAccessible(true);
+                    Object obj = f.get(screenCapturer);
+                    if (obj instanceof MediaProjection) return (MediaProjection) obj;
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to extract MediaProjection from ScreenCapturerAndroid", e);
+        }
+        return null;
+    }
+
+    private void handleAudioSamples(JavaAudioDeviceModule.AudioSamples samples) {
+        if (audioDeviceModule == null) return;
+        try {
+            if (cachedWebRtcByteBuffer == null && !isByteBufferLookupAttempted) {
+                isByteBufferLookupAttempted = true;
+                try {
+                    Field inputField = null;
+                    try {
+                        inputField = JavaAudioDeviceModule.class.getDeclaredField("audioInput");
+                    } catch (NoSuchFieldException ignored) {
+                        for (Field f : JavaAudioDeviceModule.class.getDeclaredFields()) {
+                            if (f.getType().getName().contains("WebRtcAudioRecord")) {
+                                inputField = f;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (inputField != null) {
+                        inputField.setAccessible(true);
+                        Object webRtcAudioRecord = inputField.get(audioDeviceModule);
+                        if (webRtcAudioRecord != null) {
+                            Field bufField = null;
+                            try {
+                                bufField = webRtcAudioRecord.getClass().getDeclaredField("byteBuffer");
+                            } catch (NoSuchFieldException ignored) {
+                                for (Field f : webRtcAudioRecord.getClass().getDeclaredFields()) {
+                                    if (ByteBuffer.class.isAssignableFrom(f.getType())) {
+                                        bufField = f;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (bufField != null) {
+                                bufField.setAccessible(true);
+                                cachedWebRtcByteBuffer = (ByteBuffer) bufField.get(webRtcAudioRecord);
+                                Log.i(TAG, "Direct WebRTC audio ByteBuffer cached successfully for zero-copy internal audio injection");
+                            }
+                        }
+                    }
+                } catch (Exception ex) {
+                    Log.w(TAG, "WebRTC audio ByteBuffer lookup warning: " + ex.getMessage());
+                }
+            }
+
+            if (cachedWebRtcByteBuffer == null) return;
+
+            byte[] internalChunk = internalAudioQueue.poll();
+            byte[] micBytes = samples.getData();
+
+            if (internalChunk != null && internalChunk.length > 0) {
+                int len = Math.min(internalChunk.length, Math.min(micBytes.length, cachedWebRtcByteBuffer.capacity()));
+
+                // Calculate RMS energy of internal media audio
+                long internalEnergy = 0;
+                for (int i = 0; i < len - 1; i += 2) {
+                    short s = (short) ((internalChunk[i] & 0xFF) | (internalChunk[i + 1] << 8));
+                    internalEnergy += Math.abs(s);
+                }
+                long avgInternalAmp = internalEnergy / (len / 2);
+
+                // If internal media (YouTube / Music / Video / Game) has sound
+                if (avgInternalAmp > 80) {
+                    byte[] mixed = new byte[len];
+                    for (int i = 0; i < len - 1; i += 2) {
+                        short micSample = (short) ((micBytes[i] & 0xFF) | (micBytes[i + 1] << 8));
+                        short internalSample = (short) ((internalChunk[i] & 0xFF) | (internalChunk[i + 1] << 8));
+
+                        // Broadcast internal audio at 1.1x fidelity; duck microphone to 0.25x to avoid speaker-to-mic acoustic feedback
+                        int mixedSample = (int) (internalSample * 1.1f) + (int) (micSample * 0.25f);
+                        if (mixedSample > 32767) mixedSample = 32767;
+                        else if (mixedSample < -32768) mixedSample = -32768;
+
+                        mixed[i] = (byte) (mixedSample & 0xFF);
+                        mixed[i + 1] = (byte) ((mixedSample >> 8) & 0xFF);
+                    }
+                    cachedWebRtcByteBuffer.position(0);
+                    cachedWebRtcByteBuffer.put(mixed, 0, len);
+                    cachedWebRtcByteBuffer.position(0);
+                }
+            }
+        } catch (Exception e) {
+            // Non-fatal: if mixing encounters any issue, WebRTC continues transmitting default mic audio
         }
     }
 
