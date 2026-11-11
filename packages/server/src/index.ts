@@ -37,6 +37,10 @@ const defaultAllowedOrigins = [
   'http://localhost:3001',
   'http://127.0.0.1:5173',
   'http://127.0.0.1:3000',
+  'http://localhost',
+  'https://localhost',
+  'capacitor://localhost',
+  'ionic://localhost',
   'https://brosync.vercel.app',
   'https://browsync.vercel.app',
   'https://brosync.onrender.com',
@@ -56,7 +60,16 @@ const corsOriginDelegate = (
   // Allow requests with no origin (Electron desktop app, native tools, server-to-server)
   if (!origin) return callback(null, true);
 
-  if (!ENV.IS_PRODUCTION || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.onrender.com')) {
+  if (
+    !ENV.IS_PRODUCTION ||
+    allowedOrigins.includes(origin) ||
+    origin.endsWith('.vercel.app') ||
+    origin.endsWith('.onrender.com') ||
+    origin.startsWith('http://localhost') ||
+    origin.startsWith('https://localhost') ||
+    origin.startsWith('capacitor://') ||
+    origin.startsWith('ionic://')
+  ) {
     return callback(null, true);
   }
   return callback(new Error('Origin blocked by CORS policy'));

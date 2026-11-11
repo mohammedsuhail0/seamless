@@ -151,7 +151,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
         onNavigate('dashboard');
       }
     } catch (err: any) {
-      let msg = err.error?.message || 'Authentication failed. Please verify inputs.';
+      let msg = err.error?.message || err.message || 'Authentication failed. Please verify inputs.';
       if (msg.toLowerCase().includes('email')) {
         msg = msg.replace(/email/ig, 'Username');
       }
