@@ -342,6 +342,16 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     try {
       const avail = await NativeScreenShare.isAvailable();
       if (avail?.available) {
+        // Request microphone permission so the native audio capturer can record
+        if (navigator.mediaDevices?.getUserMedia) {
+          try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            micStream.getTracks().forEach(t => t.stop());
+          } catch (micErr) {
+            console.log('Microphone permission check in APK:', micErr);
+          }
+        }
+
         const token = localStorage.getItem('brosync_access_token') || undefined;
         const serverUrl = api.getBaseUrl();
         const res = await NativeScreenShare.startCapture({
@@ -352,21 +362,22 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         });
         if (res?.status === 'streaming') {
           setIsMobileNativeStreaming(true);
-          return;
         }
+        return; // Always return from native APK path - never fall through to desktop web alert!
       }
     } catch (e: any) {
-      if (e?.message && !e.message.includes('not implemented') && !e.message.includes('cancelled')) {
-        console.warn('Native screen share check:', e);
-      }
       if (e?.message && e.message.includes('cancelled')) {
         return;
+      }
+      if (e?.message && !e.message.includes('not implemented')) {
+        console.warn('Native screen share notice:', e);
+        return; // Do not show desktop browser alert if inside APK!
       }
     }
 
     // 2. Fallback to standard web getDisplayMedia for desktop browsers
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      alert("📺 To stream your phone screen with zero latency, please install the BroSync Android APK. On iOS Safari, you can join, watch, and chat with friends.");
+      alert("📺 You are in a mobile browser (Chrome/Safari). To share your phone's screen with audio and zero latency, please open the BroSync Android App!");
       return;
     }
     try {
