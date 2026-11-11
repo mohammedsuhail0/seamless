@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BroSync</string>
+    <string name="title_activity_main">BroSync</string>
+    <string name="package_name">com.brosync.app</string>
+    <string name="custom_url_scheme">com.brosync.app</string>
+</resources>

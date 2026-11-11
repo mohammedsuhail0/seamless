@@ -304,7 +304,8 @@ async function getActivePresenceRecords(roomId: string): Promise<Array<any & { r
     return membersJson.flatMap((raw) => {
       try {
         return [{ ...JSON.parse(raw), raw }];
-      } catch {
+      } catch (parseErr) {
+        console.warn('⚠️ Corrupt presence entry in redis:', parseErr);
         return [];
       }
     });
@@ -355,7 +356,8 @@ async function handleUserLeavingRoom(io: Server, socket: Socket, immediate = fal
           targetMemberStr = memberStr;
           break;
         }
-      } catch {
+      } catch (parseErr) {
+        console.warn('⚠️ Corrupt member record in presence key, cleaning up:', parseErr);
         await redis.zrem(presenceKey, memberStr);
       }
     }

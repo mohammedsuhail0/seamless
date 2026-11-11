@@ -3,7 +3,7 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('browsync', {
+const brosyncApi = {
   getServerUrl: () => ipcRenderer.invoke('host:get-server-url'),
   joinRoom: (payload: { roomCode: string; displayName: string; token?: string }) => ipcRenderer.send('host:join-room', payload),
   sendRtcOffer: (targetUserId: string, sdp: any) => ipcRenderer.send('host:rtc-offer', { targetUserId, sdp }),
@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('browsync', {
   onRoomError: (callback: (event: any, payload: any) => void) => ipcRenderer.on('host:room-error', callback),
   onRtcAnswer: (callback: (event: any, payload: any) => void) => ipcRenderer.on('host:rtc-answer', callback),
   onRtcIceCandidate: (callback: (event: any, payload: any) => void) => ipcRenderer.on('host:rtc-ice-candidate', callback),
+  onRtcReconnectRequest: (callback: (event: any, payload: any) => void) => ipcRenderer.on('host:rtc-reconnect-request', callback),
+  onSocketReconnected: (callback: (event: any, payload: any) => void) => ipcRenderer.on('host:socket-reconnected', callback),
   getSources: () => ipcRenderer.invoke('capture:sources'),
   selectSource: (sourceId: string) => ipcRenderer.send('capture:select-source', sourceId),
   onControlRequest: (callback: (event: any, payload: any) => void) => {
@@ -35,4 +37,8 @@ contextBridge.exposeInMainWorld('browsync', {
   onChatHistory: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:history', callback),
   onChatMessage: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:message-received', callback),
   onChatReaction: (callback: (event: any, payload: any) => void) => ipcRenderer.on('chat:reaction-received', callback),
-});
+};
+
+// Expose standard modern name 'brosync' and legacy alias 'browsync' for zero disruption
+contextBridge.exposeInMainWorld('brosync', brosyncApi);
+contextBridge.exposeInMainWorld('browsync', brosyncApi);

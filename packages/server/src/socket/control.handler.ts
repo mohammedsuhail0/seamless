@@ -121,7 +121,10 @@ export function registerControlHandlers(io: Server, socket: Socket) {
       const { roomId, userId: hostId, role } = socket.data;
       if (!roomId || !hostId || role !== MemberRole.HOST) return;
 
-      const { viewerId } = payload;
+      const parseResult = controlGrantSchema.safeParse(payload);
+      if (!parseResult.success) return;
+
+      const { viewerId } = parseResult.data;
       const queueKey = RedisKeys.roomAccessQueue(roomId);
 
       // Scrape queue to find target viewer to remove
@@ -155,6 +158,9 @@ export function registerControlHandlers(io: Server, socket: Socket) {
       const { roomId, userId: hostId, role } = socket.data;
       if (!roomId || !hostId || role !== MemberRole.HOST) return;
 
+      const parseResult = controlRequestSchema.safeParse(payload);
+      if (!parseResult.success) return;
+
       const controllerKey = RedisKeys.roomController(roomId);
       const controllerStr = await redis.get(controllerKey);
 
@@ -185,6 +191,9 @@ export function registerControlHandlers(io: Server, socket: Socket) {
     try {
       const { roomId, userId } = socket.data;
       if (!roomId || !userId) return;
+
+      const parseResult = controlRequestSchema.safeParse(payload);
+      if (!parseResult.success) return;
 
       const controllerKey = RedisKeys.roomController(roomId);
       const controllerStr = await redis.get(controllerKey);

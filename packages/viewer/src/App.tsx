@@ -18,12 +18,13 @@ export default function App() {
     // Eagerly pre-warm backend API to eradicate cold-boot latency before user logs in
     api.warmup();
 
-    const cachedUser = localStorage.getItem('browsync_user');
+    const cachedUser = localStorage.getItem('brosync_user') || localStorage.getItem('browsync_user');
     if (cachedUser) {
       try {
         setUserContext(JSON.parse(cachedUser));
         setCurrentPage((current) => current === 'room' ? current : 'dashboard');
       } catch {
+        localStorage.removeItem('brosync_user');
         localStorage.removeItem('browsync_user');
       }
     }

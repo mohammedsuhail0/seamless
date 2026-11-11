@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@brosync/shared': path.resolve(__dirname, '../shared/src'),
       '@browsync/shared': path.resolve(__dirname, '../shared/src'),
     },
   },

@@ -1,28 +1,55 @@
-// Agent: 🌐 Agent C (Viewer App Auth Store)
+// Agent: 🌐 Agent C (Viewer Auth Store)
 // File: packages/viewer/src/stores/auth.ts
 
 import { useState, useEffect } from 'react';
-import api from '../lib/api';
+import { api } from '../lib/api';
 
-export interface UserProfile {
+export interface User {
   id: string;
   email: string;
   displayName: string;
   avatarUrl?: string | null;
-  createdAt: string;
+  createdAt?: string;
 }
 
-const GOOGLE_TEMP_SESSION_KEY = 'browsync_google_temp_session';
+export type UserProfile = User;
+
+export interface TempGoogleSession {
+  email: string;
+  tempToken: string;
+}
+
+const GOOGLE_TEMP_SESSION_KEY = 'brosync_google_temp_session';
+
+function storeAuth(data: { accessToken: string; refreshToken: string; user: User }) {
+  localStorage.setItem('brosync_access_token', data.accessToken);
+  localStorage.setItem('brosync_refresh_token', data.refreshToken);
+  localStorage.setItem('brosync_user', JSON.stringify(data.user));
+  // Legacy aliases for backwards compatibility
+  localStorage.setItem('browsync_access_token', data.accessToken);
+  localStorage.setItem('browsync_refresh_token', data.refreshToken);
+  localStorage.setItem('browsync_user', JSON.stringify(data.user));
+}
+
+function clearAuth() {
+  localStorage.removeItem('brosync_access_token');
+  localStorage.removeItem('brosync_refresh_token');
+  localStorage.removeItem('brosync_user');
+  localStorage.removeItem('browsync_access_token');
+  localStorage.removeItem('browsync_refresh_token');
+  localStorage.removeItem('browsync_user');
+  sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
+  sessionStorage.removeItem('browsync_google_temp_session');
+}
 
 export function useAuthStore() {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [tempGoogleSession, setTempGoogleSession] = useState<TempGoogleSession | null>(null);
 
-  const [tempGoogleSession, setTempGoogleSession] = useState<{ email: string; tempToken: string } | null>(null);
-
-  // Sync cached session on start without blocking the first paint.
   useEffect(() => {
-    const cachedTemp = sessionStorage.getItem(GOOGLE_TEMP_SESSION_KEY);
+    // Check for cached temporary Google OAuth registration payload
+    const cachedTemp = sessionStorage.getItem(GOOGLE_TEMP_SESSION_KEY) || sessionStorage.getItem('browsync_google_temp_session');
     if (cachedTemp) {
       try {
         setTempGoogleSession(JSON.parse(cachedTemp));
@@ -31,8 +58,8 @@ export function useAuthStore() {
       }
     }
 
-    const cachedUser = localStorage.getItem('browsync_user');
-    const accessToken = localStorage.getItem('browsync_access_token');
+    const cachedUser = localStorage.getItem('brosync_user') || localStorage.getItem('browsync_user');
+    const accessToken = localStorage.getItem('brosync_access_token') || localStorage.getItem('browsync_access_token');
 
     if (!cachedUser || !accessToken) {
       setUser(null);
@@ -43,9 +70,7 @@ export function useAuthStore() {
     try {
       setUser(JSON.parse(cachedUser));
     } catch {
-      localStorage.removeItem('browsync_access_token');
-      localStorage.removeItem('browsync_refresh_token');
-      localStorage.removeItem('browsync_user');
+      clearAuth();
       setUser(null);
       setLoading(false);
       return;
@@ -58,11 +83,7 @@ export function useAuthStore() {
     setLoading(true);
     try {
       const data = await api.post('/api/auth/login', { email, password });
-      
-      localStorage.setItem('browsync_access_token', data.accessToken);
-      localStorage.setItem('browsync_refresh_token', data.refreshToken);
-      localStorage.setItem('browsync_user', JSON.stringify(data.user));
-
+      storeAuth(data);
       setUser(data.user);
       return data.user;
     } finally {
@@ -74,11 +95,7 @@ export function useAuthStore() {
     setLoading(true);
     try {
       const data = await api.post('/api/auth/register', { email, displayName, password });
-      
-      localStorage.setItem('browsync_access_token', data.accessToken);
-      localStorage.setItem('browsync_refresh_token', data.refreshToken);
-      localStorage.setItem('browsync_user', JSON.stringify(data.user));
-
+      storeAuth(data);
       setUser(data.user);
       return data.user;
     } finally {
@@ -90,11 +107,7 @@ export function useAuthStore() {
     setLoading(true);
     try {
       const data = await api.post('/api/auth/google-login', { email });
-      
-      localStorage.setItem('browsync_access_token', data.accessToken);
-      localStorage.setItem('browsync_refresh_token', data.refreshToken);
-      localStorage.setItem('browsync_user', JSON.stringify(data.user));
-
+      storeAuth(data);
       setUser(data.user);
       return data.user;
     } finally {
@@ -108,9 +121,7 @@ export function useAuthStore() {
       const data = await api.post('/api/auth/google-callback', { idToken });
       
       if (data.status === 'AUTHENTICATED') {
-        localStorage.setItem('browsync_access_token', data.accessToken);
-        localStorage.setItem('browsync_refresh_token', data.refreshToken);
-        localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        storeAuth(data);
         sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
         setUser(data.user);
         setTempGoogleSession(null);
@@ -130,9 +141,7 @@ export function useAuthStore() {
       const data = await api.post('/api/auth/google-onboard', { username, password, tempToken });
       
       if (data.status === 'AUTHENTICATED') {
-        localStorage.setItem('browsync_access_token', data.accessToken);
-        localStorage.setItem('browsync_refresh_token', data.refreshToken);
-        localStorage.setItem('browsync_user', JSON.stringify(data.user));
+        storeAuth(data);
         sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
         setUser(data.user);
         setTempGoogleSession(null);
@@ -147,13 +156,10 @@ export function useAuthStore() {
     setLoading(true);
     try {
       await api.post('/api/auth/logout');
-    } catch (err) {
+    } catch (_err) {
       console.warn('⚠️ Server logout failed, clearing local storage anyway');
     } finally {
-      localStorage.removeItem('browsync_access_token');
-      localStorage.removeItem('browsync_refresh_token');
-      localStorage.removeItem('browsync_user');
-      sessionStorage.removeItem(GOOGLE_TEMP_SESSION_KEY);
+      clearAuth();
       setUser(null);
       setTempGoogleSession(null);
       setLoading(false);
@@ -173,3 +179,6 @@ export function useAuthStore() {
     logout,
   };
 }
+
+export const useAuth = useAuthStore;
+export default useAuthStore;

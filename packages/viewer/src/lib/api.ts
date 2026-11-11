@@ -15,7 +15,7 @@ class ApiClient {
   public getBaseUrl(): string {
     return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? ''
-      : 'https://browsync-api.onrender.com';
+      : (import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com');
   }
 
   public isServerWarm(): boolean {
@@ -59,20 +59,26 @@ class ApiClient {
   }
 
   private getAccessToken(): string | null {
-    return localStorage.getItem('browsync_access_token');
+    return localStorage.getItem('brosync_access_token') || localStorage.getItem('browsync_access_token');
   }
 
   private getRefreshToken(): string | null {
-    return localStorage.getItem('browsync_refresh_token');
+    return localStorage.getItem('brosync_refresh_token') || localStorage.getItem('browsync_refresh_token');
   }
 
   private setTokens(accessToken: string, refreshToken: string) {
     this.sessionInvalid = false;
+    localStorage.setItem('brosync_access_token', accessToken);
+    localStorage.setItem('brosync_refresh_token', refreshToken);
+    // Legacy compatibility aliases
     localStorage.setItem('browsync_access_token', accessToken);
     localStorage.setItem('browsync_refresh_token', refreshToken);
   }
 
   private clearTokens() {
+    localStorage.removeItem('brosync_access_token');
+    localStorage.removeItem('brosync_refresh_token');
+    localStorage.removeItem('brosync_user');
     localStorage.removeItem('browsync_access_token');
     localStorage.removeItem('browsync_refresh_token');
     localStorage.removeItem('browsync_user');
@@ -85,6 +91,7 @@ class ApiClient {
     try {
       const response = await fetch(`${this.getBaseUrl()}/api/auth/refresh`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
       });
@@ -100,7 +107,7 @@ class ApiClient {
       const data = await response.json();
       this.setTokens(data.accessToken, data.refreshToken);
       return true;
-    } catch (err) {
+    } catch (_err) {
       return false;
     }
   }
@@ -117,7 +124,10 @@ class ApiClient {
         headers.set('Authorization', `Bearer ${token}`);
       }
 
-      const fetchOptions: RequestInit = { ...options };
+      const fetchOptions: RequestInit = {
+        ...options,
+        credentials: 'include',
+      };
 
       if (options.json) {
         headers.set('Content-Type', 'application/json');

@@ -13,4 +13,4 @@ jobs:
     steps:
       - name: Ping BroSync Health Endpoint
         run: |
-          curl -s --fail --max-time 60 https://browsync-api.onrender.com/health || true
+          curl -s --fail --max-time 60 https://brosync-api.onrender.com/health || curl -s --fail --max-time 60 https://browsync-api.onrender.com/health || true

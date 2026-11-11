@@ -1,4 +1,4 @@
-# BrowSync — Backend Schema Document
+# BroSync — Backend Schema Document
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Primary Agent**: 🖥️ Agent B (Server), 🔧 Agent A (Shared schemas)
@@ -56,7 +56,7 @@ graph LR
 
 ```prisma
 // ================================================================
-// BrowSync Database Schema
+// BroSync Database Schema
 // Agent: 🖥️ Agent B (Server)
 // Database: PostgreSQL 16
 // ORM: Prisma 5.x
@@ -452,7 +452,7 @@ DEL session:eyJhbG...                                  -- Logout
   id: string;
   roomCode: string;        // "X7K2M9"
   name: string;
-  joinLink: string;        // "https://browsync.app/room/X7K2M9"
+  joinLink: string;        // "https://BroSync.app/room/X7K2M9"
   status: "WAITING";
   createdAt: string;
 }
@@ -516,7 +516,7 @@ DEL session:eyJhbG...                                  -- Logout
 
 ## 5. WebSocket Event Schema — 🖥️ Agent B, 🔧 Agent A
 
-> See [04_App_Flow_Document.md](file:///c:/Users/Lenovo/Downloads/SEAMLESS/browsync/docs/04_App_Flow_Document.md) for detailed flow diagrams of each event.
+> See [04_App_Flow_Document.md](04_App_Flow_Document.md) for detailed flow diagrams of each event.
 
 ### Complete Event Catalog
 

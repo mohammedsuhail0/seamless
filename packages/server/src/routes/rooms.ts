@@ -7,9 +7,17 @@ import { prisma, redis } from '../config/db';
 import { RedisKeys } from '../utils/redis-keys';
 import { roomCreateSchema, SOCKET_EVENTS } from '@browsync/shared';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { createRateLimiter } from '../middleware/rate-limit';
 import { Server } from 'socket.io';
 
 const router = Router();
+
+const roomCreateLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  endpoint: 'room_create',
+  message: 'Too many rooms created recently. Please wait before creating another room.',
+});
 
 // Helper to generate a 6-character unique room code
 function generateRoomCode(): string {
@@ -23,7 +31,7 @@ function generateRoomCode(): string {
 }
 
 // POST /api/rooms - Create a new co-browsing room
-router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/', roomCreateLimiter, authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const parseResult = roomCreateSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -39,23 +47,38 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
     const { name, isPrivate, qualityPreset } = parseResult.data;
     const hostId = req.user!.userId;
 
-    // Generate collision-resistant unique room code
-    let roomCode = '';
-    let codeIsUnique = false;
+    // Generate collision-resistant unique room code with atomic insert & retry on collision
+    let room: any = null;
     let attempts = 0;
 
-    while (!codeIsUnique && attempts < 10) {
-      roomCode = generateRoomCode();
-      const codeCheck = await prisma.room.findUnique({
-        where: { roomCode },
-      });
-      if (!codeCheck) {
-        codeIsUnique = true;
+    while (!room && attempts < 5) {
+      const roomCode = generateRoomCode();
+      try {
+        room = await prisma.room.create({
+          data: {
+            roomCode,
+            name,
+            hostId,
+            isPrivate,
+            qualityPreset,
+            status: 'WAITING',
+          },
+          include: {
+            host: {
+              select: { displayName: true },
+            },
+          },
+        });
+      } catch (err: any) {
+        if (err?.code === 'P2002') {
+          attempts++;
+          continue;
+        }
+        throw err;
       }
-      attempts++;
     }
 
-    if (!codeIsUnique) {
+    if (!room) {
       return res.status(500).json({
         error: {
           code: 'INTERNAL_ERROR',
@@ -63,23 +86,6 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
         },
       });
     }
-
-    // Insert room into PostgreSQL
-    const room = await prisma.room.create({
-      data: {
-        roomCode,
-        name,
-        hostId,
-        isPrivate,
-        qualityPreset,
-        status: 'WAITING',
-      },
-      include: {
-        host: {
-          select: { displayName: true },
-        },
-      },
-    });
 
     // Write room meta cache to Redis
     const metaKey = RedisKeys.roomMeta(room.id);
@@ -122,17 +128,17 @@ router.post('/', authenticateToken, async (req: AuthenticatedRequest, res) => {
 // GET /api/rooms/:code - Public room lookup by its 6-character code
 router.get('/:code', async (req, res) => {
   try {
-    const { code } = req.params;
-    if (!code || code.length !== 6) {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{6}$/.test(code)) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Room code must be exactly 6 characters',
+          message: 'Room code must be exactly 6 alphanumeric characters',
         },
       });
     }
 
-    const roomCode = code.toUpperCase();
+    const roomCode = code;
 
     // Query active or waiting room in PG
     const room = await prisma.room.findUnique({
@@ -191,8 +197,8 @@ router.get('/:code', async (req, res) => {
 router.get('/my/history', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     const hostId = req.user!.userId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string, 10) || 10));
     const skip = (page - 1) * limit;
 
     const total = await prisma.room.count({

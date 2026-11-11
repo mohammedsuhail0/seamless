@@ -1,4 +1,4 @@
-# BrowSync — App Flow Document
+# BroSync — App Flow Document
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Covers agents**: All (🔧 A, 🖥️ B, 🌐 C, 💻 D)
@@ -9,7 +9,7 @@
 
 ```mermaid
 flowchart TD
-    A["User opens browsync.app"] --> B["Clicks 'Get Started'"]
+    A["User opens BroSync.app"] --> B["Clicks 'Get Started'"]
     B --> C["Auth modal opens (glassmorphism)"]
     C --> D["Clicks 'Register' tab"]
     D --> E["Enters: email, display name, password"]
@@ -140,7 +140,7 @@ sequenceDiagram
     participant R as Redis
     participant H as Host (Desktop)
 
-    V->>V: Click shared link: browsync.app/room/X7K2M9
+    V->>V: Click shared link: BroSync.app/room/X7K2M9
     V->>S: GET /api/rooms/X7K2M9
 
     alt Room not found

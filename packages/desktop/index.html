@@ -288,7 +288,7 @@
         </p>
         <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.75rem;">
           <input id="hostEmailInput" value="arjun@test.com" placeholder="Host Email" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
-          <input id="hostPasswordInput" type="password" value="TestPass123" placeholder="Host Password" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
+          <input id="hostPasswordInput" type="password" placeholder="Host Password" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
         </div>
         <div style="display:grid; gap:0.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0.75rem;">
           <input id="hostDisplayNameInput" value="Arjun (Dev)" placeholder="Display Name" style="padding:0.65rem;border-radius:8px;border:1px solid var(--border-default);background:rgba(255,255,255,0.03);color:var(--text-primary);" />
@@ -389,7 +389,19 @@
 
   <script>
     // Interface logic hooking contextBridge APIs
-    const browsync = window.browsync;
+    const brosync = window.brosync || window.browsync;
+    const browsync = brosync;
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     const sourcesGrid = document.getElementById('sourcesGrid');
     const startBtn = document.getElementById('startBtn');
     const joinRoomBtn = document.getElementById('joinRoomBtn');
@@ -438,10 +450,17 @@
 
         if (selectedSourceId === source.id) item.classList.add('selected');
         
-        item.innerHTML = `
-          <img src="${source.thumbnailUrl}" class="source-thumbnail" alt="${source.name}" />
-          <div class="source-name">${source.name}</div>
-        `;
+        const img = document.createElement('img');
+        img.src = source.thumbnailUrl;
+        img.className = 'source-thumbnail';
+        img.alt = source.name;
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'source-name';
+        nameDiv.textContent = source.name;
+
+        item.appendChild(img);
+        item.appendChild(nameDiv);
 
         item.onclick = () => {
           document.querySelectorAll('.source-item').forEach(el => el.classList.remove('selected'));
@@ -502,7 +521,7 @@
 
       const roomTitle = document.getElementById('roomTitle');
       const roomNameVal = document.getElementById('roomNameInput').value.trim();
-      roomTitle.textContent = roomNameVal || 'Browsync Host Chamber';
+      roomTitle.textContent = roomNameVal || 'BroSync Host Chamber';
 
       const targets = joinedMembers.filter((m) => m.userId !== currentUserId && m.role !== 'HOST');
       
@@ -512,20 +531,124 @@
       }
     }
 
+    const pendingIceCandidates = new Map();
+    const hostReconnectTimers = new Map();
+    let cachedHostIceConfig = null;
+
+    async function getHostIceConfig() {
+      if (cachedHostIceConfig) return cachedHostIceConfig;
+      const fallback = {
+        iceServers: [
+          { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+          { urls: ['stun:stun.cloudflare.com:3478'] },
+          {
+            urls: [
+              'turn:openrelay.metered.ca:80',
+              'turn:openrelay.metered.ca:443',
+              'turn:openrelay.metered.ca:443?transport=tcp',
+              'turns:openrelay.metered.ca:443?transport=tcp'
+            ],
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+          }
+        ],
+        iceCandidatePoolSize: 10,
+        bundlePolicy: 'max-bundle',
+        rtcpMuxPolicy: 'require'
+      };
+
+      if (!targetServerUrl) return fallback;
+      try {
+        const res = await fetch(`${targetServerUrl}/api/rtc/ice-config`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          cachedHostIceConfig = {
+            iceServers: data.iceServers && data.iceServers.length > 0 ? data.iceServers : fallback.iceServers,
+            iceTransportPolicy: data.iceTransportPolicy || 'all',
+            iceCandidatePoolSize: data.iceCandidatePoolSize || 10,
+            bundlePolicy: data.bundlePolicy || 'max-bundle',
+            rtcpMuxPolicy: data.rtcpMuxPolicy || 'require'
+          };
+          return cachedHostIceConfig;
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch remote ICE config in host; using fallback:', err);
+      }
+      return fallback;
+    }
+
+    function recreatePeerForViewer(targetUserId) {
+      const existingPc = peerConnections.get(targetUserId);
+      if (existingPc) {
+        try { existingPc.close(); } catch (e) {}
+        peerConnections.delete(targetUserId);
+      }
+      pendingIceCandidates.delete(targetUserId);
+      ensurePeerForViewer(targetUserId).catch(console.error);
+    }
+
     async function ensurePeerForViewer(targetUserId) {
       if (!localStream) return;
-      if (peerConnections.has(targetUserId)) return;
+      const existingPc = peerConnections.get(targetUserId);
+      if (existingPc) {
+        if (
+          existingPc.connectionState !== 'failed' &&
+          existingPc.connectionState !== 'closed' &&
+          existingPc.iceConnectionState !== 'failed' &&
+          existingPc.iceConnectionState !== 'closed' &&
+          existingPc.iceConnectionState !== 'disconnected'
+        ) {
+          return;
+        }
+        try { existingPc.close(); } catch (e) {}
+        peerConnections.delete(targetUserId);
+        pendingIceCandidates.delete(targetUserId);
+      }
 
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      });
+      const iceConfig = await getHostIceConfig();
+      const pc = new RTCPeerConnection(iceConfig);
 
       peerConnections.set(targetUserId, pc);
 
-      localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+      pc.oniceconnectionstatechange = () => {
+        console.log(`📡 Peer ICE state for ${targetUserId}: ${pc.iceConnectionState}`);
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          const timer = hostReconnectTimers.get(targetUserId);
+          if (timer) clearTimeout(timer);
+          hostReconnectTimers.delete(targetUserId);
+        }
+        if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+          if (!hostReconnectTimers.has(targetUserId)) {
+            const delay = pc.iceConnectionState === 'failed' ? 500 : 3500;
+            const timer = setTimeout(() => {
+              hostReconnectTimers.delete(targetUserId);
+              if (localStream && joinedMembers.some((m) => m.userId === targetUserId)) {
+                console.log(`🔄 Auto-reconnecting stalled peer for viewer: ${targetUserId}`);
+                recreatePeerForViewer(targetUserId);
+              }
+            }, delay);
+            hostReconnectTimers.set(targetUserId, timer);
+          }
+        }
+      };
+
+      localStream.getTracks().forEach((track) => {
+        if (track.kind === 'video') {
+          track.contentHint = 'motion';
+        }
+        const sender = pc.addTrack(track, localStream);
+        if (sender && track.kind === 'video') {
+          try {
+            const params = sender.getParameters();
+            if (params && params.encodings && params.encodings.length > 0) {
+              params.degradationPreference = 'maintain-framerate';
+              sender.setParameters(params).catch(() => {});
+            }
+          } catch (e) {}
+        }
+      });
 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
@@ -542,7 +665,9 @@
           if (browsync && typeof browsync.injectInput === 'function') {
             browsync.injectInput(parsed);
           }
-        } catch (_e) {}
+        } catch (err) {
+          console.warn('Input event parse error:', err);
+        }
       };
 
       pc.createDataChannel('control');
@@ -553,15 +678,45 @@
     }
 
     async function handleRtcAnswer(payload) {
-      const pc = peerConnections.get(payload.senderUserId);
+      const viewerId = payload?.senderUserId;
+      const pc = peerConnections.get(viewerId);
       if (!pc || !payload.sdp) return;
-      await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+        const queued = pendingIceCandidates.get(viewerId);
+        if (queued && queued.length > 0) {
+          while (queued.length > 0) {
+            const cand = queued.shift();
+            try {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            } catch (err) {
+              console.warn(`Failed to add queued candidate for ${viewerId}:`, err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to set remote answer for ${viewerId}:`, err);
+      }
     }
 
     async function handleRtcIceCandidate(payload) {
-      const pc = peerConnections.get(payload.senderUserId);
-      if (!pc || !payload.candidate) return;
-      await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      const viewerId = payload?.senderUserId;
+      const candidate = payload?.candidate;
+      if (!viewerId || !candidate) return;
+
+      const pc = peerConnections.get(viewerId);
+      if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+          console.warn(`Failed to add ICE candidate for viewer ${viewerId}:`, err);
+        }
+      } else {
+        if (!pendingIceCandidates.has(viewerId)) {
+          pendingIceCandidates.set(viewerId, []);
+        }
+        pendingIceCandidates.get(viewerId).push(candidate);
+      }
     }
 
     function setMembers(members) {
@@ -735,30 +890,56 @@
         handleRtcIceCandidate(payload).catch(console.error);
       });
 
+      if (browsync.onRtcReconnectRequest) {
+        browsync.onRtcReconnectRequest((_event, payload) => {
+          const viewerId = payload?.senderUserId;
+          if (viewerId && localStream) {
+            console.log(`📡 Viewer ${viewerId} requested fresh WebRTC offer`);
+            recreatePeerForViewer(viewerId);
+          }
+        });
+      }
+
+      if (browsync.onSocketReconnected) {
+        browsync.onSocketReconnected((_event, payload) => {
+          console.log(`🔌 Host signaling reconnected (attempt ${payload?.attempt})`);
+          const manualCode = roomCodeInput.value.trim().toUpperCase();
+          const roomCode = manualCode || lastJoinedRoomCode;
+          if (roomCode) {
+            const displayName = displayNameInput.value.trim() || 'Desktop Host';
+            const token = tokenInput.value.trim() || undefined;
+            browsync.joinRoom({ roomCode, displayName, token });
+          }
+        });
+      }
+
       browsync.onControlRequest((event, payload) => {
         const { viewerId, viewerName, queuePosition } = payload;
+        const safeViewerName = escapeHtml(viewerName);
+        const safeViewerId = escapeHtml(viewerId);
+        const safeQueuePosition = escapeHtml(queuePosition);
         
         const toast = document.createElement('div');
         toast.className = 'toast';
-        toast.id = `toast_${viewerId}`;
+        toast.id = `toast_${safeViewerId}`;
         toast.innerHTML = `
           <div class="toast-header">
             <span class="toast-title">🎮 Remote Control Request</span>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">Queue: ${queuePosition}</span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">Queue: ${safeQueuePosition}</span>
           </div>
           <div class="toast-body">
-            <strong>${viewerName}</strong> wishes to take control of your browser.
+            <strong>${safeViewerName}</strong> wishes to take control of your browser.
           </div>
           <div class="toast-actions">
-            <button class="btn-toast btn-allow" id="allow_${viewerId}">Allow Control</button>
-            <button class="btn-toast btn-deny" id="deny_${viewerId}">Deny</button>
+            <button class="btn-toast btn-allow" id="allow_${safeViewerId}">Allow Control</button>
+            <button class="btn-toast btn-deny" id="deny_${safeViewerId}">Deny</button>
           </div>
         `;
 
         toastContainer.appendChild(toast);
 
         // Grant access click
-        document.getElementById(`allow_${viewerId}`).onclick = () => {
+        document.getElementById(`allow_${safeViewerId}`).onclick = () => {
           if (!currentRoomId) return;
           browsync.grantControl(currentRoomId, viewerId);
           toast.remove();
@@ -766,12 +947,12 @@
           const defaultHtml = `<p style="color: var(--text-secondary); font-size: 0.875rem; margin: 0;">Currently sharing view-only stream. No active remote controls.</p>`;
           const statusHtml = `
             <div style="display: flex; align-items: center; gap: 0.75rem;">
-              <span class="controller-badge" style="margin-top: 0;">🎮 Controlled by: ${viewerName}</span>
+              <span class="controller-badge" style="margin-top: 0;">🎮 Controlled by: ${safeViewerName}</span>
               <button class="btn btn-danger" id="roomRevokeBtn" style="padding: 0.25rem 0.75rem; font-size: 0.75rem; width: auto; margin: 0; background: var(--color-error); font-weight: bold; border: none; cursor: pointer; border-radius: 4px;">Revoke</button>
             </div>
           `;
           controllerStatus.innerHTML = `
-            <div class="controller-badge">Currently Controlled by: ${viewerName}</div>
+            <div class="controller-badge">Currently Controlled by: ${safeViewerName}</div>
             <button class="btn btn-danger" id="revokeBtn" style="max-width: 180px; margin-top: 1rem; padding: 0.5rem 1rem; font-size: 0.8rem;">Revoke Control</button>
           `;
           document.getElementById('hostRoomControllerStatus').innerHTML = statusHtml;
@@ -788,7 +969,7 @@
         };
 
         // Deny access click
-        document.getElementById(`deny_${viewerId}`).onclick = () => {
+        document.getElementById(`deny_${safeViewerId}`).onclick = () => {
           if (!currentRoomId) return;
           browsync.denyControl(currentRoomId, viewerId);
           toast.remove();
@@ -821,21 +1002,22 @@
         if (isSystem) {
           msgDiv.style.alignSelf = 'center';
           msgDiv.style.textAlign = 'center';
-          msgDiv.innerHTML = `
-            <span style="font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin: 0 auto;">
-              ${text}
-            </span>
-          `;
+          const sysSpan = document.createElement('span');
+          sysSpan.style.cssText = 'font-size: 0.75rem; color: var(--text-muted); background: rgba(255,255,255,0.03); padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin: 0 auto;';
+          sysSpan.textContent = text;
+          msgDiv.appendChild(sysSpan);
         } else {
           msgDiv.style.alignSelf = 'flex-start';
-          msgDiv.innerHTML = `
-            <span style="font-size: 0.75rem; font-weight: bold; color: ${isMe ? 'var(--color-primary)' : 'var(--text-secondary)'}">
-              ${senderName}
-            </span>
-            <div style="background: rgba(255,255,255,0.04); padding: 0.5rem 0.75rem; border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md); font-size: 0.85rem; width: fit-content; word-break: break-word; color: var(--text-primary);">
-              ${text}
-            </div>
-          `;
+          const nameSpan = document.createElement('span');
+          nameSpan.style.cssText = `font-size: 0.75rem; font-weight: bold; color: ${isMe ? 'var(--color-primary)' : 'var(--text-secondary)'};`;
+          nameSpan.textContent = senderName;
+
+          const textBubble = document.createElement('div');
+          textBubble.style.cssText = 'background: rgba(255,255,255,0.04); padding: 0.5rem 0.75rem; border-radius: 0 var(--radius-md) var(--radius-md) var(--radius-md); font-size: 0.85rem; width: fit-content; word-break: break-word; color: var(--text-primary);';
+          textBubble.textContent = text;
+
+          msgDiv.appendChild(nameSpan);
+          msgDiv.appendChild(textBubble);
         }
 
         chatFeed.appendChild(msgDiv);
@@ -877,7 +1059,7 @@
           }
           
           for (const [viewerId, pc] of peerConnections.entries()) {
-            try { pc.close(); } catch (e) {}
+            try { pc.close(); } catch (e) { console.warn('Error closing peer connection on end stream:', e); }
           }
           peerConnections.clear();
           

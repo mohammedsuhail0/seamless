@@ -40,7 +40,7 @@ docker compose up -d
 
 ## Render API env vars
 
-Set these on the Render `browsync-api` service:
+Set these on the Render `BroSync-api` service:
 
 - `TURN_URLS=turn:turn.brosync.app:3478?transport=udp,turn:turn.brosync.app:3478?transport=tcp`
 - `TURN_USERNAME=turn-user`

@@ -1,9 +1,9 @@
-# BrowSync Render Blueprint Specification
+# BroSync Render Blueprint Specification
 # Use this Blueprint to deploy the co-browsing server instantly with one click.
 
 services:
   - type: web
-    name: browsync-api
+    name: brosync-api
     env: node
     plan: free
     buildCommand: npm ci --include=dev --workspaces --include-workspace-root && npm run build -w packages/shared && npm run build -w packages/server

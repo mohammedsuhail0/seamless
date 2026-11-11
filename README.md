@@ -6,9 +6,9 @@ BroSync captures the host's **real browser** and streams it directly to friends 
 
 ---
 
-## ✨ Why BrowSync?
+## ✨ Why BroSync?
 
-| Problem | GroupTube / Hyperbeam | BrowSync |
+| Problem | GroupTube / Hyperbeam | BroSync |
 |---|---|---|
 | Geo-blocked content | ❌ Their server = wrong country | ✅ Host's own PC = your country |
 | Premium subscriptions | ❌ New session = not logged in | ✅ Host's browser = already logged in |
@@ -33,8 +33,9 @@ BroSync captures the host's **real browser** and streams it directly to friends 
 | Component | Technology | Package |
 |-----------|-----------|---------|
 | **Host Desktop App** | Electron 28 + Node.js 20 | `packages/desktop/` |
+| **Android APK (Host/Viewer)** | Capacitor 6 + Android Native (MediaProjection) | `packages/viewer/android/` |
 | **Signaling Server** | Express + Socket.io + Prisma + Redis | `packages/server/` |
-| **Viewer Web App** | React 18 + Vite 5 | `packages/viewer/` |
+| **Viewer Web App (iOS/Web)** | React 18 + Vite 5 + Tailwind | `packages/viewer/` |
 | **Shared Types** | TypeScript + Zod | `packages/shared/` |
 
 ---
@@ -68,6 +69,8 @@ Each source file includes a header comment identifying which agent built it.
 | 05 | [Backend Schema](docs/05_Backend_Schema_Document.md) | Database, Redis, API, WebSocket schemas |
 | 06 | [Implementation Plan](docs/06_Implementation_Plan.md) | Sprint breakdown with agent assignments |
 | 07 | [Multi-Agent Workflow](docs/07_Multi_Agent_Development_Workflow.md) | How AI agents collaborate to build this |
+| 08 | [TURN Deployment Guide](docs/08_TURN_Deployment_Guide.md) | Coturn NAT bypass relay setup |
+| 09 | [Android APK Build Guide](docs/09_Android_APK_Build_Guide.md) | Compiling, testing, and distributing the APK |
 
 ---
 
@@ -80,12 +83,21 @@ Each source file includes a header comment identifying which agent built it.
 ### Setup
 ```bash
 git clone https://github.com/mohammedsuhail0/seamless.git
-cd seamless/browsync
+cd seamless
 npm install
 docker-compose up -d
 cd packages/server && npx prisma migrate dev --name init
 cd ../..
 npm run dev
+```
+
+### Android APK Quick Start
+```bash
+# Sync web build into native Android container
+npm run android:sync
+
+# Open in Android Studio to build APK or run on phone
+npm run android:open
 ```
 
 ### TURN relay for production

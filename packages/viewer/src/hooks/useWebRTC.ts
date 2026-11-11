@@ -13,33 +13,22 @@ interface UseWebRTCOptions {
 
 function getFallbackIceConfig(): RTCConfiguration {
   const env = (import.meta as any).env || {};
-  const turnUrls = String(env.VITE_TURN_URLS || '')
-    .split(',')
-    .map((url) => url.trim())
-    .filter(Boolean);
 
+  // Default to public STUN/TURN fallback; private credentials are provided securely via /api/rtc/ice-config
   const iceServers: RTCIceServer[] = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ];
-
-  if (turnUrls.length > 0 && env.VITE_TURN_USERNAME && env.VITE_TURN_CREDENTIAL) {
-    iceServers.push({
-      urls: turnUrls,
-      username: env.VITE_TURN_USERNAME,
-      credential: env.VITE_TURN_CREDENTIAL,
-    });
-  } else {
-    iceServers.push({
+    { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] },
+    { urls: ['stun:stun.cloudflare.com:3478'] },
+    {
       urls: [
         'turn:openrelay.metered.ca:80',
         'turn:openrelay.metered.ca:443',
         'turn:openrelay.metered.ca:443?transport=tcp',
+        'turns:openrelay.metered.ca:443?transport=tcp',
       ],
       username: 'openrelayproject',
       credential: 'openrelayproject',
-    });
-  }
+    },
+  ];
 
   return {
     iceServers,
@@ -135,7 +124,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         return;
       }
       console.log(`📡 Recreating failed/closed peer connection for viewer: ${viewerId}`);
-      try { existingPc.close(); } catch (e) {}
+      try { existingPc.close(); } catch (err) { console.debug('PeerConnection close handled:', err); }
       peerConnectionsRef.current.delete(viewerId);
       pendingIceCandidatesHostRef.current.delete(viewerId);
     }
@@ -347,7 +336,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           peerConnectionsRef.current.forEach((pc, viewerId) => {
             if (!activeViewersRef.current.has(viewerId)) {
               console.log(`Pruning stale peer connection for: ${viewerId}`);
-              try { pc.close(); } catch (e) {}
+              try { pc.close(); } catch (err) { console.debug('PeerConnection close handled:', err); }
               peerConnectionsRef.current.delete(viewerId);
               pendingIceCandidatesHostRef.current.delete(viewerId);
             }
@@ -383,7 +372,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           localStreamRef.current = null;
         }
         peerConnectionsRef.current.forEach((pc) => {
-          try { pc.close(); } catch (e) {}
+          try { pc.close(); } catch (err) { console.debug('PeerConnection close handled:', err); }
         });
         peerConnectionsRef.current.clear();
         pendingIceCandidatesHostRef.current.clear();
@@ -415,17 +404,20 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
 
           // Close any existing connection first
           if (peerConnectionRef.current) {
-            try { peerConnectionRef.current.close(); } catch (e) {}
+            try { peerConnectionRef.current.close(); } catch (err) { console.debug('PeerConnection close handled:', err); }
             peerConnectionRef.current = null;
           }
 
           const pc = new RTCPeerConnection(await getCurrentIceConfig());
           peerConnectionRef.current = pc;
 
-          pc.oniceconnectionstatechange = () => {
-            setConnectionState(pc.iceConnectionState);
-            console.log('📡 WebRTC ICE Connection State Changed:', pc.iceConnectionState);
-            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          const handleStateEvaluation = () => {
+            const iceState = pc.iceConnectionState;
+            const connState = pc.connectionState;
+            setConnectionState(iceState);
+            console.log(`📡 WebRTC state: ice=${iceState}, conn=${connState}`);
+
+            if (iceState === 'connected' || iceState === 'completed' || connState === 'connected') {
               if (viewerReconnectTimerRef.current) {
                 clearTimeout(viewerReconnectTimerRef.current);
                 viewerReconnectTimerRef.current = null;
@@ -433,15 +425,20 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
             }
 
             if (
-              pc.iceConnectionState === 'failed' ||
-              pc.iceConnectionState === 'closed' ||
-              pc.iceConnectionState === 'disconnected'
+              iceState === 'failed' ||
+              iceState === 'closed' ||
+              iceState === 'disconnected' ||
+              connState === 'failed' ||
+              connState === 'disconnected'
             ) {
               setStream(null);
               remoteStreamRef.current = null;
               requestFreshOffer();
             }
           };
+
+          pc.oniceconnectionstatechange = handleStateEvaluation;
+          pc.onconnectionstatechange = handleStateEvaluation;
 
           pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -525,10 +522,30 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         }
       };
 
+      const handleNetworkOnline = () => {
+        console.log('🌐 Network online event detected! Checking peer connection health...');
+        const pc = peerConnectionRef.current;
+        if (!pc || pc.iceConnectionState !== 'connected') {
+          requestFreshOffer();
+        }
+      };
+
+      const handleSocketReconnect = () => {
+        console.log('🔌 Signaling socket reconnected. Requesting WebRTC stream recovery...');
+        const pc = peerConnectionRef.current;
+        if (!pc || pc.iceConnectionState !== 'connected') {
+          requestFreshOffer();
+        }
+      };
+
+      window.addEventListener('online', handleNetworkOnline);
+      socket.on('connect', handleSocketReconnect);
       socket.on(SOCKET_EVENTS.RTC_OFFER, handleOffer);
       socket.on(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateViewer);
 
       return () => {
+        window.removeEventListener('online', handleNetworkOnline);
+        socket.off('connect', handleSocketReconnect);
         socket.off(SOCKET_EVENTS.RTC_OFFER, handleOffer);
         socket.off(SOCKET_EVENTS.RTC_ICE_CANDIDATE, handleIceCandidateViewer);
         if (viewerReconnectTimerRef.current) {
@@ -537,7 +554,7 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         }
         
         if (peerConnectionRef.current) {
-          try { peerConnectionRef.current.close(); } catch (e) {}
+          try { peerConnectionRef.current.close(); } catch (err) { console.debug('PeerConnection close handled:', err); }
           peerConnectionRef.current = null;
         }
         hostUserIdRef.current = null;

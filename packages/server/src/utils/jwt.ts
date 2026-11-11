@@ -2,12 +2,7 @@
 // File: packages/server/src/utils/jwt.ts
 
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET || process.env.JWT_ACCESS_SECRET || 'browsync_access_secret_998811';
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET || 'browsync_refresh_secret_772233';
+import { ENV } from '../config/env';
 
 export interface TokenPayload {
   userId: string;
@@ -16,17 +11,17 @@ export interface TokenPayload {
 }
 
 export function generateAccessToken(payload: TokenPayload): string {
-  return jwt.sign(payload, ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
+  return jwt.sign(payload, ENV.ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
 }
 
 export function generateRefreshToken(payload: TokenPayload): string {
-  return jwt.sign(payload, REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
+  return jwt.sign(payload, ENV.REFRESH_TOKEN_SECRET, { expiresIn: '7d' });
 }
 
 export function verifyAccessToken(token: string): TokenPayload {
-  return jwt.verify(token, ACCESS_TOKEN_SECRET) as TokenPayload;
+  return jwt.verify(token, ENV.ACCESS_TOKEN_SECRET) as TokenPayload;
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  return jwt.verify(token, REFRESH_TOKEN_SECRET) as TokenPayload;
+  return jwt.verify(token, ENV.REFRESH_TOKEN_SECRET) as TokenPayload;
 }

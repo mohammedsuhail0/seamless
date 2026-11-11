@@ -16,7 +16,10 @@
     "build": "npm run build -w packages/shared && npm run build -w packages/server && npm run build -w packages/viewer && npm run build -w packages/desktop",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
     "format": "prettier --write \"packages/**/*.{ts,tsx,js,jsx,json,css}\"",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "android:sync": "npm run build -w packages/viewer && npm run android:sync -w packages/viewer",
+    "android:open": "npm run android:open -w packages/viewer",
+    "package:desktop": "npm run package -w packages/desktop"
   },
   "engines": {
     "node": ">=20"

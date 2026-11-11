@@ -1,4 +1,4 @@
-# BrowSync — Implementation Plan
+# BroSync — Implementation Plan
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Executed by**: All agents (🔧 A, 🖥️ B, 🌐 C, 💻 D)
@@ -7,10 +7,10 @@
 
 ## 1. Project Overview
 
-- **Product**: BrowSync — P2P browser streaming with remote control
+- **Product**: BroSync — P2P browser streaming with remote control
 - **Architecture**: Monorepo with 4 packages (shared, server, viewer, desktop)
 - **Timeline**: ~20–24 weeks across 3 phases
-- **Multi-Agent Build**: See [07_Multi_Agent_Development_Workflow.md](file:///c:/Users/Lenovo/Downloads/SEAMLESS/browsync/docs/07_Multi_Agent_Development_Workflow.md)
+- **Multi-Agent Build**: See [07_Multi_Agent_Development_Workflow.md](07_Multi_Agent_Development_Workflow.md)
 
 ---
 
@@ -33,7 +33,7 @@
 ```bash
 # Clone the repo
 git clone https://github.com/mohammedsuhail0/seamless.git
-cd seamless/browsync
+cd seamless
 
 # Install all workspace dependencies
 npm install
@@ -62,9 +62,9 @@ services:
     image: postgres:16
     ports: ['5432:5432']
     environment:
-      POSTGRES_USER: browsync
-      POSTGRES_PASSWORD: browsync_dev
-      POSTGRES_DB: browsync
+      POSTGRES_USER: BroSync
+      POSTGRES_PASSWORD: BroSync_dev
+      POSTGRES_DB: BroSync
     volumes: [pgdata:/var/lib/postgresql/data]
 
   redis:

@@ -1,4 +1,4 @@
-# BrowSync — Technical Requirements Document (TRD)
+# BroSync — Technical Requirements Document (TRD)
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Primary Agents**: 🖥️ Agent B (Server), 💻 Agent D (Desktop)
@@ -8,7 +8,7 @@
 ## 1. System Overview
 
 ### Architecture
-BrowSync follows a **three-tier architecture** connected via WebRTC (media/data) and WebSocket (signaling):
+BroSync follows a **three-tier architecture** connected via WebRTC (media/data) and WebSocket (signaling):
 
 ```mermaid
 graph TB
@@ -151,7 +151,7 @@ Resolution tiers:
 #### IPC Architecture (Main ↔ Renderer)
 ```typescript
 // Main process exposes via preload:
-contextBridge.exposeInMainWorld('browsync', {
+contextBridge.exposeInMainWorld('BroSync', {
   startCapture: () => ipcRenderer.invoke('capture:start'),
   stopCapture: () => ipcRenderer.invoke('capture:stop'),
   onControlRequest: (cb) => ipcRenderer.on('control:request', cb),
@@ -314,7 +314,7 @@ const iceServers: RTCIceServer[] = [
   
   // TURN fallback (Phase 3 — self-hosted Coturn)
   {
-    urls: 'turn:turn.browsync.app:3478',
+    urls: 'turn:turn.BroSync.app:3478',
     username: '<dynamic-credential>',
     credential: '<time-limited-password>',
   },
@@ -365,7 +365,7 @@ transceiver.setCodecPreferences([...h264, ...vp9]);
 
 ## 5. Database Design
 
-### PostgreSQL Schema (Prisma) — see [05_Backend_Schema_Document.md](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/05_Backend_Schema_Document.md) for full schema
+### PostgreSQL Schema (Prisma) — see [05_Backend_Schema_Document.md](05_Backend_Schema_Document.md) for full schema
 
 **Models**: User, Room, RoomMember, Session
 **Enums**: QualityPreset, RoomStatus, MemberRole
@@ -502,7 +502,7 @@ jobs:
 ## 12. Complete File & Folder Structure
 
 ```
-browsync/
+BroSync/
 ├── package.json                    ← Monorepo root (npm workspaces)
 ├── tsconfig.json                   ← Root TypeScript config
 ├── .eslintrc.js                    ← Shared ESLint rules

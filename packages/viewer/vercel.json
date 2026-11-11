@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://browsync-api.onrender.com/api/$1"
+      "destination": "https://brosync-api.onrender.com/api/$1"
     },
     {
       "source": "/socket.io/(.*)",
-      "destination": "https://browsync-api.onrender.com/socket.io/$1"
+      "destination": "https://brosync-api.onrender.com/socket.io/$1"
     },
     {
       "source": "/room/:path*",

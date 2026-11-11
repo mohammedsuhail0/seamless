@@ -117,6 +117,16 @@ function initializeHostSocket() {
     mainWindow?.webContents.send('host:rtc-ice-candidate', payload);
   });
 
+  hostSocket.on(SOCKET_EVENTS.RTC_RECONNECT_REQUEST, (payload: any) => {
+    console.log(`📡 Viewer requested WebRTC reconnect: ${payload?.senderUserId}`);
+    mainWindow?.webContents.send('host:rtc-reconnect-request', payload);
+  });
+
+  hostSocket.on('reconnect', (attempt: number) => {
+    console.log(`🔄 Host socket reconnected to signaling (attempt ${attempt})`);
+    mainWindow?.webContents.send('host:socket-reconnected', { attempt });
+  });
+
   hostSocket.on(SOCKET_EVENTS.CHAT_HISTORY, (payload: any) => {
     mainWindow?.webContents.send('chat:history', payload);
   });

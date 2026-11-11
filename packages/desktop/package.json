@@ -5,7 +5,33 @@
   "main": "./dist/main/index.js",
   "scripts": {
     "dev": "tsc && electron .",
-    "build": "tsc"
+    "build": "tsc",
+    "package": "tsc && electron-builder --win",
+    "package:dir": "tsc && electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.brosync.desktop",
+    "productName": "BroSync Host",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "index.html",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   },
   "dependencies": {
     "@browsync/shared": "*",
@@ -15,6 +41,7 @@
   },
   "devDependencies": {
     "electron": "^28.2.0",
+    "electron-builder": "^26.18.0",
     "typescript": "^5.3.3"
   }
 }

@@ -4,8 +4,10 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import { z } from 'zod';
 import { prisma, redis } from '../config/db';
 import { RedisKeys } from '../utils/redis-keys';
+import { ENV } from '../config/env';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -13,16 +15,47 @@ import {
 } from '../utils/jwt';
 import { registerSchema, loginSchema } from '@browsync/shared';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { createRateLimiter } from '../middleware/rate-limit';
+import { setAuthCookies, clearAuthCookies } from '../utils/cookie';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
 
 const router = Router();
 
+// ── Rate Limiters for Auth Endpoints ──────────────────────────────
+const authLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 15,
+  endpoint: 'auth_attempt',
+  message: 'Too many authentication attempts. Please try again after 1 minute.',
+});
+
+const refreshLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 30,
+  endpoint: 'token_refresh',
+});
+
+// ── Zod Schemas for additional auth inputs ─────────────────────────
+const googleLoginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+const googleCallbackSchema = z.object({
+  idToken: z.string().min(1, 'Google ID Token required'),
+});
+
+const googleOnboardSchema = z.object({
+  username: z.string().min(1).max(30),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  tempToken: z.string().min(1, 'Temporary token required'),
+});
+
 let oauthClient: OAuth2Client | null = null;
 
 function getOAuthClient(): OAuth2Client | null {
   if (oauthClient) return oauthClient;
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = ENV.GOOGLE_CLIENT_ID;
   if (clientId) {
     oauthClient = new OAuth2Client(clientId);
   }
@@ -30,7 +63,7 @@ function getOAuthClient(): OAuth2Client | null {
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   try {
     const parseResult = registerSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -115,6 +148,9 @@ router.post('/register', async (req, res) => {
       })()
     ]);
 
+    // Set secure HttpOnly cookies alongside JSON response for zero disruption
+    setAuthCookies(res, accessToken, refreshToken);
+
     return res.status(201).json({
       user: {
         id: user.id,
@@ -126,6 +162,14 @@ router.post('/register', async (req, res) => {
       refreshToken,
     });
   } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({
+        error: {
+          code: 'CONFLICT',
+          message: 'Email or username already exists',
+        },
+      });
+    }
     console.error('❌ Registration error:', error);
     return res.status(500).json({
       error: {
@@ -137,7 +181,7 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const parseResult = loginSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -217,6 +261,9 @@ router.post('/login', async (req, res) => {
       })()
     ]);
 
+    // Set secure HttpOnly cookies alongside JSON response for zero disruption
+    setAuthCookies(res, accessToken, refreshToken);
+
     return res.status(200).json({
       user: {
         id: user.id,
@@ -239,17 +286,20 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /api/auth/google-login - Passwordless Google Login (Mock OAuth entry)
-router.post('/google-login', async (req, res) => {
+router.post('/google-login', authLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) {
+    const parseResult = googleLoginSchema.safeParse(req.body);
+    if (!parseResult.success) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Google Email identifier required',
+          message: 'Valid Google Email identifier required',
+          details: parseResult.error.flatten(),
         },
       });
     }
+
+    const { email } = parseResult.data;
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -300,6 +350,8 @@ router.post('/google-login', async (req, res) => {
       })()
     ]);
 
+    setAuthCookies(res, accessToken, refreshToken);
+
     return res.status(200).json({
       user: {
         id: user.id,
@@ -322,23 +374,25 @@ router.post('/google-login', async (req, res) => {
 });
 
 // POST /api/auth/google-callback - Google OAuth 2.0 Token callback & database fork check
-router.post('/google-callback', async (req, res) => {
+router.post('/google-callback', authLimiter, async (req, res) => {
   try {
-    const { idToken } = req.body;
-    if (!idToken) {
+    const parseResult = googleCallbackSchema.safeParse(req.body);
+    if (!parseResult.success) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Google ID Token required',
+          details: parseResult.error.flatten(),
         },
       });
     }
 
+    const { idToken } = parseResult.data;
     let email = '';
     let googleId = '';
 
     // Verify token using google-auth-library with fallback to tokeninfo API
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = ENV.GOOGLE_CLIENT_ID;
     const client = getOAuthClient();
     if (client && clientId && !idToken.startsWith('mock_id_token_')) {
       try {
@@ -352,19 +406,18 @@ router.post('/google-callback', async (req, res) => {
           googleId = payload.sub;
         }
       } catch (err: any) {
-        console.warn('⚠️ client.verifyIdToken threw error:', err?.message, 'Trying direct Google tokeninfo fallback...');
-        // Resilient fallback for container clock skew or transient cert resolution
+        console.warn('⚠️ client.verifyIdToken error:', err?.message, 'Trying direct Google tokeninfo fallback...');
         try {
-          const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
-          if (res.ok) {
-            const tokenInfo = await res.json() as any;
+          const fetchRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`);
+          if (fetchRes.ok) {
+            const tokenInfo = await fetchRes.json() as any;
             if (tokenInfo?.email) {
               email = tokenInfo.email.toLowerCase();
               googleId = tokenInfo.sub;
             }
           }
-        } catch (fetchErr) {
-          console.error('❌ Tokeninfo fallback error:', fetchErr);
+        } catch (fetchErr: any) {
+          console.error('❌ Tokeninfo fallback error:', fetchErr?.message);
         }
 
         if (!email) {
@@ -377,7 +430,7 @@ router.post('/google-callback', async (req, res) => {
         }
       }
     } else {
-      // Fallback/Mock Decoder: read JWT fields directly (supports mock profiles seamlessly)
+      // Fallback/Mock Decoder: read JWT fields directly (supports mock profiles)
       try {
         const decoded = jwt.decode(idToken) as any;
         if (decoded && decoded.email) {
@@ -387,8 +440,8 @@ router.post('/google-callback', async (req, res) => {
           email = idToken.replace('mock_id_token_', '').toLowerCase();
           googleId = 'mock_google_' + email.split('@')[0];
         }
-      } catch (err) {
-        // Continue
+      } catch (err: any) {
+        console.warn('⚠️ Mock token decode failed:', err?.message);
       }
     }
 
@@ -413,7 +466,7 @@ router.post('/google-callback', async (req, res) => {
         candidateName = `${candidateName}_${Math.floor(100 + Math.random() * 900)}`;
       }
 
-      // Fast hashing for OAuth accounts (<10ms vs 2000ms)
+      // Fast hashing for OAuth placeholder
       const fastPlaceholderHash = await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 8);
 
       user = await prisma.user.create({
@@ -459,6 +512,8 @@ router.post('/google-callback', async (req, res) => {
       })()
     ]);
 
+    setAuthCookies(res, accessToken, refreshToken);
+
     return res.status(200).json({
       status: 'AUTHENTICATED',
       user: {
@@ -482,28 +537,29 @@ router.post('/google-callback', async (req, res) => {
 });
 
 // POST /api/auth/google-onboard - Process onboarding credentials and create profile
-router.post('/google-onboard', async (req, res) => {
+router.post('/google-onboard', authLimiter, async (req, res) => {
   try {
-    const { username, password, tempToken } = req.body;
-
-    if (!username || !password || !tempToken) {
+    const parseResult = googleOnboardSchema.safeParse(req.body);
+    if (!parseResult.success) {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
-          message: 'Username, password, and temporary session token required',
+          message: 'Invalid onboarding credentials',
+          details: parseResult.error.flatten(),
         },
       });
     }
 
-    // 1. Verify Temporary token
+    const { username, password, tempToken } = parseResult.data;
+
+    // 1. Verify Temporary token using server secret
     let tempPayload: any;
     try {
-      const tempTokenSecret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_REFRESH_SECRET || 'browsync_refresh_secret_772233';
-      tempPayload = jwt.verify(tempToken, tempTokenSecret);
+      tempPayload = jwt.verify(tempToken, ENV.REFRESH_TOKEN_SECRET);
       if (tempPayload.purpose !== 'onboarding') {
         throw new Error('Invalid token purpose');
       }
-    } catch (err) {
+    } catch (_err) {
       return res.status(401).json({
         error: {
           code: 'EXPIRED_SESSION',
@@ -583,6 +639,8 @@ router.post('/google-onboard', async (req, res) => {
       })()
     ]);
 
+    setAuthCookies(res, accessToken, refreshToken);
+
     return res.status(201).json({
       status: 'AUTHENTICATED',
       user: {
@@ -595,6 +653,14 @@ router.post('/google-onboard', async (req, res) => {
       refreshToken,
     });
   } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({
+        error: {
+          code: 'DUPLICATE_USERNAME',
+          message: 'Username or email already taken.',
+        },
+      });
+    }
     console.error('❌ Onboarding error:', error);
     return res.status(500).json({
       error: {
@@ -606,10 +672,11 @@ router.post('/google-onboard', async (req, res) => {
 });
 
 // POST /api/auth/refresh
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', refreshLimiter, async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-    if (!refreshToken) {
+    const rawToken = req.body?.refreshToken || req.cookies?.brosync_refresh_token || req.cookies?.refreshToken || req.cookies?.browsync_refresh_token;
+
+    if (!rawToken || typeof rawToken !== 'string') {
       return res.status(400).json({
         error: {
           code: 'VALIDATION_ERROR',
@@ -618,11 +685,13 @@ router.post('/refresh', async (req, res) => {
       });
     }
 
+    const refreshToken = rawToken.trim();
+
     // Verify token
     let payload;
     try {
       payload = verifyRefreshToken(refreshToken);
-    } catch (err) {
+    } catch (_err) {
       return res.status(401).json({
         error: {
           code: 'UNAUTHORIZED',
@@ -638,9 +707,8 @@ router.post('/refresh', async (req, res) => {
     });
 
     if (!existingSession || existingSession.expiresAt < new Date()) {
-      // Invalidate if found but expired, or just reject
       if (existingSession) {
-        await prisma.session.delete({ where: { id: existingSession.id } });
+        await prisma.session.delete({ where: { id: existingSession.id } }).catch(() => null);
       }
       return res.status(401).json({
         error: {
@@ -658,22 +726,24 @@ router.post('/refresh', async (req, res) => {
     };
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
-
-    // Delete old session and create new rotated session
-    await prisma.session.delete({ where: { id: existingSession.id } });
-    await redis.del(RedisKeys.session(existingSession.token));
-
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await prisma.session.create({
-      data: {
-        userId: existingSession.userId,
-        token: newAccessToken,
-        refreshToken: newRefreshToken,
-        expiresAt,
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
-      },
-    });
+
+    // Atomic session rotation prevents race condition or duplicate refresh token use
+    await prisma.$transaction([
+      prisma.session.delete({ where: { id: existingSession.id } }),
+      prisma.session.create({
+        data: {
+          userId: existingSession.userId,
+          token: newAccessToken,
+          refreshToken: newRefreshToken,
+          expiresAt,
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+        },
+      }),
+    ]);
+
+    await redis.del(RedisKeys.session(existingSession.token)).catch(() => null);
 
     // Cache new session in Redis
     const sessionKey = RedisKeys.session(newAccessToken);
@@ -684,6 +754,8 @@ router.post('/refresh', async (req, res) => {
       createdAt: existingSession.user.createdAt.toISOString(),
     });
     await redis.expire(sessionKey, 24 * 60 * 60);
+
+    setAuthCookies(res, newAccessToken, newRefreshToken);
 
     return res.status(200).json({
       accessToken: newAccessToken,
@@ -705,13 +777,13 @@ router.post('/logout', authenticateToken, async (req: AuthenticatedRequest, res)
   try {
     const token = req.token;
     if (token) {
-      // Delete session from Redis
-      await redis.del(RedisKeys.session(token));
-      // Delete session from PG
+      await redis.del(RedisKeys.session(token)).catch(() => null);
       await prisma.session.deleteMany({
         where: { token },
-      });
+      }).catch(() => null);
     }
+
+    clearAuthCookies(res);
 
     return res.status(200).json({ message: 'Logged out successfully' });
   } catch (error: any) {

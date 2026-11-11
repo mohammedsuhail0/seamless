@@ -1,6 +1,6 @@
-# BrowSync — Multi-Agent Development Workflow
+# BroSync — Multi-Agent Development Workflow
 
-> **How AI agents collaborate to build BrowSync in parallel.**
+> **How AI agents collaborate to build BroSync in parallel.**
 > This document is the master coordination plan. Each agent owns a component, works independently, and integrates at defined checkpoints.
 
 ---
@@ -52,7 +52,7 @@ graph TB
 
 | Agent | Name | Component | Directory | Primary Responsibility |
 |-------|------|-----------|-----------|----------------------|
-| 🧠 | **Orchestrator** | Root | `browsync/` | Coordination, integration, conflict resolution, monorepo config |
+| 🧠 | **Orchestrator** | Root | `BroSync/` | Coordination, integration, conflict resolution, monorepo config |
 | 🔧 | **Agent A** | Shared Package | `packages/shared/` | TypeScript types, Zod validation schemas, constants, enums |
 | 🖥️ | **Agent B** | Signaling Server | `packages/server/` | Express REST API, Socket.io events, Prisma ORM, Redis, Auth |
 | 🌐 | **Agent C** | Viewer Web App | `packages/viewer/` | React UI, WebRTC hooks, Stream component, Chat, Controls |
@@ -67,7 +67,7 @@ graph TB
 
 ### Orchestrator Owns
 ```
-browsync/
+BroSync/
 ├── package.json              ← monorepo root
 ├── tsconfig.json             ← root TypeScript config
 ├── .eslintrc.js              ← shared linting rules
@@ -230,7 +230,7 @@ packages/desktop/
 
 ```mermaid
 gantt
-    title BrowSync Multi-Agent Build Sequence
+    title BroSync Multi-Agent Build Sequence
     dateFormat X
     axisFormat %s
 
@@ -388,7 +388,7 @@ Agent B defines the REST + WebSocket contract that C and D consume:
 
 | Contract | Format | Location |
 |----------|--------|----------|
-| REST API | OpenAPI-style types in `@browsync/shared` | `types/api.ts` |
+| REST API | OpenAPI-style types in `@BroSync/shared` | `types/api.ts` |
 | Socket events | Event name constants + payload types | `constants/events.ts` |
 | Error codes | Standardized error enum | `constants/errors.ts` |
 
@@ -406,9 +406,9 @@ sequenceDiagram
     A-->>O: ✅ packages/shared/ complete
     
     par Parallel execution
-        O->>B: "Build server (import from @browsync/shared)"
-        O->>C: "Build viewer (import from @browsync/shared)"
-        O->>D: "Build desktop (import from @browsync/shared)"
+        O->>B: "Build server (import from @BroSync/shared)"
+        O->>C: "Build viewer (import from @BroSync/shared)"
+        O->>D: "Build desktop (import from @BroSync/shared)"
     end
 
     B-->>O: ✅ Server complete
@@ -447,16 +447,16 @@ sequenceDiagram
 ## 9. Agent Instructions Summary
 
 ### 🔧 Agent A — Shared Package
-> **Your job**: Create every TypeScript type, interface, enum, constant, and Zod validation schema that the entire BrowSync system needs. You are the **foundation**. Every other agent imports from you. Be exhaustive — if a data shape exists anywhere in the system, define it here.
+> **Your job**: Create every TypeScript type, interface, enum, constant, and Zod validation schema that the entire BroSync system needs. You are the **foundation**. Every other agent imports from you. Be exhaustive — if a data shape exists anywhere in the system, define it here.
 
 ### 🖥️ Agent B — Signaling Server
-> **Your job**: Build the complete backend — Express REST API for auth and rooms, Socket.io server for real-time signaling, Prisma ORM for PostgreSQL, Redis for ephemeral data. Import all types from `@browsync/shared`. You are the **brain** of the system.
+> **Your job**: Build the complete backend — Express REST API for auth and rooms, Socket.io server for real-time signaling, Prisma ORM for PostgreSQL, Redis for ephemeral data. Import all types from `@BroSync/shared`. You are the **brain** of the system.
 
 ### 🌐 Agent C — Viewer Web App
-> **Your job**: Build the React viewer application that friends use in their browser. Create a stunning dark-themed UI with glassmorphism, smooth animations, and premium design. Build WebRTC hooks, chat, controls, reactions. Import all types from `@browsync/shared`. You are the **face** of the product.
+> **Your job**: Build the React viewer application that friends use in their browser. Create a stunning dark-themed UI with glassmorphism, smooth animations, and premium design. Build WebRTC hooks, chat, controls, reactions. Import all types from `@BroSync/shared`. You are the **face** of the product.
 
 ### 💻 Agent D — Desktop Host App
-> **Your job**: Build the Electron desktop app that the host runs to share their screen. Implement screen capture via `getDisplayMedia()`, WebRTC encoding, input injection via `uiohook-napi`, and the host control UI. Import all types from `@browsync/shared`. You are the **engine** of the system.
+> **Your job**: Build the Electron desktop app that the host runs to share their screen. Implement screen capture via `getDisplayMedia()`, WebRTC encoding, input injection via `uiohook-napi`, and the host control UI. Import all types from `@BroSync/shared`. You are the **engine** of the system.
 
 ---
 
@@ -468,7 +468,7 @@ Each agent must satisfy these before marking their component complete:
 |------|------------|
 | **Compiles** | `tsc --noEmit` passes with zero errors |
 | **Lints** | `eslint` passes with zero errors |
-| **Types** | All imports from `@browsync/shared` resolve correctly |
+| **Types** | All imports from `@BroSync/shared` resolve correctly |
 | **Tests** | Unit tests pass (if applicable) |
 | **Documented** | Key functions have JSDoc comments |
 | **No hardcoded values** | All magic numbers/strings use shared constants |

@@ -101,9 +101,9 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }, [role]);
 
   const joinSocketRoom = useCallback((targetSocket: Socket) => {
-    const token = localStorage.getItem('browsync_access_token') || undefined;
-    const participantKey = `browsync_room_participant:${roomCode.toUpperCase()}`;
-    let participantId = sessionStorage.getItem(participantKey);
+    const token = localStorage.getItem('brosync_access_token') || localStorage.getItem('browsync_access_token') || undefined;
+    const participantKey = `brosync_room_participant:${roomCode.toUpperCase()}`;
+    let participantId = sessionStorage.getItem(participantKey) || sessionStorage.getItem(`browsync_room_participant:${roomCode.toUpperCase()}`);
     if (!participantId) {
       const suffix = typeof crypto?.randomUUID === 'function'
         ? crypto.randomUUID().replace(/-/g, '')
@@ -328,7 +328,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   const handleStartCapture = async () => {
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      alert("📺 Screen sharing is not supported on mobile devices. Please log in from a desktop browser (like Chrome, Edge, or Safari on Windows/macOS) to host and share your screen.");
+      alert("📺 Mobile screen broadcasting requires Android Chrome/Edge or the BroSync Android APK. On iOS Safari, you can join, watch, and chat with friends.");
       return;
     }
     try {
@@ -838,7 +838,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 </p>
                 <button 
                   className="btn-red" 
-                  onClick={startCapture} 
+                  onClick={handleStartCapture} 
                   style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
                 >
                   <GoldLogoSVG size={16} /> Start Lounge Stream

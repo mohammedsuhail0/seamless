@@ -6,11 +6,27 @@ dist/
 build/
 out/
 .vite/
+.turbo/
+.next/
+.cache/
+.parcel-cache/
+*.tsbuildinfo
+.eslintcache
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+*.env
+!.env.example
+
+# Certificates & Private Keys
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.cer
+*.csr
 
 # IDE
 .vscode/
@@ -40,9 +56,11 @@ coverage/
 *.tmp
 *.temp
 
-# SQLite Databases
+# Databases
 *.db
 *.db-journal
-
+*.sqlite
+*.sqlite3
+*.sqlite-journal
 
 .vercel

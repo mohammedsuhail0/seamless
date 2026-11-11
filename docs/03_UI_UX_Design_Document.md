@@ -1,4 +1,4 @@
-# BrowSync — UI/UX Design Document
+# BroSync — UI/UX Design Document
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Primary Agent**: 🌐 Agent C (Viewer App), 💻 Agent D (Desktop Host UI)

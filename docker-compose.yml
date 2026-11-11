@@ -4,20 +4,20 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: browsync-postgres
+    container_name: brosync-postgres
     ports:
       - '5432:5432'
     environment:
-      POSTGRES_USER: browsync
-      POSTGRES_PASSWORD: browsync_dev
-      POSTGRES_DB: browsync
+      POSTGRES_USER: brosync
+      POSTGRES_PASSWORD: brosync_dev
+      POSTGRES_DB: brosync
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    container_name: browsync-redis
+    container_name: brosync-redis
     ports:
       - '6379:6379'
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
   # Uncomment and configure parameters when deploying on your cloud VPS
   # turnserver:
   #   image: coturn/coturn:4.6.2-alpine
-  #   container_name: browsync-turn
+  #   container_name: brosync-turn
   #   network_mode: host
   #   volumes:
   #     - ./turnserver.conf:/etc/coturn/turnserver.conf

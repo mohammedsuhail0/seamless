@@ -1,4 +1,4 @@
-# BrowSync — Product Requirements Document (PRD)
+# BroSync — Product Requirements Document (PRD)
 
 > **Version**: 1.0 · **Last Updated**: 2026-06-01 · **Status**: Draft
 > **Built by**: 🧠 Orchestrator Agent · **Assigned Agent**: 🔧 Agent A (Shared Package foundations)
@@ -8,7 +8,7 @@
 ## 1. Executive Summary
 
 ### Product Vision
-BrowSync captures the host's **real browser** and streams it directly to friends over WebRTC — exactly like how NVIDIA GeForce NOW works, except for browsing. No virtual browser on a foreign server. No geo-blocks. No "buy a plan" errors. Because it's literally YOUR browser, YOUR Netflix account, YOUR Airtel Xstream login — just mirrored to friends in real time.
+BroSync captures the host's **real browser** and streams it directly to friends over WebRTC — exactly like how NVIDIA GeForce NOW works, except for browsing. No virtual browser on a foreign server. No geo-blocks. No "buy a plan" errors. Because it's literally YOUR browser, YOUR Netflix account, YOUR Airtel Xstream login — just mirrored to friends in real time.
 
 ### Problem Statement
 Existing co-browsing solutions (GroupTube, Hyperbeam, Teleparty) rely on **server-side virtual browsers** that cause:
@@ -21,7 +21,7 @@ Existing co-browsing solutions (GroupTube, Hyperbeam, Teleparty) rely on **serve
 Friend groups, couples, and families who want to watch streaming content together remotely — especially in India where Airtel Xstream, JioCinema, and Hotstar have strict geo and account restrictions.
 
 ### Value Proposition
-| Dimension | BrowSync | Competitors |
+| Dimension | BroSync | Competitors |
 |-----------|----------|-------------|
 | Geo-blocking | ✅ None — it's YOUR browser | ❌ Server in wrong country |
 | Subscriptions | ✅ Already logged in | ❌ New session = not logged in |
@@ -33,7 +33,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 
 ## 2. Product Overview
 
-- **Product Name**: BrowSync
+- **Product Name**: BroSync
 - **Tagline**: *Watch Together. For Real.*
 - **Core Concept**: Mirror the host's actual browser to viewers over peer-to-peer WebRTC
 
@@ -48,7 +48,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 ### Multi-Agent Build Assignment
 
 > [!NOTE]
-> This product is built using a **multi-agent development system**. See [07_Multi_Agent_Development_Workflow.md](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/07_Multi_Agent_Development_Workflow.md) for full agent assignments.
+> This product is built using a **multi-agent development system**. See [07_Multi_Agent_Development_Workflow.md](07_Multi_Agent_Development_Workflow.md) for full agent assignments.
 
 | Agent | Builds | PRD Sections Relevant |
 |-------|--------|----------------------|
@@ -142,7 +142,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 | M1 | Screen/tab capture | Host captures their screen or a specific Chrome tab | 💻 D |
 | M2 | WebRTC P2P streaming | Video streamed directly to each viewer, no relay server | 💻 D, 🌐 C |
 | M3 | Room creation | Host creates a room with unique 6-char code | 🖥️ B |
-| M4 | Shareable join link | `browsync.app/room/ABC123` — viewers click to join | 🖥️ B, 🌐 C |
+| M4 | Shareable join link | `BroSync.app/room/ABC123` — viewers click to join | 🖥️ B, 🌐 C |
 | M5 | Guest viewing | Viewers enter a display name only — no registration required | 🖥️ B, 🌐 C |
 | M6 | Real-time chat | Text chat alongside the stream | 🖥️ B, 🌐 C |
 | M7 | Emoji reactions | 👍 😂 🔥 ❤️ 😮 — float up as animated bubbles | 🌐 C |
@@ -248,7 +248,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 ### AC: Room System (M3, M4, M5)
 - [ ] Room code is 6 characters, uppercase alphanumeric
 - [ ] Room code is unique — no collisions
-- [ ] Shareable link format: `browsync.app/room/{CODE}`
+- [ ] Shareable link format: `BroSync.app/room/{CODE}`
 - [ ] Guests can join with just a display name (no email/password)
 - [ ] Room supports up to 7 viewers (MVP)
 - [ ] 8th viewer attempt shows "Room is full" error
@@ -349,7 +349,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 | NAT traversal failures (P2P blocked) | Medium | High | TURN server fallback (Phase 3); Google STUN servers free |
 | Bandwidth limitations (host upload) | Medium | Medium | Adaptive bitrate; auto-lowers quality for slow connections |
 | Security concerns with remote control | Low | Critical | Explicit per-session approval; visual indicators; instant revoke; audit log |
-| Platform restrictions (DRM content) | Medium | Medium | BrowSync captures the screen output, not the DRM stream itself; some platforms may show black |
+| Platform restrictions (DRM content) | Medium | Medium | BroSync captures the screen output, not the DRM stream itself; some platforms may show black |
 | Browser API deprecation | Low | High | Feature detection; graceful degradation; fallback to alternative capture methods |
 | Scaling beyond 7 viewers | High (for growth) | Medium | SFU architecture in Phase 3; dynamic P2P↔SFU switching |
 | Legal concerns (streaming TOS) | Medium | Medium | User is sharing their own screen (not redistributing content); similar to Discord screen share |
@@ -388,7 +388,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 
 ## 12. Competitive Analysis
 
-| Feature | BrowSync | Hyperbeam | GroupTube | Teleparty | Discord Screen Share | Zoom Share |
+| Feature | BroSync | Hyperbeam | GroupTube | Teleparty | Discord Screen Share | Zoom Share |
 |---------|----------|-----------|----------|-----------|---------------------|------------|
 | **Latency** | < 200ms (P2P) | 200–400ms | 300–500ms | N/A (sync only) | 200–500ms | 200–400ms |
 | **Geo-blocking** | ✅ None | ❌ Server-based | ❌ Server-based | ❌ Extension only | ✅ None | ✅ None |
@@ -400,7 +400,7 @@ Friend groups, couples, and families who want to watch streaming content togethe
 | **Cost** | Free (self-host) | $15/mo | Free (limited) | Free (limited) | Free | Free (40min) |
 | **Works on Indian OTT** | ✅ Yes | ❌ Geo-blocked | ❌ Geo-blocked | ❌ Unsupported | ✅ Yes | ✅ Yes |
 
-### BrowSync's Unique Edge
+### BroSync's Unique Edge
 The only solution that combines **zero geo-blocking** + **your subscriptions** + **remote control** + **no viewer install** + **privacy-first P2P**. Discord comes closest but lacks remote control and has higher latency through their servers.
 
 ---
@@ -409,9 +409,9 @@ The only solution that combines **zero geo-blocking** + **your subscriptions** +
 
 | Document | Relevance to PRD |
 |----------|-----------------|
-| [02_TRD](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/02_TRD_Technical_Requirements_Document.md) | Technical implementation details for features listed here |
-| [03_UI/UX](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/03_UI_UX_Design_Document.md) | Visual design for all screens referenced in user stories |
-| [04_App Flow](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/04_App_Flow_Document.md) | Step-by-step flows for each feature |
-| [05_Backend Schema](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/05_Backend_Schema_Document.md) | Data models for rooms, users, sessions |
-| [06_Implementation Plan](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/06_Implementation_Plan.md) | Sprint-by-sprint build schedule |
-| [07_Multi-Agent Workflow](file:///C:/Users/Lenovo/.gemini/antigravity/brain/08f71b7e-1872-4727-a2d2-ed85a47b2732/07_Multi_Agent_Development_Workflow.md) | Which agent builds which feature from this PRD |
+| [02_TRD](02_TRD_Technical_Requirements_Document.md) | Technical implementation details for features listed here |
+| [03_UI/UX](03_UI_UX_Design_Document.md) | Visual design for all screens referenced in user stories |
+| [04_App Flow](04_App_Flow_Document.md) | Step-by-step flows for each feature |
+| [05_Backend Schema](05_Backend_Schema_Document.md) | Data models for rooms, users, sessions |
+| [06_Implementation Plan](06_Implementation_Plan.md) | Sprint-by-sprint build schedule |
+| [07_Multi-Agent Workflow](07_Multi_Agent_Development_Workflow.md) | Which agent builds which feature from this PRD |

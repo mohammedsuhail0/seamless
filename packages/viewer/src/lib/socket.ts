@@ -15,7 +15,7 @@ class SocketClient {
 
     const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? ''
-      : 'https://browsync-api.onrender.com';
+      : (import.meta.env.VITE_API_URL || 'https://brosync-api.onrender.com');
 
     // Connects to server (Vite proxies WS traffic perfectly on dev, direct Render URL on production)
     this.socket = io(BACKEND_URL, {
