@@ -852,6 +852,8 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (videoRef.current) {
+                        videoRef.current.muted = false;
+                        setIsMuted(false);
                         videoRef.current.play().catch(err => console.warn('Play attempt failed:', err));
                       }
                     }}
@@ -877,10 +879,40 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                         Host is Sharing Screen
                       </h3>
                       <button className="btn-red" style={{ width: '100%', fontSize: 'var(--text-xs)', padding: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                        <GoldLogoSVG size={14} /> Click to Play Stream
+                        <GoldLogoSVG size={14} /> Click to Play Stream & Audio
                       </button>
                     </div>
                   </div>
+                )}
+
+                {/* Floating Unmute indicator if browser autoplayed silently */}
+                {videoPlaying && isMuted && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleMute();
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '1rem',
+                      left: '1rem',
+                      zIndex: 25,
+                      background: 'rgba(0,0,0,0.75)',
+                      border: '1px solid var(--color-gold)',
+                      color: 'var(--color-gold)',
+                      borderRadius: '20px',
+                      padding: '0.4rem 0.8rem',
+                      fontSize: 'var(--text-xs)',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      cursor: 'pointer',
+                      backdropFilter: 'blur(8px)',
+                    }}
+                  >
+                    <VolumeX size={14} /> Tap to Unmute Audio
+                  </button>
                 )}
               </>
             ) : role === MemberRole.HOST ? (

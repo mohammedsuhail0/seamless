@@ -8,9 +8,11 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.DisplayMetrics;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
@@ -18,6 +20,8 @@ import androidx.core.app.NotificationCompat;
 
 import org.json.JSONObject;
 import org.webrtc.*;
+import org.webrtc.audio.AudioDeviceModule;
+import org.webrtc.audio.JavaAudioDeviceModule;
 
 import java.net.URI;
 import java.util.*;
@@ -44,6 +48,9 @@ public class ScreenCaptureService extends Service {
     private PeerConnectionFactory peerConnectionFactory;
     private VideoSource videoSource;
     private VideoTrack videoTrack;
+    private AudioSource audioSource;
+    private AudioTrack audioTrack;
+    private JavaAudioDeviceModule audioDeviceModule;
     private ScreenCapturerAndroid screenCapturer;
     private SurfaceTextureHelper surfaceTextureHelper;
     private Socket signalingSocket;
@@ -81,7 +88,7 @@ public class ScreenCaptureService extends Service {
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("BroSync Live Stream Active")
-                .setContentText("Broadcasting your mobile screen with zero lag")
+                .setContentText("Broadcasting your mobile screen and audio with zero lag")
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -136,10 +143,37 @@ public class ScreenCaptureService extends Service {
             );
             VideoDecoderFactory decoderFactory = new DefaultVideoDecoderFactory(eglBase.getEglBaseContext());
 
-            peerConnectionFactory = PeerConnectionFactory.builder()
-                    .setVideoEncoderFactory(encoderFactory)
-                    .setVideoDecoderFactory(decoderFactory)
-                    .createPeerConnectionFactory();
+            // Initialize high-fidelity low-latency audio device module
+            try {
+                audioDeviceModule = JavaAudioDeviceModule.builder(this)
+                        .setAudioSource(MediaRecorder.AudioSource.MIC)
+                        .setUseHardwareAcousticEchoCanceler(false)
+                        .setUseHardwareNoiseSuppressor(false)
+                        .createAudioDeviceModule();
+
+                peerConnectionFactory = PeerConnectionFactory.builder()
+                        .setAudioDeviceModule(audioDeviceModule)
+                        .setVideoEncoderFactory(encoderFactory)
+                        .setVideoDecoderFactory(decoderFactory)
+                        .createPeerConnectionFactory();
+
+                MediaConstraints audioConstraints = new MediaConstraints();
+                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googEchoCancellation", "false"));
+                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googAutoGainControl", "false"));
+                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googHighpassFilter", "false"));
+                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googNoiseSuppression", "false"));
+
+                audioSource = peerConnectionFactory.createAudioSource(audioConstraints);
+                audioTrack = peerConnectionFactory.createAudioTrack("BROSYNC_MOBILE_AUDIO_TRACK", audioSource);
+                audioTrack.setEnabled(true);
+                Log.i(TAG, "AudioTrack created successfully for mobile broadcast");
+            } catch (Exception audioErr) {
+                Log.w(TAG, "Audio initialization fallback to video-only: " + audioErr.getMessage());
+                peerConnectionFactory = PeerConnectionFactory.builder()
+                        .setVideoEncoderFactory(encoderFactory)
+                        .setVideoDecoderFactory(decoderFactory)
+                        .createPeerConnectionFactory();
+            }
 
             screenCapturer = new ScreenCapturerAndroid(resultData, new MediaProjection.Callback() {
                 @Override
@@ -154,13 +188,31 @@ public class ScreenCaptureService extends Service {
             videoSource = peerConnectionFactory.createVideoSource(screenCapturer.isScreencast());
             screenCapturer.initialize(surfaceTextureHelper, getApplicationContext(), videoSource.getCapturerObserver());
             
-            // 720p 30fps: Ideal mobile sweet spot for hardware acceleration, low thermals, and sub-100ms latency
-            screenCapturer.startCapture(1280, 720, 30);
+            // Calculate dynamic resolution matching exact device aspect ratio (eliminates letterbox scaling lag)
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+            int width = metrics.widthPixels;
+            int height = metrics.heightPixels;
+
+            int captureWidth;
+            int captureHeight;
+            if (width < height) {
+                // Portrait (phone standard)
+                captureWidth = 720;
+                captureHeight = (int) Math.round((double) height * 720.0 / width);
+                captureHeight = (captureHeight / 16) * 16;
+            } else {
+                // Landscape
+                captureHeight = 720;
+                captureWidth = (int) Math.round((double) width * 720.0 / height);
+                captureWidth = (captureWidth / 16) * 16;
+            }
+            Log.i(TAG, "Dynamic capture resolution calculated: " + captureWidth + "x" + captureHeight + " @ 30fps (native: " + width + "x" + height + ")");
+            screenCapturer.startCapture(captureWidth, captureHeight, 30);
             videoTrack = peerConnectionFactory.createVideoTrack("BROSYNC_MOBILE_SCREEN_TRACK", videoSource);
             videoTrack.setEnabled(true);
 
             connectSignaling(token, displayName);
-            Log.i(TAG, "Hardware accelerated WebRTC Screen Capturer initialized successfully");
+            Log.i(TAG, "Hardware accelerated WebRTC Screen Capturer & Audio initialized successfully");
 
         } catch (Exception e) {
             Log.e(TAG, "Failed to initialize WebRTC Screen Capturer", e);
@@ -252,7 +304,6 @@ public class ScreenCaptureService extends Service {
             });
 
             signalingSocket.on("presence:sync", args -> {
-                // When viewers join, create peer offers
                 try {
                     if (args.length > 0 && args[0] instanceof JSONObject) {
                         JSONObject payload = (JSONObject) args[0];
@@ -326,13 +377,45 @@ public class ScreenCaptureService extends Service {
         });
 
         if (pc != null) {
-            pc.addTrack(videoTrack, Collections.singletonList("BROSYNC_STREAM"));
+            if (videoTrack != null) {
+                pc.addTrack(videoTrack, Collections.singletonList("BROSYNC_STREAM"));
+            }
+            if (audioTrack != null) {
+                pc.addTrack(audioTrack, Collections.singletonList("BROSYNC_STREAM"));
+            }
             peerConnections.put(viewerId, pc);
 
+            // Configure RTP sender degradation preference to MAINTAIN_FRAMERATE for buttery smoothness
+            for (RtpSender sender : pc.getSenders()) {
+                if (sender.track() != null && "video".equals(sender.track().kind())) {
+                    try {
+                        RtpParameters params = sender.getParameters();
+                        if (params != null) {
+                            params.degradationPreference = RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE;
+                            if (params.encodings != null && !params.encodings.isEmpty()) {
+                                RtpParameters.Encoding enc = params.encodings.get(0);
+                                enc.minBitrateBps = 1500 * 1000;
+                                enc.maxBitrateBps = 4500 * 1000;
+                                enc.maxFramerate = 30;
+                            }
+                            sender.setParameters(params);
+                        }
+                    } catch (Exception err) {
+                        Log.w(TAG, "Could not set video RtpParameters: " + err.getMessage());
+                    }
+                }
+            }
+
             MediaConstraints constraints = new MediaConstraints();
+            constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"));
+            constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"));
+
             pc.createOffer(new SimpleSdpObserver() {
                 @Override
                 public void onCreateSuccess(SessionDescription sessionDescription) {
+                    String optimizedSdp = optimizeSdpForUltraLowLatency(sessionDescription.description);
+                    SessionDescription sdpToSend = new SessionDescription(sessionDescription.type, optimizedSdp);
+
                     pc.setLocalDescription(new SimpleSdpObserver() {
                         @Override
                         public void onSetSuccess() {
@@ -341,17 +424,43 @@ public class ScreenCaptureService extends Service {
                                 payload.put("targetUserId", viewerId);
                                 JSONObject sdpObj = new JSONObject();
                                 sdpObj.put("type", "offer");
-                                sdpObj.put("sdp", sessionDescription.description);
+                                sdpObj.put("sdp", sdpToSend.description);
                                 payload.put("sdp", sdpObj);
                                 signalingSocket.emit("rtc:offer", payload);
-                                Log.i(TAG, "WebRTC offer sent to viewer: " + viewerId);
+                                Log.i(TAG, "WebRTC optimized zero-lag offer sent to viewer: " + viewerId);
                             } catch (Exception e) {
                                 Log.e(TAG, "Error sending RTC offer", e);
                             }
                         }
-                    }, sessionDescription);
+                    }, sdpToSend);
                 }
             }, constraints);
+        }
+    }
+
+    private String optimizeSdpForUltraLowLatency(String sdp) {
+        if (sdp == null) return "";
+        try {
+            // 1. Force playout-delay:0 0 for Chrome/Safari/Edge to drop jitter buffer delay to ~0ms
+            if (sdp.contains("a=mid:video") && !sdp.contains("a=playout-delay:0 0")) {
+                sdp = sdp.replace("a=mid:video", "a=mid:video\r\na=playout-delay:0 0");
+            }
+
+            // 2. Add video and audio bandwidth allocations
+            StringBuilder sb = new StringBuilder();
+            String[] lines = sdp.split("\r\n");
+            for (String line : lines) {
+                sb.append(line).append("\r\n");
+                if (line.startsWith("m=video")) {
+                    sb.append("b=AS:4000\r\n");
+                } else if (line.startsWith("m=audio")) {
+                    sb.append("b=AS:128\r\n");
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            Log.w(TAG, "SDP optimization error: " + e.getMessage());
+            return sdp;
         }
     }
 
@@ -374,9 +483,29 @@ public class ScreenCaptureService extends Service {
                 screenCapturer = null;
             }
 
+            if (videoTrack != null) {
+                videoTrack.dispose();
+                videoTrack = null;
+            }
+
             if (videoSource != null) {
                 videoSource.dispose();
                 videoSource = null;
+            }
+
+            if (audioTrack != null) {
+                audioTrack.dispose();
+                audioTrack = null;
+            }
+
+            if (audioSource != null) {
+                audioSource.dispose();
+                audioSource = null;
+            }
+
+            if (audioDeviceModule != null) {
+                audioDeviceModule.release();
+                audioDeviceModule = null;
             }
 
             if (surfaceTextureHelper != null) {
