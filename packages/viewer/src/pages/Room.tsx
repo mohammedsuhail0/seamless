@@ -28,6 +28,15 @@ import {
   LogOut,
   Trash2
 } from 'lucide-react';
+import { registerPlugin } from '@capacitor/core';
+
+interface ScreenSharePlugin {
+  isAvailable(): Promise<{ available: boolean }>;
+  startCapture(options: { roomCode: string; serverUrl: string; token?: string; displayName?: string }): Promise<{ status: string }>;
+  stopCapture(): Promise<{ status: string }>;
+}
+
+const NativeScreenShare = registerPlugin<ScreenSharePlugin>('BroSyncScreenShare');
 
 interface RoomProps {
   roomCode: string;
@@ -326,9 +335,38 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     role,
   });
 
+  const [isMobileNativeStreaming, setIsMobileNativeStreaming] = useState(false);
+
   const handleStartCapture = async () => {
+    // 1. Check if running inside the native Android APK with hardware encoder
+    try {
+      const avail = await NativeScreenShare.isAvailable();
+      if (avail?.available) {
+        const token = localStorage.getItem('brosync_access_token') || undefined;
+        const serverUrl = api.getBaseUrl();
+        const res = await NativeScreenShare.startCapture({
+          roomCode: roomCode.toUpperCase(),
+          serverUrl,
+          token,
+          displayName: userContext?.displayName || 'Mobile Host',
+        });
+        if (res?.status === 'streaming') {
+          setIsMobileNativeStreaming(true);
+          return;
+        }
+      }
+    } catch (e: any) {
+      if (e?.message && !e.message.includes('not implemented') && !e.message.includes('cancelled')) {
+        console.warn('Native screen share check:', e);
+      }
+      if (e?.message && e.message.includes('cancelled')) {
+        return;
+      }
+    }
+
+    // 2. Fallback to standard web getDisplayMedia for desktop browsers
     if (!navigator.mediaDevices?.getDisplayMedia) {
-      alert("📺 Mobile screen broadcasting requires Android Chrome/Edge or the BroSync Android APK. On iOS Safari, you can join, watch, and chat with friends.");
+      alert("📺 To stream your phone screen with zero latency, please install the BroSync Android APK. On iOS Safari, you can join, watch, and chat with friends.");
       return;
     }
     try {
@@ -339,6 +377,22 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       }
     }
   };
+
+  const handleStopCapture = async () => {
+    if (isMobileNativeStreaming) {
+      try {
+        await NativeScreenShare.stopCapture();
+      } catch (e) {}
+      setIsMobileNativeStreaming(false);
+    }
+    stopCapture();
+  };
+
+  useEffect(() => {
+    return () => {
+      NativeScreenShare.stopCapture().catch(() => {});
+    };
+  }, []);
 
   // Attach stream to video tag
   useEffect(() => {
@@ -830,20 +884,37 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 )}
               </>
             ) : role === MemberRole.HOST ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>🎬</div>
-                <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Lounge Ready to Host</h3>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
-                  Share a browser window or tab containing your content. All connected viewers will watch in real-time.
-                </p>
-                <button 
-                  className="btn-red" 
-                  onClick={handleStartCapture} 
-                  style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
-                >
-                  <GoldLogoSVG size={16} /> Start Lounge Stream
-                </button>
-              </div>
+              isMobileNativeStreaming ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+                  <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.4))' }}>📱</div>
+                  <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#10b981', fontFamily: 'var(--font-serif)' }}>Mobile Screen Live</h3>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
+                    Broadcasting phone screen with hardware acceleration. Viewers across all devices are watching with zero latency! You can switch to any app or game.
+                  </p>
+                  <button 
+                    className="btn-red" 
+                    onClick={handleStopCapture} 
+                    style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center', background: '#dc2626' }}
+                  >
+                    Stop Broadcasting
+                  </button>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
+                  <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>🎬</div>
+                  <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Lounge Ready to Host</h3>
+                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
+                    Share a browser window, app, or your phone screen. All connected viewers will watch in real-time.
+                  </p>
+                  <button 
+                    className="btn-red" 
+                    onClick={handleStartCapture} 
+                    style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
+                  >
+                    <GoldLogoSVG size={16} /> Start Lounge Stream
+                  </button>
+                </div>
+              )
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
                 <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>📡</div>
@@ -879,12 +950,12 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
               {role === MemberRole.HOST && (
                 <button 
                   className="btn-red" 
-                  onClick={stream ? stopCapture : handleStartCapture}
-                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  onClick={stream || isMobileNativeStreaming ? handleStopCapture : handleStartCapture}
+                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: (stream || isMobileNativeStreaming) ? '#dc2626' : undefined }}
                 >
                   <GoldLogoSVG size={14} />
-                  <span className="hide-mobile">{stream ? 'Stop Screen Share' : 'Start Screen Share'}</span>
-                  <span className="show-mobile-only">{stream ? 'Stop' : 'Share'}</span>
+                  <span className="hide-mobile">{stream || isMobileNativeStreaming ? 'Stop Screen Share' : 'Start Screen Share'}</span>
+                  <span className="show-mobile-only">{stream || isMobileNativeStreaming ? 'Stop' : 'Share'}</span>
                 </button>
               )}
             </div>
