@@ -303,13 +303,14 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatMessages]);
 
-  // 3. WebRTC Hooks setup
+  // 3. WebRTC Hooks setup & Authoritative Role resolution
   useEffect(() => {
-    if (roomInfo?.hostId && userContext?.id) {
-      if (roomInfo.hostId === userContext.id) {
+    if (roomInfo && userContext) {
+      const isHost = 
+        (roomInfo.hostId && userContext.id && roomInfo.hostId === userContext.id) ||
+        (roomInfo.hostName && userContext.displayName && roomInfo.hostName.toLowerCase() === userContext.displayName.toLowerCase());
+      if (isHost) {
         setRole(MemberRole.HOST);
-      } else {
-        setRole(MemberRole.VIEWER);
       }
     }
   }, [roomInfo, userContext]);
@@ -460,33 +461,35 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     };
   }, []);
 
-  const resetControlsTimeout = () => {
+  const resetControlsTimeout = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
-    if (!showChat) {
+    // Only auto-hide controls when a stream is actively playing and chat is closed!
+    // When waiting for stream or before sharing, controls stay visible 100% of the time.
+    if (stream && videoPlaying && !showChat) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }, 3500);
+      }, 4000);
     }
-  };
+  }, [stream, videoPlaying, showChat]);
 
   useEffect(() => {
-    if (!showChat) {
-      resetControlsTimeout();
-    } else {
+    if (!stream || !videoPlaying || showChat) {
       setShowControls(true);
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
+    } else {
+      resetControlsTimeout();
     }
     return () => {
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current);
       }
     };
-  }, [showChat]);
+  }, [showChat, stream, videoPlaying, resetControlsTimeout]);
 
   const isMeInControl =
     !!currentController &&
@@ -773,17 +776,17 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </header>
 
       {/* ── Main Theater Area ── */}
-      <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
+      <main className="relative flex-1 w-full min-h-0 flex items-center justify-center p-4 pt-16 pb-24 overflow-hidden z-10">
         {/* Remote Control HUD Overlay */}
         {isMeInControl && (
-          <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-[#0d0e16]/90 backdrop-blur-xl border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-[0_4px_20px_rgba(245,158,11,0.3)] flex items-center gap-2">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-[#0d0e16]/90 backdrop-blur-xl border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-[0_4px_20px_rgba(245,158,11,0.3)] flex items-center gap-2">
             <Gamepad2 className="w-4 h-4 text-amber-400" />
             <span>You have remote sync control</span>
           </div>
         )}
 
         {/* Video Canvas Container */}
-        <div className="relative w-full h-full flex items-center justify-center">
+        <div className="relative w-full max-w-5xl h-full flex items-center justify-center">
           {stream ? (
             <>
               <video
@@ -924,34 +927,34 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         <div className="rotate-device-tip">
           <span>🔄 Rotate phone for theater view</span>
         </div>
-      </div>
+      </main>
 
       {/* ── Floating Bottom Toolbar Dock ── */}
       <footer 
-        className="room-footer fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 sm:px-4 py-2 rounded-2xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-white/[0.1] shadow-[0_16px_40px_rgba(0,0,0,0.6)] flex items-center gap-2 sm:gap-3 transition-all duration-300 max-w-[calc(100vw-2rem)]"
+        className="spatial-bottom-dock fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-3.5 sm:px-5 py-2.5 rounded-2xl bg-[#0d0e16]/95 backdrop-blur-3xl border border-white/[0.12] shadow-[0_16px_50px_rgba(0,0,0,0.7),0_0_20px_rgba(245,158,11,0.15)] flex items-center gap-2 sm:gap-3 transition-all duration-300 pointer-events-auto max-w-[calc(100vw-2rem)]"
         style={{
           marginBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))',
           opacity: showControls ? 1 : 0,
-          transform: showControls ? 'translate(-50%, 0)' : 'translate(-50%, 150%)',
+          transform: `translateX(-50%) translateY(${showControls ? '0px' : '40px'})`,
           pointerEvents: showControls ? 'auto' : 'none',
         }}
       >
-        {/* Host Screen Share Trigger */}
-        {role === MemberRole.HOST && (
+        {/* Screen Share Trigger: Shown for Host OR if viewer wants to start streaming */}
+        {(role === MemberRole.HOST || (!stream && !isMobileNativeStreaming)) && (
           <button
             onClick={() => {
               sound.click();
               (stream || isMobileNativeStreaming) ? handleStopCapture() : handleStartCapture();
             }}
             className={`
-              flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95
+              flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95 shadow-md
               ${(stream || isMobileNativeStreaming)
                 ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
-                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md'}
+                : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]'}
             `}
           >
             <Tv className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{(stream || isMobileNativeStreaming) ? 'Stop Sharing' : 'Share Screen'}</span>
+            <span>{(stream || isMobileNativeStreaming) ? 'Stop Sharing' : 'Share Screen'}</span>
           </button>
         )}
 

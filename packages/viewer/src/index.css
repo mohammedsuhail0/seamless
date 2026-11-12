@@ -441,51 +441,7 @@ button, input, select, textarea {
   border-left: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* Header & Footer styling tweaks */
-.room-header {
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 30 !important;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
 
-.room-footer {
-  position: absolute !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 30 !important;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-/* Mobile optimizations for headers and footers */
-@media (max-width: 600px) {
-  .room-header {
-    padding: 0.5rem 1rem !important;
-  }
-  .room-header h1 {
-    font-size: var(--text-sm) !important;
-  }
-  .room-header span {
-    font-size: 10px !important;
-  }
-  .room-header .btn {
-    padding: 0.2rem 0.5rem !important;
-    font-size: 11px !important;
-  }
-
-  .room-footer {
-    padding: 0.5rem 1rem !important;
-    flex-wrap: wrap !important;
-    gap: 0.5rem !important;
-  }
-  .room-footer .btn {
-    padding: 0.4rem 0.8rem !important;
-    font-size: var(--text-xs) !important;
-  }
-}
 
 /* ── Mobile Responsive Optimizations ── */
 
@@ -518,15 +474,7 @@ button, input, select, textarea {
     padding: 0.25rem 0.75rem !important;
     background: rgba(10, 14, 39, 0.8) !important;
   }
-  .room-footer {
-    position: absolute !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    z-index: 30 !important;
-    padding: 0.25rem 0.75rem !important;
-    background: rgba(10, 14, 39, 0.8) !important;
-  }
+
   .room-content {
     height: 100vh !important;
     width: 100vw !important;
