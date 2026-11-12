@@ -33,3 +33,5 @@ services:
         sync: false
       - key: FORCE_TURN
         value: false
+      - key: GOOGLE_CLIENT_ID
+        value: 235405233467-mah2rt1mo7pij09uvinqtukk2l8vvi49.apps.googleusercontent.com

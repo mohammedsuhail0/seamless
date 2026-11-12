@@ -30,6 +30,8 @@ jobs:
         run: npm ci
 
       - name: Build Web Application
+        env:
+          VITE_GOOGLE_CLIENT_ID: '235405233467-mah2rt1mo7pij09uvinqtukk2l8vvi49.apps.googleusercontent.com'
         run: |
           npm run build -w packages/shared
           npm run build -w packages/viewer

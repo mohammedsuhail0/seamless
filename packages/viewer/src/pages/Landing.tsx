@@ -62,7 +62,7 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
   // Quick Room Join code
   const [roomCode, setRoomCode] = useState('');
 
-  const googleClientId = ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '';
+  const googleClientId = ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '235405233467-mah2rt1mo7pij09uvinqtukk2l8vvi49.apps.googleusercontent.com';
 
   useEffect(() => {
     if (!googleClientId || googleInitRef.current || tempGoogleSession) return;

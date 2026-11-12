@@ -342,16 +342,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     try {
       const avail = await NativeScreenShare.isAvailable();
       if (avail?.available) {
-        // Request microphone permission so the native audio capturer can record
-        if (navigator.mediaDevices?.getUserMedia) {
-          try {
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            micStream.getTracks().forEach(t => t.stop());
-          } catch (micErr) {
-            console.log('Microphone permission check in APK:', micErr);
-          }
-        }
-
         const token = localStorage.getItem('brosync_access_token') || undefined;
         const serverUrl = api.getBaseUrl();
         const res = await NativeScreenShare.startCapture({
