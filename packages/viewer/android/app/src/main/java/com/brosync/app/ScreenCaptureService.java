@@ -214,8 +214,8 @@ public class ScreenCaptureService extends Service {
                 captureWidth = (int) Math.round((double) width * (double) captureHeight / height);
                 captureWidth = (captureWidth / 16) * 16;
             }
-            Log.i(TAG, "Dynamic capture resolution calculated: " + captureWidth + "x" + captureHeight + " @ 60fps (native: " + width + "x" + height + ")");
-            screenCapturer.startCapture(captureWidth, captureHeight, 60);
+            Log.i(TAG, "Dynamic capture resolution calculated: " + captureWidth + "x" + captureHeight + " @ 30fps (native: " + width + "x" + height + ")");
+            screenCapturer.startCapture(captureWidth, captureHeight, 30);
 
             videoTrack = peerConnectionFactory.createVideoTrack("BROSYNC_MOBILE_SCREEN_TRACK", videoSource);
             videoTrack.setEnabled(true);
@@ -475,9 +475,9 @@ public class ScreenCaptureService extends Service {
                             params.degradationPreference = RtpParameters.DegradationPreference.MAINTAIN_FRAMERATE;
                             if (params.encodings != null && !params.encodings.isEmpty()) {
                                 RtpParameters.Encoding enc = params.encodings.get(0);
-                                enc.minBitrateBps = 3000 * 1000;
-                                enc.maxBitrateBps = 8000 * 1000;
-                                enc.maxFramerate = 60;
+                                enc.minBitrateBps = 1500 * 1000;
+                                enc.maxBitrateBps = 4000 * 1000;
+                                enc.maxFramerate = 30;
                             }
                             sender.setParameters(params);
                         }
@@ -538,7 +538,7 @@ public class ScreenCaptureService extends Service {
             for (String line : lines) {
                 sb.append(line).append("\r\n");
                 if (line.startsWith("m=video")) {
-                    sb.append("b=AS:8000\r\n");
+                    sb.append("b=AS:4000\r\n");
                 } else if (line.startsWith("m=audio")) {
                     sb.append("b=AS:256\r\n");
                 }
