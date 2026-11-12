@@ -1151,6 +1151,23 @@ button, input, select, textarea {
   height: 100dvh !important;
   z-index: 9999 !important;
   background: #000000 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.room-container.is-room-expanded main {
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+}
+
+.room-container.is-room-expanded video {
+  width: 100vw !important;
+  height: 100dvh !important;
+  max-width: none !important;
+  max-height: none !important;
 }
 
 .room-container.is-room-expanded .room-content,

@@ -132,6 +132,9 @@ public class ScreenCaptureService extends Service {
             if (resultData != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     int serviceType = ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        serviceType |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+                    }
                     startForeground(NOTIFICATION_ID, buildNotification(), serviceType);
                 } else {
                     startForeground(NOTIFICATION_ID, buildNotification());
@@ -682,8 +685,7 @@ public class ScreenCaptureService extends Service {
     private void handleAudioSamples(JavaAudioDeviceModule.AudioSamples samples) {
         if (audioDeviceModule == null) return;
         try {
-            if (cachedWebRtcByteBuffer == null && !isByteBufferLookupAttempted) {
-                isByteBufferLookupAttempted = true;
+            if (cachedWebRtcByteBuffer == null) {
                 try {
                     Field inputField = null;
                     try {

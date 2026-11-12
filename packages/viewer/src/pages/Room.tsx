@@ -40,6 +40,7 @@ interface ScreenSharePlugin {
   isAvailable(): Promise<{ available: boolean }>;
   startCapture(options: { roomCode: string; serverUrl: string; token?: string; displayName?: string }): Promise<{ status: string }>;
   stopCapture(): Promise<{ status: string }>;
+  setImmersiveFullscreen(options: { enabled: boolean }): Promise<{ fullscreen: boolean }>;
 }
 
 const NativeScreenShare = registerPlugin<ScreenSharePlugin>('BroSyncScreenShare');
@@ -440,13 +441,49 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     }
   };
 
+  // Sync fullscreen state with browser / OS changes (e.g. Esc key or gesture back)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isDocFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isDocFullscreen);
+      if (Capacitor.isNativePlatform()) {
+        NativeScreenShare.setImmersiveFullscreen({ enabled: isDocFullscreen }).catch(() => {});
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   const toggleFullscreen = () => {
+    const nextFullscreen = !isFullscreen;
+    setIsFullscreen(nextFullscreen);
+
+    // 1. Android APK hardware immersive full-screen trigger
+    if (Capacitor.isNativePlatform()) {
+      NativeScreenShare.setImmersiveFullscreen({ enabled: nextFullscreen }).catch(() => {});
+      try {
+        const orientation = screen.orientation as any;
+        if (orientation?.lock) {
+          if (nextFullscreen) {
+            orientation.lock('landscape').catch(() => {});
+          } else if (orientation?.unlock) {
+            orientation.unlock().catch(() => {});
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Standard DOM element fullscreen trigger
     if (!roomContainerRef.current) return;
     
-    if (roomContainerRef.current.requestFullscreen) {
-      if (!document.fullscreenElement) {
+    if (nextFullscreen) {
+      if (roomContainerRef.current.requestFullscreen && !document.fullscreenElement) {
         roomContainerRef.current.requestFullscreen().then(() => {
-          setIsFullscreen(true);
           try {
             const orientation = screen.orientation as any;
             if (orientation?.lock && window.matchMedia('(max-width: 768px)').matches) {
@@ -454,22 +491,23 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
             }
           } catch {}
         }).catch(err => {
-          console.error('Fullscreen failed:', err);
-          setIsFullscreen(true);
+          console.warn('Standard requestFullscreen fallback to immersive CSS:', err);
         });
-      } else {
-        document.exitFullscreen().finally(() => setIsFullscreen(false));
-      }
-    } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
-      try {
-        (videoRef.current as any).webkitEnterFullscreen();
-        setIsFullscreen(true);
-      } catch (err) {
-        console.error('iOS Fullscreen failed:', err);
-        setIsFullscreen((current) => !current);
+      } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
+        try {
+          (videoRef.current as any).webkitEnterFullscreen();
+        } catch (err) {
+          console.warn('iOS webkitEnterFullscreen fallback to immersive CSS:', err);
+        }
       }
     } else {
-      setIsFullscreen((current) => !current);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      try {
+        const orientation = screen.orientation as any;
+        if (orientation?.unlock) orientation.unlock().catch(() => {});
+      } catch {}
     }
   };
 
@@ -698,7 +736,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   return (
     <div 
       ref={roomContainerRef}
-      className={`relative w-full h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#08090e] text-[#F3F4F6] flex flex-col select-none ${isFullscreen ? 'is-room-expanded' : ''} ${showChat ? 'chat-is-open' : ''}`}
+      className={`room-container relative w-full h-[100dvh] max-h-[100dvh] overflow-hidden bg-black text-[#F3F4F6] flex flex-col select-none ${isFullscreen ? 'is-room-expanded fixed inset-0 z-50 bg-black' : ''} ${showChat ? 'chat-is-open' : ''}`}
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
       onTouchStart={resetControlsTimeout}
@@ -806,7 +844,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       </header>
 
       {/* ── Main Theater Area ── */}
-      <main className="relative flex-1 w-full min-h-0 flex items-center justify-center p-4 pt-16 pb-24 overflow-hidden z-10">
+      <main className={`relative flex-1 w-full min-h-0 flex items-center justify-center overflow-hidden z-10 transition-all ${isFullscreen ? 'p-0 pt-0 pb-0 w-full h-full' : 'p-2 sm:p-4 pt-14 pb-20'}`}>
         {/* Remote Control HUD Overlay */}
         {isMeInControl && (
           <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-[#0d0e16]/90 backdrop-blur-xl border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-[0_4px_20px_rgba(245,158,11,0.3)] flex items-center gap-2">
@@ -816,7 +854,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         )}
 
         {/* Video Canvas Container */}
-        <div className="relative w-full max-w-5xl h-full flex items-center justify-center">
+        <div className={`relative w-full h-full flex items-center justify-center transition-all ${isFullscreen ? 'max-w-none' : 'max-w-5xl'}`}>
           {stream ? (
             <>
               <video
@@ -963,9 +1001,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         </div>
 
         {/* Portrait Orientation Tip */}
-        <div className="rotate-device-tip">
-          <span>🔄 Rotate phone for theater view</span>
-        </div>
+        {!isFullscreen && (
+          <div className="rotate-device-tip">
+            <span>🔄 Rotate phone for theater view</span>
+          </div>
+        )}
       </main>
 
       {/* ── Floating Bottom Toolbar Dock ── */}
