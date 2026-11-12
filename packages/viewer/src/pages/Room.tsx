@@ -399,26 +399,25 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       video.srcObject = stream;
     }
 
-    video.muted = isMuted;
+    // Set volume to maximum and attempt unmuted playback first
+    video.volume = 1.0;
+    video.muted = false;
 
     const playPromise = video.play();
     if (playPromise !== undefined) {
       playPromise
         .then(() => {
           setVideoPlaying(true);
+          setIsMuted(false);
         })
         .catch((err) => {
-          console.warn('⚠️ Autoplay prevented by browser:', err);
+          console.warn('⚠️ Unmuted autoplay blocked by browser policy, falling back to muted:', err);
           // If unmuted autoplay failed due to browser policy, fallback to muted autoplay so video displays
-          if (!video.muted) {
-            video.muted = true;
-            setIsMuted(true);
-            video.play()
-              .then(() => setVideoPlaying(true))
-              .catch(() => setVideoPlaying(false));
-          } else {
-            setVideoPlaying(false);
-          }
+          video.muted = true;
+          setIsMuted(true);
+          video.play()
+            .then(() => setVideoPlaying(true))
+            .catch(() => setVideoPlaying(false));
         });
     }
   }, [stream]);
@@ -726,9 +725,18 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       return;
     }
     const target = e.target as HTMLElement;
-    if (target.closest('.room-header') || target.closest('.room-footer') || target.closest('.chat-drawer')) {
+    if (target.closest('.room-header') || target.closest('.spatial-bottom-dock') || target.closest('.chat-drawer')) {
       return;
     }
+
+    // Direct user-gesture unmuting on first tap/click anywhere on video
+    if (videoRef.current && isMuted && stream) {
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1.0;
+      setIsMuted(false);
+      videoRef.current.play().catch(() => {});
+    }
+
     setShowControls(prev => !prev);
     resetControlsTimeout();
   };

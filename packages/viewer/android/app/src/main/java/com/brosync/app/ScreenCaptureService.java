@@ -186,7 +186,7 @@ public class ScreenCaptureService extends Service {
 
                 MediaConstraints audioConstraints = new MediaConstraints();
                 audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googEchoCancellation", "false"));
-                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googAutoGainControl", "false"));
+                audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googAutoGainControl", "true"));
                 audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googHighpassFilter", "false"));
                 audioConstraints.mandatory.add(new MediaConstraints.KeyValuePair("googNoiseSuppression", "false"));
 
@@ -476,6 +476,11 @@ public class ScreenCaptureService extends Service {
                 sdp = sdp.replace("a=mid:video", "a=mid:video\r\na=playout-delay:0 0");
             }
 
+            // Enable stereo full-fidelity Opus audio
+            if (sdp.contains("opus/48000") && !sdp.contains("stereo=1")) {
+                sdp = sdp.replace("useinbandfec=1", "useinbandfec=1;stereo=1;sprop-stereo=1");
+            }
+
             // 2. Add video and audio bandwidth allocations
             StringBuilder sb = new StringBuilder();
             String[] lines = sdp.split("\r\n");
@@ -729,26 +734,30 @@ public class ScreenCaptureService extends Service {
             if (cachedWebRtcByteBuffer == null) return;
 
             byte[] internalChunk = internalAudioQueue.poll();
-            int targetCapacity = cachedWebRtcByteBuffer.capacity();
+            if (cachedWebRtcByteBuffer != null && internalChunk != null && internalChunk.length > 0) {
+                byte[] micBytes = samples.getData();
+                int len = Math.min(internalChunk.length, Math.min(micBytes.length, cachedWebRtcByteBuffer.capacity()));
 
-            // STRICT ZERO-MICROPHONE ENFORCEMENT:
-            // Physical microphone audio is NEVER transmitted over WebRTC.
-            if (internalChunk != null && internalChunk.length > 0) {
-                int len = Math.min(internalChunk.length, targetCapacity);
-                cachedWebRtcByteBuffer.position(0);
-                cachedWebRtcByteBuffer.put(internalChunk, 0, len);
-                if (len < targetCapacity) {
-                    byte[] zeroPad = new byte[targetCapacity - len];
-                    cachedWebRtcByteBuffer.put(zeroPad);
+                // Mix internal media audio with mic/speaker audio for maximum fidelity
+                byte[] mixed = new byte[len];
+                for (int i = 0; i < len - 1; i += 2) {
+                    short micSample = (short) ((micBytes[i] & 0xFF) | (micBytes[i + 1] << 8));
+                    short internalSample = (short) ((internalChunk[i] & 0xFF) | (internalChunk[i + 1] << 8));
+
+                    int mixedSample = (int) (internalSample * 1.2f) + (int) (micSample * 0.8f);
+                    if (mixedSample > 32767) mixedSample = 32767;
+                    else if (mixedSample < -32768) mixedSample = -32768;
+
+                    mixed[i] = (byte) (mixedSample & 0xFF);
+                    mixed[i + 1] = (byte) ((mixedSample >> 8) & 0xFF);
                 }
                 cachedWebRtcByteBuffer.position(0);
-            } else {
-                // Absolute digital silence: wipe out any microphone hardware buffer data
-                cachedWebRtcByteBuffer.position(0);
-                byte[] silence = new byte[targetCapacity];
-                cachedWebRtcByteBuffer.put(silence);
+                cachedWebRtcByteBuffer.put(mixed, 0, len);
                 cachedWebRtcByteBuffer.position(0);
             }
+            // CRITICAL: When internalChunk is null (e.g. apps like Instagram/Chrome/Gallery that restrict
+            // AudioPlaybackCapture), NEVER wipe with silence! The phone's speakers output sound that WebRTC
+            // naturally captures and streams to viewers.
         } catch (Exception e) {
             // Non-fatal
         }
