@@ -15,12 +15,14 @@ import androidx.activity.result.ActivityResult;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 @CapacitorPlugin(
     name = "BroSyncScreenShare",
@@ -42,19 +44,15 @@ public class ScreenSharePlugin extends Plugin {
 
     @PluginMethod
     public void startCapture(PluginCall call) {
-        Context context = getContext();
-
-        // Ensure RECORD_AUDIO permission is granted so internal media audio capture can record
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissionForAlias("audio", call, "audioPermissionCallback");
-            return;
+        if (getPermissionState("audio") != PermissionState.GRANTED) {
+            requestPermissionForAlias("audio", call, "handleAudioPermission");
+        } else {
+            launchMediaProjection(call);
         }
-
-        launchMediaProjection(call);
     }
 
-    @ActivityCallback
-    private void audioPermissionCallback(PluginCall call) {
+    @PermissionCallback
+    private void handleAudioPermission(PluginCall call) {
         launchMediaProjection(call);
     }
 

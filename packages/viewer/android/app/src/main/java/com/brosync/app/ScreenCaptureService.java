@@ -8,10 +8,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
-import android.media.AudioAttributes;
-import android.media.AudioFormat;
-import android.media.AudioPlaybackCaptureConfiguration;
-import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.media.projection.MediaProjection;
 import android.os.Build;
@@ -27,12 +23,9 @@ import org.webrtc.*;
 import org.webrtc.audio.AudioDeviceModule;
 import org.webrtc.audio.JavaAudioDeviceModule;
 
-import java.lang.reflect.Field;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 import io.socket.client.IO;
 import io.socket.client.Socket;
@@ -65,14 +58,6 @@ public class ScreenCaptureService extends Service {
     private String serverUrl;
     private final Map<String, PeerConnection> peerConnections = new ConcurrentHashMap<>();
 
-    // Internal system & media audio playback capture (YouTube, Gallery, Music, Games)
-    private AudioRecord internalAudioRecord;
-    private Thread internalAudioThread;
-    private volatile boolean isInternalAudioCapturing = false;
-    private final ConcurrentLinkedQueue<byte[]> internalAudioQueue = new ConcurrentLinkedQueue<>();
-    private ByteBuffer cachedWebRtcByteBuffer = null;
-    private boolean isByteBufferLookupAttempted = false;
-
     @Override
     public void onCreate() {
         super.onCreate();
@@ -86,7 +71,7 @@ public class ScreenCaptureService extends Service {
                     "BroSync Screen Stream",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Broadcasting phone screen to room viewers in real-time");
+            channel.setDescription("Broadcasting phone screen and audio to room viewers in real-time");
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
@@ -168,14 +153,6 @@ public class ScreenCaptureService extends Service {
                         .setAudioSource(MediaRecorder.AudioSource.MIC)
                         .setUseHardwareAcousticEchoCanceler(false)
                         .setUseHardwareNoiseSuppressor(false)
-                        .setUseStereoInput(true)
-                        .setUseStereoOutput(true)
-                        .setSamplesReadyCallback(new JavaAudioDeviceModule.SamplesReadyCallback() {
-                            @Override
-                            public void onWebRtcAudioRecordSamplesReady(JavaAudioDeviceModule.AudioSamples samples) {
-                                handleAudioSamples(samples);
-                            }
-                        })
                         .createAudioDeviceModule();
 
                 peerConnectionFactory = PeerConnectionFactory.builder()
@@ -215,7 +192,7 @@ public class ScreenCaptureService extends Service {
             videoSource = peerConnectionFactory.createVideoSource(screenCapturer.isScreencast());
             screenCapturer.initialize(surfaceTextureHelper, getApplicationContext(), videoSource.getCapturerObserver());
             
-            // Calculate dynamic resolution matching exact device aspect ratio (eliminates letterbox scaling lag)
+            // Dynamic capture resolution matching native device aspect ratio (60fps, 16px macroblock aligned)
             DisplayMetrics metrics = getResources().getDisplayMetrics();
             int width = metrics.widthPixels;
             int height = metrics.heightPixels;
@@ -237,7 +214,7 @@ public class ScreenCaptureService extends Service {
             }
             Log.i(TAG, "Dynamic capture resolution calculated: " + captureWidth + "x" + captureHeight + " @ 60fps (native: " + width + "x" + height + ")");
             screenCapturer.startCapture(captureWidth, captureHeight, 60);
-            startInternalAudioCapture();
+
             videoTrack = peerConnectionFactory.createVideoTrack("BROSYNC_MOBILE_SCREEN_TRACK", videoSource);
             videoTrack.setEnabled(true);
 
@@ -252,150 +229,131 @@ public class ScreenCaptureService extends Service {
 
     private void connectSignaling(String token, String displayName) {
         try {
-            String baseUrl = (serverUrl != null && !serverUrl.isEmpty()) ? serverUrl : "https://brosync-api.onrender.com";
             IO.Options options = new IO.Options();
-            options.transports = new String[]{"websocket", "polling"};
+            options.transports = new String[]{"websocket"};
             options.reconnection = true;
+            options.reconnectionAttempts = 50;
+            options.reconnectionDelay = 1000;
+            if (token != null && !token.isEmpty()) {
+                options.auth = Collections.singletonMap("token", token);
+            }
 
-            signalingSocket = IO.socket(URI.create(baseUrl), options);
+            signalingSocket = IO.socket(serverUrl, options);
 
             signalingSocket.on(Socket.EVENT_CONNECT, args -> {
-                Log.i(TAG, "Signaling connected for mobile broadcaster");
+                Log.i(TAG, "Signaling socket connected. Joining room: " + roomCode);
                 try {
-                    JSONObject joinPayload = new JSONObject();
-                    joinPayload.put("roomCode", roomCode);
-                    joinPayload.put("displayName", displayName != null ? displayName : "Mobile Host (APK)");
-                    if (token != null && !token.isEmpty()) {
-                        joinPayload.put("token", token);
-                    }
-                    signalingSocket.emit("room:join", joinPayload);
-                } catch (Exception err) {
-                    Log.e(TAG, "Error emitting room:join", err);
+                    JSONObject joinData = new JSONObject();
+                    joinData.put("roomCode", roomCode);
+                    joinData.put("displayName", displayName != null ? displayName : "Host (Mobile)");
+                    signalingSocket.emit("room:join", joinData);
+
+                    // Tell viewers host screen broadcast is ready
+                    JSONObject startData = new JSONObject();
+                    startData.put("roomCode", roomCode);
+                    signalingSocket.emit("stream:start", startData);
+                } catch (Exception e) {
+                    Log.e(TAG, "Error emitting room:join", e);
                 }
             });
 
-            signalingSocket.on("rtc:reconnect-request", args -> {
-                try {
-                    if (args.length > 0 && args[0] instanceof JSONObject) {
-                        JSONObject data = (JSONObject) args[0];
-                        String viewerId = data.optString("senderUserId");
-                        if (!viewerId.isEmpty()) {
-                            createOfferForViewer(viewerId);
-                        }
+            signalingSocket.on("room:user_joined", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject userObj = (JSONObject) args[0];
+                    String joinedUserId = userObj.optString("id");
+                    Log.i(TAG, "Viewer joined room: " + joinedUserId + ". Initiating WebRTC peer connection...");
+                    createPeerConnectionForViewer(joinedUserId);
+                }
+            });
+
+            signalingSocket.on("room:user_left", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    String leftUserId = data.optString("userId");
+                    PeerConnection pc = peerConnections.remove(leftUserId);
+                    if (pc != null) {
+                        pc.close();
+                        Log.i(TAG, "Closed peer connection for departed viewer: " + leftUserId);
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error on rtc:reconnect-request", e);
                 }
             });
 
             signalingSocket.on("rtc:answer", args -> {
-                try {
-                    if (args.length > 0 && args[0] instanceof JSONObject) {
-                        JSONObject data = (JSONObject) args[0];
-                        String viewerId = data.optString("senderUserId");
-                        JSONObject sdpObj = data.optJSONObject("sdp");
-                        if (sdpObj != null) {
-                            PeerConnection pc = peerConnections.get(viewerId);
-                            if (pc != null) {
-                                SessionDescription sdp = new SessionDescription(
-                                        SessionDescription.Type.ANSWER,
-                                        sdpObj.optString("sdp")
-                                );
-                                pc.setRemoteDescription(new SimpleSdpObserver(), sdp);
-                            }
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    String senderId = data.optString("senderUserId");
+                    JSONObject sdpObj = data.optJSONObject("sdp");
+                    if (sdpObj != null) {
+                        String sdp = sdpObj.optString("sdp");
+                        PeerConnection pc = peerConnections.get(senderId);
+                        if (pc != null) {
+                            pc.setRemoteDescription(new SimpleSdpObserver(), new SessionDescription(SessionDescription.Type.ANSWER, sdp));
+                            Log.i(TAG, "Applied WebRTC Answer from viewer: " + senderId);
                         }
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error on rtc:answer", e);
                 }
             });
 
-            signalingSocket.on("rtc:ice-candidate", args -> {
-                try {
-                    if (args.length > 0 && args[0] instanceof JSONObject) {
-                        JSONObject data = (JSONObject) args[0];
-                        String viewerId = data.optString("senderUserId");
-                        JSONObject candObj = data.optJSONObject("candidate");
-                        if (candObj != null) {
-                            PeerConnection pc = peerConnections.get(viewerId);
-                            if (pc != null) {
-                                IceCandidate candidate = new IceCandidate(
-                                        candObj.optString("sdpMid"),
-                                        candObj.optInt("sdpMLineIndex"),
-                                        candObj.optString("candidate")
-                                );
-                                pc.addIceCandidate(candidate);
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error on rtc:ice-candidate", e);
-                }
-            });
+            signalingSocket.on("rtc:ice_candidate", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    String senderId = data.optString("senderUserId");
+                    JSONObject candidateObj = data.optJSONObject("candidate");
+                    if (candidateObj != null) {
+                        String sdp = candidateObj.optString("candidate");
+                        String sdpMid = candidateObj.optString("sdpMid");
+                        int sdpMLineIndex = candidateObj.optInt("sdpMLineIndex");
 
-            signalingSocket.on("presence:sync", args -> {
-                try {
-                    if (args.length > 0 && args[0] instanceof JSONObject) {
-                        JSONObject payload = (JSONObject) args[0];
-                        var members = payload.optJSONArray("members");
-                        if (members != null) {
-                            for (int i = 0; i < members.length(); i++) {
-                                JSONObject m = members.getJSONObject(i);
-                                String role = m.optString("role");
-                                String userId = m.optString("userId");
-                                if (!"HOST".equalsIgnoreCase(role) && !peerConnections.containsKey(userId)) {
-                                    createOfferForViewer(userId);
-                                }
-                            }
+                        IceCandidate candidate = new IceCandidate(sdpMid, sdpMLineIndex, sdp);
+                        PeerConnection pc = peerConnections.get(senderId);
+                        if (pc != null) {
+                            pc.addIceCandidate(candidate);
                         }
                     }
-                } catch (Exception e) {
-                    Log.e(TAG, "Error on presence:sync", e);
                 }
             });
 
             signalingSocket.connect();
 
         } catch (Exception e) {
-            Log.e(TAG, "Error setting up signaling", e);
+            Log.e(TAG, "Signaling connection error", e);
         }
     }
 
-    private void createOfferForViewer(String viewerId) {
-        if (peerConnectionFactory == null || videoTrack == null) return;
-
+    private void createPeerConnectionForViewer(String viewerId) {
         List<PeerConnection.IceServer> iceServers = new ArrayList<>();
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
-        iceServers.add(PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer());
-        iceServers.add(PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443")
-                .setUsername("openrelayproject")
-                .setPassword("openrelayproject")
-                .createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer());
 
         PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
         rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
         rtcConfig.continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY;
+        rtcConfig.bundlePolicy = PeerConnection.BundlePolicy.MAXBUNDLE;
+        rtcConfig.rtcpMuxPolicy = PeerConnection.RtcpMuxPolicy.REQUIRE;
+        rtcConfig.tcpCandidatePolicy = PeerConnection.TcpCandidatePolicy.DISABLED;
 
         PeerConnection pc = peerConnectionFactory.createPeerConnection(rtcConfig, new PeerConnection.Observer() {
             @Override public void onSignalingChange(PeerConnection.SignalingState signalingState) {}
             @Override public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
-                Log.d(TAG, "Viewer " + viewerId + " ICE State: " + iceConnectionState);
+                Log.d(TAG, "ICE Connection State for " + viewerId + ": " + iceConnectionState);
             }
             @Override public void onIceConnectionReceivingChange(boolean b) {}
             @Override public void onIceGatheringChange(PeerConnection.IceGatheringState iceGatheringState) {}
+
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
                 try {
                     JSONObject payload = new JSONObject();
                     payload.put("targetUserId", viewerId);
-                    JSONObject cand = new JSONObject();
-                    cand.put("candidate", iceCandidate.sdp);
-                    cand.put("sdpMid", iceCandidate.sdpMid);
-                    cand.put("sdpMLineIndex", iceCandidate.sdpMLineIndex);
-                    payload.put("candidate", cand);
-                    signalingSocket.emit("rtc:ice-candidate", payload);
+                    JSONObject candObj = new JSONObject();
+                    candObj.put("candidate", iceCandidate.sdp);
+                    candObj.put("sdpMid", iceCandidate.sdpMid);
+                    candObj.put("sdpMLineIndex", iceCandidate.sdpMLineIndex);
+                    payload.put("candidate", candObj);
+                    signalingSocket.emit("rtc:ice_candidate", payload);
                 } catch (Exception e) {
-                    Log.e(TAG, "Error sending ice candidate", e);
+                    Log.e(TAG, "Error emitting ICE candidate", e);
                 }
             }
             @Override public void onIceCandidatesRemoved(IceCandidate[] iceCandidates) {}
@@ -528,25 +486,6 @@ public class ScreenCaptureService extends Service {
                 videoSource = null;
             }
 
-            isInternalAudioCapturing = false;
-            if (internalAudioThread != null) {
-                try {
-                    internalAudioThread.interrupt();
-                } catch (Exception ignored) {}
-                internalAudioThread = null;
-            }
-
-            if (internalAudioRecord != null) {
-                try {
-                    internalAudioRecord.stop();
-                    internalAudioRecord.release();
-                } catch (Exception ignored) {}
-                internalAudioRecord = null;
-            }
-            internalAudioQueue.clear();
-            cachedWebRtcByteBuffer = null;
-            isByteBufferLookupAttempted = false;
-
             if (audioTrack != null) {
                 audioTrack.dispose();
                 audioTrack = null;
@@ -579,187 +518,6 @@ public class ScreenCaptureService extends Service {
 
         } catch (Exception e) {
             Log.e(TAG, "Error stopping stream", e);
-        }
-    }
-
-    private void startInternalAudioCapture() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            Log.i(TAG, "AudioPlaybackCapture requires Android 10+ (API 29).");
-            return;
-        }
-
-        new Thread(() -> {
-            MediaProjection mediaProjection = null;
-            // Poll for up to 3.5 seconds waiting for ScreenCapturerAndroid to initialize mediaProjection asynchronously
-            for (int i = 0; i < 35; i++) {
-                mediaProjection = extractMediaProjection();
-                if (mediaProjection != null) {
-                    Log.i(TAG, "MediaProjection successfully extracted on attempt " + (i + 1));
-                    break;
-                }
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException ignored) {}
-            }
-
-            if (mediaProjection == null) {
-                Log.e(TAG, "Could not extract active MediaProjection after 3.5s; internal audio disabled");
-                return;
-            }
-
-            try {
-                AudioPlaybackCaptureConfiguration config = new AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-                        .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-                        .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                        .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-                        .build();
-
-                int sampleRate = 48000;
-                int channelConfig = AudioFormat.CHANNEL_IN_STEREO;
-                int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-                int minBufSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioEncoding);
-                int bufferSize = Math.max(minBufSize * 2, 1920 * 8);
-
-                internalAudioRecord = new AudioRecord.Builder()
-                        .setAudioPlaybackCaptureConfig(config)
-                        .setAudioFormat(new AudioFormat.Builder()
-                                .setEncoding(audioEncoding)
-                                .setSampleRate(sampleRate)
-                                .setChannelMask(channelConfig)
-                                .build())
-                        .setBufferSizeInBytes(bufferSize)
-                        .build();
-
-                internalAudioRecord.startRecording();
-                isInternalAudioCapturing = true;
-
-                internalAudioThread = new Thread(() -> {
-                    android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO);
-                    // 10ms frame at 48kHz, 16-bit stereo = 480 frames * 4 bytes/frame = 1920 bytes
-                    byte[] readBuf = new byte[1920];
-                    while (isInternalAudioCapturing && internalAudioRecord != null) {
-                        try {
-                            int read = internalAudioRecord.read(readBuf, 0, readBuf.length);
-                            if (read > 0) {
-                                byte[] chunk = Arrays.copyOf(readBuf, read);
-                                // Zero-lag queue: keep maximum 4 chunks (~40ms) buffered
-                                while (internalAudioQueue.size() >= 4) {
-                                    internalAudioQueue.poll();
-                                }
-                                internalAudioQueue.offer(chunk);
-                            }
-                        } catch (Exception err) {
-                            Log.w(TAG, "Error reading internal audio chunk: " + err.getMessage());
-                            break;
-                        }
-                    }
-                }, "BroSyncInternalAudioThread");
-                internalAudioThread.setPriority(Thread.MAX_PRIORITY);
-                internalAudioThread.start();
-                Log.i(TAG, "Internal system/media playback audio capture started successfully (YouTube/Gallery/Music/Games enabled)");
-
-            } catch (Exception e) {
-                Log.e(TAG, "Failed to start internal playback audio capture", e);
-            }
-        }, "BroSyncAudioInitThread").start();
-    }
-
-    private MediaProjection extractMediaProjection() {
-        if (screenCapturer == null) return null;
-        try {
-            try {
-                Field f = ScreenCapturerAndroid.class.getDeclaredField("mediaProjection");
-                f.setAccessible(true);
-                Object obj = f.get(screenCapturer);
-                if (obj instanceof MediaProjection) return (MediaProjection) obj;
-            } catch (NoSuchFieldException ignored) {}
-
-            for (Field f : ScreenCapturerAndroid.class.getDeclaredFields()) {
-                if (MediaProjection.class.isAssignableFrom(f.getType())) {
-                    f.setAccessible(true);
-                    Object obj = f.get(screenCapturer);
-                    if (obj instanceof MediaProjection) return (MediaProjection) obj;
-                }
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to extract MediaProjection from ScreenCapturerAndroid", e);
-        }
-        return null;
-    }
-
-    private void handleAudioSamples(JavaAudioDeviceModule.AudioSamples samples) {
-        if (audioDeviceModule == null) return;
-        try {
-            if (cachedWebRtcByteBuffer == null) {
-                try {
-                    Field inputField = null;
-                    try {
-                        inputField = JavaAudioDeviceModule.class.getDeclaredField("audioInput");
-                    } catch (NoSuchFieldException ignored) {
-                        for (Field f : JavaAudioDeviceModule.class.getDeclaredFields()) {
-                            if (f.getType().getName().contains("WebRtcAudioRecord")) {
-                                inputField = f;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (inputField != null) {
-                        inputField.setAccessible(true);
-                        Object webRtcAudioRecord = inputField.get(audioDeviceModule);
-                        if (webRtcAudioRecord != null) {
-                            Field bufField = null;
-                            try {
-                                bufField = webRtcAudioRecord.getClass().getDeclaredField("byteBuffer");
-                            } catch (NoSuchFieldException ignored) {
-                                for (Field f : webRtcAudioRecord.getClass().getDeclaredFields()) {
-                                    if (ByteBuffer.class.isAssignableFrom(f.getType())) {
-                                        bufField = f;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (bufField != null) {
-                                bufField.setAccessible(true);
-                                cachedWebRtcByteBuffer = (ByteBuffer) bufField.get(webRtcAudioRecord);
-                                Log.i(TAG, "Direct WebRTC audio ByteBuffer cached successfully for zero-copy internal audio injection");
-                            }
-                        }
-                    }
-                } catch (Exception ex) {
-                    Log.w(TAG, "WebRTC audio ByteBuffer lookup warning: " + ex.getMessage());
-                }
-            }
-
-            if (cachedWebRtcByteBuffer == null) return;
-
-            byte[] internalChunk = internalAudioQueue.poll();
-            if (cachedWebRtcByteBuffer != null && internalChunk != null && internalChunk.length > 0) {
-                byte[] micBytes = samples.getData();
-                int len = Math.min(internalChunk.length, Math.min(micBytes.length, cachedWebRtcByteBuffer.capacity()));
-
-                // Mix internal media audio with mic/speaker audio for maximum fidelity
-                byte[] mixed = new byte[len];
-                for (int i = 0; i < len - 1; i += 2) {
-                    short micSample = (short) ((micBytes[i] & 0xFF) | (micBytes[i + 1] << 8));
-                    short internalSample = (short) ((internalChunk[i] & 0xFF) | (internalChunk[i + 1] << 8));
-
-                    int mixedSample = (int) (internalSample * 1.2f) + (int) (micSample * 0.8f);
-                    if (mixedSample > 32767) mixedSample = 32767;
-                    else if (mixedSample < -32768) mixedSample = -32768;
-
-                    mixed[i] = (byte) (mixedSample & 0xFF);
-                    mixed[i + 1] = (byte) ((mixedSample >> 8) & 0xFF);
-                }
-                cachedWebRtcByteBuffer.position(0);
-                cachedWebRtcByteBuffer.put(mixed, 0, len);
-                cachedWebRtcByteBuffer.position(0);
-            }
-            // CRITICAL: When internalChunk is null (e.g. apps like Instagram/Chrome/Gallery that restrict
-            // AudioPlaybackCapture), NEVER wipe with silence! The phone's speakers output sound that WebRTC
-            // naturally captures and streams to viewers.
-        } catch (Exception e) {
-            // Non-fatal
         }
     }
 
