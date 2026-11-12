@@ -386,27 +386,57 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   // Attach stream to video tag
   useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.muted = isMuted;
-      videoRef.current.play()
+    const video = videoRef.current;
+    if (!video || !stream) {
+      setVideoPlaying(false);
+      return;
+    }
+
+    // CRITICAL: NEVER re-assign srcObject if it's already the same stream!
+    // Re-assigning srcObject resets the video decoder and blacks out the screen.
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+    }
+
+    video.muted = isMuted;
+
+    const playPromise = video.play();
+    if (playPromise !== undefined) {
+      playPromise
         .then(() => {
           setVideoPlaying(true);
         })
         .catch((err) => {
           console.warn('⚠️ Autoplay prevented by browser:', err);
-          setVideoPlaying(false);
+          // If unmuted autoplay failed due to browser policy, fallback to muted autoplay so video displays
+          if (!video.muted) {
+            video.muted = true;
+            setIsMuted(true);
+            video.play()
+              .then(() => setVideoPlaying(true))
+              .catch(() => setVideoPlaying(false));
+          } else {
+            setVideoPlaying(false);
+          }
         });
-    } else {
-      setVideoPlaying(false);
     }
-  }, [stream, isMuted]);
+  }, [stream]);
 
   const toggleMute = () => {
-    if (videoRef.current) {
-      const newMuted = !isMuted;
-      videoRef.current.muted = newMuted;
-      setIsMuted(newMuted);
+    const video = videoRef.current;
+    if (!video) return;
+
+    const nextMuted = !isMuted;
+    // Mutate the HTMLVideoElement property directly within the user gesture
+    video.muted = nextMuted;
+    video.volume = 1.0;
+    setIsMuted(nextMuted);
+
+    // If unmuting and video was paused or waiting for user interaction, play immediately
+    if (!nextMuted && video.paused) {
+      video.play()
+        .then(() => setVideoPlaying(true))
+        .catch((err) => console.warn('Play attempt on unmute failed:', err));
     }
   };
 
@@ -801,7 +831,13 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                 onKeyDown={handleKeyDown}
                 onKeyUp={handleKeyUp}
                 onPlay={() => setVideoPlaying(true)}
-                onPause={() => setVideoPlaying(false)}
+                onPause={() => {
+                  if (videoRef.current && !videoRef.current.ended && stream?.active) {
+                    videoRef.current.play().catch(() => setVideoPlaying(false));
+                  } else {
+                    setVideoPlaying(false);
+                  }
+                }}
                 className={`w-full h-full ${isMeInControl ? 'glow-active cursor-crosshair' : 'cursor-default'}`}
                 style={{
                   objectFit: videoFit,
@@ -818,8 +854,11 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
                     sound.thud();
                     if (videoRef.current) {
                       videoRef.current.muted = false;
+                      videoRef.current.volume = 1.0;
                       setIsMuted(false);
-                      videoRef.current.play().catch(err => console.warn('Play attempt failed:', err));
+                      videoRef.current.play()
+                        .then(() => setVideoPlaying(true))
+                        .catch(err => console.warn('Play attempt failed:', err));
                     }
                   }}
                 >

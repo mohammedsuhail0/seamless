@@ -34,6 +34,7 @@ jobs:
           VITE_GOOGLE_CLIENT_ID: '235405233467-mah2rt1mo7pij09uvinqtukk2l8vvi49.apps.googleusercontent.com'
         run: |
           npm run build -w packages/shared
+          npm test
           npm run build -w packages/viewer
           npm run android:sync -w packages/viewer
 

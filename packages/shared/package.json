@@ -6,7 +6,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "tsc -w",
+    "test": "node --test test/**/*.test.cjs"
   },
   "dependencies": {
     "zod": "^3.22.4"

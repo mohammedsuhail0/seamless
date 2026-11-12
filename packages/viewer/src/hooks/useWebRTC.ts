@@ -198,8 +198,9 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
   // Host method: Capture screen/tab media
   const startCapture = async () => {
     if (role !== 'HOST') return;
+    let capturedStream: MediaStream;
     try {
-      const capturedStream = await navigator.mediaDevices.getDisplayMedia({
+      capturedStream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           cursor: 'always',
           width: { ideal: 1920 },
@@ -208,6 +209,23 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
         } as any,
         audio: true
       });
+    } catch (audioErr: any) {
+      if (audioErr?.name === 'NotAllowedError') {
+        // User explicitly cancelled dialog, throw so caller knows
+        throw audioErr;
+      }
+      console.warn('⚠️ Screen capture with audio failed, retrying video-only:', audioErr);
+      capturedStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: 'always',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30 }
+        } as any,
+        audio: false
+      });
+    }
+    try {
       
       setStream(capturedStream);
       localStreamRef.current = capturedStream;
@@ -451,8 +469,11 @@ export function useWebRTC({ socket, roomId, role }: UseWebRTCOptions) {
           };
 
           pc.ontrack = (event) => {
-            console.log('📺 Stream track received successfully');
-            const remoteStream = remoteStreamRef.current ?? new MediaStream();
+            console.log(`📺 Stream track received: kind=${event.track.kind}, id=${event.track.id}`);
+            let remoteStream = (event.streams && event.streams[0]) ? event.streams[0] : remoteStreamRef.current;
+            if (!remoteStream) {
+              remoteStream = new MediaStream();
+            }
             remoteStreamRef.current = remoteStream;
 
             if (!remoteStream.getTracks().some((track) => track.id === event.track.id)) {
