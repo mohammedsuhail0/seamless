@@ -57,6 +57,8 @@ public class ScreenCaptureService extends Service {
     private String roomCode;
     private String serverUrl;
     private final Map<String, PeerConnection> peerConnections = new ConcurrentHashMap<>();
+    private String myUserId = null;
+    private final Map<String, List<IceCandidate>> pendingIceCandidates = new ConcurrentHashMap<>();
 
     @Override
     public void onCreate() {
@@ -246,38 +248,89 @@ public class ScreenCaptureService extends Service {
                     JSONObject joinData = new JSONObject();
                     joinData.put("roomCode", roomCode);
                     joinData.put("displayName", displayName != null ? displayName : "Host (Mobile)");
+                    if (token != null && !token.isEmpty()) {
+                        joinData.put("token", token);
+                    }
                     signalingSocket.emit("room:join", joinData);
-
-                    // Tell viewers host screen broadcast is ready
-                    JSONObject startData = new JSONObject();
-                    startData.put("roomCode", roomCode);
-                    signalingSocket.emit("stream:start", startData);
                 } catch (Exception e) {
                     Log.e(TAG, "Error emitting room:join", e);
                 }
             });
 
-            signalingSocket.on("room:user_joined", args -> {
-                if (args.length > 0 && args[0] instanceof JSONObject) {
-                    JSONObject userObj = (JSONObject) args[0];
-                    String joinedUserId = userObj.optString("id");
-                    Log.i(TAG, "Viewer joined room: " + joinedUserId + ". Initiating WebRTC peer connection...");
-                    createPeerConnectionForViewer(joinedUserId);
-                }
-            });
-
-            signalingSocket.on("room:user_left", args -> {
+            // 1. When a viewer joins the room, immediately initiate WebRTC peer connection & offer
+            signalingSocket.on("room:joined", args -> {
                 if (args.length > 0 && args[0] instanceof JSONObject) {
                     JSONObject data = (JSONObject) args[0];
-                    String leftUserId = data.optString("userId");
-                    PeerConnection pc = peerConnections.remove(leftUserId);
-                    if (pc != null) {
-                        pc.close();
-                        Log.i(TAG, "Closed peer connection for departed viewer: " + leftUserId);
+                    String joinedUserId = data.optString("userId");
+                    String userRole = data.optString("role");
+
+                    // Handle our own join confirmation
+                    if (myUserId == null && data.has("roomCode")) {
+                        myUserId = joinedUserId;
+                        Log.i(TAG, "Confirmed our mobile host session. myUserId=" + myUserId);
+                        return;
+                    }
+
+                    // A viewer joined
+                    if (joinedUserId != null && !joinedUserId.isEmpty() && !joinedUserId.equals(myUserId)) {
+                        if (!"HOST".equalsIgnoreCase(userRole)) {
+                            Log.i(TAG, "Viewer joined room: " + joinedUserId + ". Initiating WebRTC peer connection...");
+                            createPeerConnectionForViewer(joinedUserId);
+                        }
                     }
                 }
             });
 
+            // 2. When presence:sync arrives, immediately connect to ALL existing viewers in the room
+            signalingSocket.on("presence:sync", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    org.json.JSONArray members = data.optJSONArray("members");
+                    if (members != null) {
+                        for (int i = 0; i < members.length(); i++) {
+                            JSONObject m = members.optJSONObject(i);
+                            if (m != null) {
+                                String mUserId = m.optString("userId");
+                                String mRole = m.optString("role");
+                                if (mUserId != null && !mUserId.isEmpty() && !mUserId.equals(myUserId) && !"HOST".equalsIgnoreCase(mRole)) {
+                                    Log.i(TAG, "Existing viewer found in presence:sync: " + mUserId + ". Initiating WebRTC peer connection...");
+                                    createPeerConnectionForViewer(mUserId);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. When a viewer requests a fresh offer (e.g. page reload or tab switch)
+            signalingSocket.on("rtc:reconnect-request", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    String senderId = data.optString("senderUserId");
+                    if (senderId != null && !senderId.isEmpty()) {
+                        Log.i(TAG, "Viewer requested fresh WebRTC offer: " + senderId);
+                        createPeerConnectionForViewer(senderId);
+                    }
+                }
+            });
+
+            // 4. When a viewer leaves the room, clean up their peer connection
+            signalingSocket.on("room:left", args -> {
+                if (args.length > 0 && args[0] instanceof JSONObject) {
+                    JSONObject data = (JSONObject) args[0];
+                    String leftUserId = data.optString("userId");
+                    if (leftUserId != null && !leftUserId.isEmpty()) {
+                        PeerConnection pc = peerConnections.remove(leftUserId);
+                        pendingIceCandidates.remove(leftUserId);
+                        if (pc != null) {
+                            try { pc.close(); } catch (Exception ignored) {}
+                            Log.i(TAG, "Closed peer connection for departed viewer: " + leftUserId);
+                        }
+                    }
+                }
+            });
+
+            // 5. When a viewer replies with an RTC Answer
             signalingSocket.on("rtc:answer", args -> {
                 if (args.length > 0 && args[0] instanceof JSONObject) {
                     JSONObject data = (JSONObject) args[0];
@@ -287,14 +340,27 @@ public class ScreenCaptureService extends Service {
                         String sdp = sdpObj.optString("sdp");
                         PeerConnection pc = peerConnections.get(senderId);
                         if (pc != null) {
-                            pc.setRemoteDescription(new SimpleSdpObserver(), new SessionDescription(SessionDescription.Type.ANSWER, sdp));
-                            Log.i(TAG, "Applied WebRTC Answer from viewer: " + senderId);
+                            pc.setRemoteDescription(new SimpleSdpObserver() {
+                                @Override
+                                public void onSetSuccess() {
+                                    Log.i(TAG, "Applied WebRTC Answer from viewer: " + senderId);
+                                    List<IceCandidate> queued = pendingIceCandidates.remove(senderId);
+                                    if (queued != null) {
+                                        synchronized (queued) {
+                                            for (IceCandidate cand : queued) {
+                                                pc.addIceCandidate(cand);
+                                            }
+                                        }
+                                    }
+                                }
+                            }, new SessionDescription(SessionDescription.Type.ANSWER, sdp));
                         }
                     }
                 }
             });
 
-            signalingSocket.on("rtc:ice_candidate", args -> {
+            // 6. When a viewer sends an ICE Candidate
+            signalingSocket.on("rtc:ice-candidate", args -> {
                 if (args.length > 0 && args[0] instanceof JSONObject) {
                     JSONObject data = (JSONObject) args[0];
                     String senderId = data.optString("senderUserId");
@@ -306,8 +372,13 @@ public class ScreenCaptureService extends Service {
 
                         IceCandidate candidate = new IceCandidate(sdpMid, sdpMLineIndex, sdp);
                         PeerConnection pc = peerConnections.get(senderId);
-                        if (pc != null) {
+                        if (pc != null && pc.getRemoteDescription() != null) {
                             pc.addIceCandidate(candidate);
+                        } else {
+                            List<IceCandidate> queue = pendingIceCandidates.computeIfAbsent(senderId, k -> new ArrayList<>());
+                            synchronized (queue) {
+                                queue.add(candidate);
+                            }
                         }
                     }
                 }
@@ -321,6 +392,19 @@ public class ScreenCaptureService extends Service {
     }
 
     private void createPeerConnectionForViewer(String viewerId) {
+        if (viewerId == null || viewerId.isEmpty()) return;
+        if (peerConnectionFactory == null) {
+            Log.e(TAG, "Cannot create peer connection: peerConnectionFactory is null");
+            return;
+        }
+
+        // Close and clean up any existing connection for this viewer
+        PeerConnection oldPc = peerConnections.remove(viewerId);
+        if (oldPc != null) {
+            try { oldPc.close(); } catch (Exception ignored) {}
+        }
+        pendingIceCandidates.remove(viewerId);
+
         List<PeerConnection.IceServer> iceServers = new ArrayList<>();
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
         iceServers.add(PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer());
@@ -351,7 +435,7 @@ public class ScreenCaptureService extends Service {
                     candObj.put("sdpMid", iceCandidate.sdpMid);
                     candObj.put("sdpMLineIndex", iceCandidate.sdpMLineIndex);
                     payload.put("candidate", candObj);
-                    signalingSocket.emit("rtc:ice_candidate", payload);
+                    signalingSocket.emit("rtc:ice-candidate", payload);
                 } catch (Exception e) {
                     Log.e(TAG, "Error emitting ICE candidate", e);
                 }
@@ -463,6 +547,7 @@ public class ScreenCaptureService extends Service {
                 pc.close();
             }
             peerConnections.clear();
+            pendingIceCandidates.clear();
 
             if (signalingSocket != null) {
                 signalingSocket.disconnect();
