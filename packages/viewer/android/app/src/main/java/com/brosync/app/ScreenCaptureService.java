@@ -409,6 +409,15 @@ public class ScreenCaptureService extends Service {
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
         iceServers.add(PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer());
         iceServers.add(PeerConnection.IceServer.builder("stun:stun2.l.google.com:19302").createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("turn:openrelay.metered.ca:443")
+                .setUsername("openrelayproject")
+                .setPassword("openrelayproject")
+                .createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("turn:openrelay.metered.ca:80")
+                .setUsername("openrelayproject")
+                .setPassword("openrelayproject")
+                .createIceServer());
 
         PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
         rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
