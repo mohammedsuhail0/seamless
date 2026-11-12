@@ -1,4 +1,4 @@
-// Agent: 🌐 Agent C (Viewer Screening Room Interface)
+// Agent: 🌐 Agent C (Viewer Screening Room Interface - Spatial Vision-OS Edition)
 // File: packages/viewer/src/pages/Room.tsx
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -6,6 +6,7 @@ import type { Socket } from 'socket.io-client';
 import socketClient from '../lib/socket';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { api } from '../lib/api';
+import { sound } from '../lib/sound';
 import {
   SOCKET_EVENTS,
   MemberRole,
@@ -25,10 +26,15 @@ import {
   Signal,
   Volume2,
   VolumeX,
-  LogOut,
-  Trash2
+  Trash2,
+  ArrowLeft,
+  Tv,
+  Play,
+  X,
+  Radio,
+  Lock
 } from 'lucide-react';
-import { registerPlugin } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 interface ScreenSharePlugin {
   isAvailable(): Promise<{ available: boolean }>;
@@ -43,25 +49,6 @@ interface RoomProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   userContext: any;
 }
-
-const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
-    <defs>
-      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#9A7A35" />
-        <stop offset="25%" stopColor="#EAC775" />
-        <stop offset="50%" stopColor="#BE9648" />
-        <stop offset="75%" stopColor="#FDF1A9" />
-        <stop offset="100%" stopColor="#A1813C" />
-      </linearGradient>
-    </defs>
-    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
-    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
 
 export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [roomInfo, setRoomInfo] = useState<any | null>(null);
@@ -191,7 +178,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     // Listeners: Room join or signaling error
     nextSocket.on(SOCKET_EVENTS.ROOM_ERROR, (payload: { code: string; message: string }) => {
       console.error('❌ Room error from socket server:', payload);
-      setErrorMsg(payload.message || 'Failed to join co-browsing room');
+      setErrorMsg(payload.message || 'Failed to join watch room');
     });
 
     // Listeners: Dynamically sync controller changes via presence updates
@@ -228,18 +215,17 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
         toastTimeoutRef.current = setTimeout(() => {
           setActiveToast(null);
-        }, 5000); // disappearing after 5 seconds
+        }, 5000);
       }
     });
 
     // Listeners: Ephemeral emoji reactions received
     nextSocket.on(SOCKET_EVENTS.CHAT_REACTION_RECEIVED, (reaction: ChatReaction) => {
       const id = `${Date.now()}_${Math.random()}`;
-      const drift = Math.floor(Math.random() * 80) - 40; // horizontal drift padding
+      const drift = Math.floor(Math.random() * 80) - 40;
       
       setFloatingEmojis((prev) => [...prev, { id, emoji: reaction.emoji, drift }]);
       
-      // Auto-remove floating animation elements after 2 seconds
       setTimeout(() => {
         setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
       }, 2000);
@@ -318,7 +304,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   }, [chatMessages]);
 
   // 3. WebRTC Hooks setup
-
   useEffect(() => {
     if (roomInfo?.hostId && userContext?.id) {
       if (roomInfo.hostId === userContext.id) {
@@ -338,38 +323,41 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   const [isMobileNativeStreaming, setIsMobileNativeStreaming] = useState(false);
 
   const handleStartCapture = async () => {
-    // 1. Check if running inside the native Android APK with hardware encoder
-    try {
-      const avail = await NativeScreenShare.isAvailable();
-      if (avail?.available) {
-        const token = localStorage.getItem('brosync_access_token') || undefined;
-        const serverUrl = api.getBaseUrl();
-        const res = await NativeScreenShare.startCapture({
-          roomCode: roomCode.toUpperCase(),
-          serverUrl,
-          token,
-          displayName: userContext?.displayName || 'Mobile Host',
-        });
-        if (res?.status === 'streaming') {
-          setIsMobileNativeStreaming(true);
+    // 1. If running inside native Android app, use hardware ScreenCaptureService
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const avail = await NativeScreenShare.isAvailable();
+        if (avail?.available) {
+          const token = localStorage.getItem('brosync_access_token') || undefined;
+          const serverUrl = api.getBaseUrl();
+          const res = await NativeScreenShare.startCapture({
+            roomCode: roomCode.toUpperCase(),
+            serverUrl,
+            token,
+            displayName: userContext?.displayName || 'Mobile Host',
+          });
+          if (res?.status === 'streaming') {
+            setIsMobileNativeStreaming(true);
+          }
+          return;
         }
-        return; // Always return from native APK path - never fall through to desktop web alert!
-      }
-    } catch (e: any) {
-      if (e?.message && e.message.includes('cancelled')) {
+      } catch (e: any) {
+        if (e?.message && e.message.includes('cancelled')) {
+          return;
+        }
+        console.warn('Native screen share error:', e);
         return;
-      }
-      if (e?.message && !e.message.includes('not implemented')) {
-        console.warn('Native screen share notice:', e);
-        return; // Do not show desktop browser alert if inside APK!
       }
     }
 
-    // 2. Fallback to standard web getDisplayMedia for desktop browsers
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      alert("📺 You are in a mobile browser (Chrome/Safari). To share your phone's screen with audio and zero latency, please open the BroSync Android App!");
+    // 2. Mobile browsers (Chrome/Safari on mobile) cannot capture device screen due to OS sandbox
+    const isMobileBrowser = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobileBrowser || !navigator.mediaDevices?.getDisplayMedia) {
+      alert("📺 You are viewing from a mobile browser. To share your phone's full screen and apps with friends, open the BroSync Android App!");
       return;
     }
+
+    // 3. Desktop browsers (Chrome, Edge, Firefox, Safari on PC/Mac)
     try {
       await startCapture();
     } catch (err: any) {
@@ -399,7 +387,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
-      videoRef.current.muted = isMuted; // Sync with state to satisfy browser autoplay policies or user volume changes
+      videoRef.current.muted = isMuted;
       videoRef.current.play()
         .then(() => {
           setVideoPlaying(true);
@@ -442,7 +430,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
         document.exitFullscreen().finally(() => setIsFullscreen(false));
       }
     } else if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
-      // Graceful fallback for iOS (iPhone) Safari
       try {
         (videoRef.current as any).webkitEnterFullscreen();
         setIsFullscreen(true);
@@ -481,7 +468,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     if (!showChat) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false);
-      }, 3000);
+      }, 3500);
     }
   };
 
@@ -560,8 +547,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLVideoElement>) => {
     if (!isMeInControl) return;
-    
-    // Prevent default keyboard browser actions (like scrolling down) if controlling
     e.preventDefault();
 
     sendInputEvent({
@@ -585,8 +570,6 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
     });
   };
 
-
-
   // Chat message send
   const handleSendChat = (e: React.FormEvent) => {
     e.preventDefault();
@@ -600,7 +583,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   };
 
   // Emoji reaction broadcast
-  const handleEmojiReaction = (emoji: '👍' | '😂' | '🔥' | '❤️' | '😮') => {
+  const handleEmojiReaction = (emoji: '👍' | '😂' | '🔥' | '❤️' | '😮' | '🍿') => {
     socketRef.current?.emit(SOCKET_EVENTS.CHAT_REACTION, {
       roomId: roomInfo.id,
       emoji,
@@ -619,7 +602,7 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
 
   const handleCloseRoom = async () => {
     if (!roomInfo) return;
-    if (!window.confirm('Are you sure you want to end and close this lounge session? Guests will be disconnected.')) {
+    if (!window.confirm('Are you sure you want to end this watch room? All guests will be disconnected.')) {
       return;
     }
     try {
@@ -627,28 +610,40 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
       onNavigate('dashboard');
     } catch (err) {
       console.error('Failed to close room:', err);
-      alert('Failed to close room session.');
+      alert('Failed to close watch room session.');
     }
   };
-
 
   // ── Layout loading states ──────────────────────────────────────────
   if (loading) {
     return (
-      <div className="room-page-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--color-gold)', background: '#000000', gap: '1.25rem' }}>
-        <div style={{ width: '40px', height: '40px', border: '3px solid rgba(197, 168, 92, 0.1)', borderTop: '3px solid var(--color-gold)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, letterSpacing: '0.5px', fontFamily: 'var(--font-serif)' }}>Entering secure co-browsing chamber...</span>
+      <div className="relative min-h-[100dvh] w-full bg-[#08090e] flex flex-col items-center justify-center gap-4 text-white">
+        <div className="w-10 h-10 border-2 border-amber-500/20 border-t-amber-400 rounded-full animate-spin shadow-[0_0_24px_rgba(245,158,11,0.3)]" />
+        <span className="text-xs font-mono font-medium text-amber-200/70 tracking-widest uppercase">
+          Entering Watch Room...
+        </span>
       </div>
     );
   }
 
   if (errorMsg) {
     return (
-      <div className="room-page-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1.5rem', background: '#000000', color: '#ffffff' }}>
-        <span style={{ fontSize: '3.5rem', filter: 'drop-shadow(0 0 10px rgba(197, 168, 92, 0.3))' }}>🔍</span>
-        <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#ffffff' }}>{errorMsg}</h2>
-        <button className="btn-red" onClick={() => onNavigate('dashboard')} style={{ padding: '0.75rem 2rem', fontSize: 'var(--text-sm)', fontWeight: 'bold' }}>
-          Go to Lounge
+      <div className="relative min-h-[100dvh] w-full bg-[#08090e] flex flex-col items-center justify-center p-6 text-white text-center gap-5">
+        <div className="p-4 rounded-3xl bg-red-500/10 border border-red-500/20 text-red-400">
+          <Lock className="w-8 h-8" />
+        </div>
+        <div className="flex flex-col gap-1 max-w-sm">
+          <h2 className="text-xl font-bold text-white tracking-tight">{errorMsg}</h2>
+          <p className="text-xs text-white/50">The host may have ended this room or the code has expired.</p>
+        </div>
+        <button
+          onClick={() => {
+            sound.click();
+            onNavigate('dashboard');
+          }}
+          className="px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-black text-xs font-semibold tracking-wide shadow-lg active:scale-95 transition-all"
+        >
+          Return to Dashboard
         </button>
       </div>
     );
@@ -670,12 +665,21 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
   return (
     <div 
       ref={roomContainerRef}
-      className={`room-container room-page-root ${isFullscreen ? 'is-room-expanded' : ''} ${showChat ? 'chat-is-open' : ''}`}
+      className={`relative w-full h-[100dvh] max-h-[100dvh] overflow-hidden bg-[#08090e] text-[#F3F4F6] flex flex-col select-none ${isFullscreen ? 'is-room-expanded' : ''} ${showChat ? 'chat-is-open' : ''}`}
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
       onTouchStart={resetControlsTimeout}
-      style={{ height: '100vh', position: 'relative', overflow: 'hidden', background: '#000000' }}
     >
+      {/* Ambient Warm Golden Hour Light Dome */}
+      <div 
+        className="pointer-events-none fixed inset-0 z-0 opacity-60"
+        style={{
+          background: `
+            radial-gradient(800px circle at 50% 25%, rgba(245, 158, 11, 0.08), transparent 60%),
+            radial-gradient(1100px circle at 85% 85%, rgba(99, 102, 241, 0.05), transparent 70%)
+          `,
+        }}
+      />
       
       {/* Dynamic Floating reactions container */}
       {floatingEmojis.map((reaction) => (
@@ -685,576 +689,459 @@ export function Room({ roomCode, onNavigate, userContext }: RoomProps) {
           style={{
             left: `calc(50% + ${reaction.drift}px)`,
             '--drift': `${reaction.drift * 2}px`,
+            filter: 'drop-shadow(0 0 14px rgba(245, 158, 11, 0.5))',
           } as React.CSSProperties}
         >
           {reaction.emoji}
         </div>
       ))}
 
-
-
-      {/* Header bar */}
+      {/* ── Top Header HUD Bar ── */}
       <header 
-        className="room-header" 
-        style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          padding: '0.85rem 1.5rem', 
-          borderBottom: '1.5px solid var(--color-gold)',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 30,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(10px)',
-          transition: 'opacity 0.3s ease, transform 0.3s ease',
+        className="room-header fixed top-0 left-0 right-0 z-40 px-3 sm:px-6 py-2.5 sm:py-3.5 bg-[#0d0e16]/85 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.5)] flex items-center justify-between transition-all duration-300"
+        style={{
+          paddingTop: 'max(0.6rem, env(safe-area-inset-top, 0.6rem))',
           opacity: showControls ? 1 : 0,
           transform: showControls ? 'translateY(0)' : 'translateY(-100%)',
           pointerEvents: showControls ? 'auto' : 'none',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button className="btn btn-ghost" onClick={() => onNavigate('dashboard')} style={{ padding: '0.4rem 0.6rem', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <LogOut size={14} /><span className="hide-mobile"> Leave Lounge</span>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button 
+            onClick={() => {
+              sound.click();
+              onNavigate('dashboard');
+            }} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-xs font-medium text-white/80 hover:text-white transition-all active:scale-95 border border-white/10"
+            title="Leave Watch Room"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Leave</span>
           </button>
+
           {role === MemberRole.HOST && (
             <button 
               onClick={handleCloseRoom} 
-              style={{ 
-                padding: '0.4rem 0.6rem', 
-                background: 'rgba(239, 68, 68, 0.08)',
-                border: '1.5px solid rgba(239, 68, 68, 0.3)',
-                color: '#ef4444', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.35rem',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 600,
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                e.currentTarget.style.borderColor = '#ef4444';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-              }}
-              title="Close & End Lounge Session"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-rose-200 border border-rose-500/25 text-xs font-medium transition-all active:scale-95"
+              title="Close Room for Everyone"
             >
-              <Trash2 size={14} /><span className="hide-mobile"> End Session</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">End Room</span>
             </button>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '1rem' }}>
-            <GoldLogoSVG size={28} />
-            <div>
-              <h1 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)' }}>{roomInfo?.name}</h1>
-              <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }} className="hide-mobile">Lounge Host: {roomInfo?.hostName}</span>
+
+          {/* Room Title & Host Info */}
+          <div className="flex items-center gap-2.5 pl-2 sm:pl-3 border-l border-white/10">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
+            </span>
+            <div className="flex flex-col">
+              <h1 className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[130px] sm:max-w-xs">
+                {roomInfo?.name || 'BroSync Room'}
+              </h1>
+              <span className="text-[10px] text-white/40 hidden sm:inline">
+                Host: {roomInfo?.hostName || 'Host'}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Invite link copying utility */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="room-code-tag" style={{ fontFamily: 'var(--font-mono)', background: 'rgba(197, 168, 92, 0.05)', border: '1px solid rgba(197, 168, 92, 0.2)', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: 'var(--text-xs)', letterSpacing: '1px', fontWeight: 600, color: 'var(--color-gold)' }}>
-            <span className="hide-mobile">CODE: </span>{roomCode}
+        {/* Room Code & Stats Utilities */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-mono font-bold tracking-wider shadow-[0_0_12px_rgba(245,158,11,0.15)]">
+            <Radio className="w-3 h-3 text-amber-400 animate-pulse" />
+            <span>{roomCode}</span>
+            <button 
+              onClick={() => {
+                sound.click();
+                handleCopyLink();
+              }} 
+              className="p-1 hover:text-white transition-colors"
+              title="Copy Room Link"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-amber-300/80" />}
+            </button>
+          </div>
+
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/[0.05] border border-white/10 text-xs font-mono text-white/70">
+            <Users className="w-3.5 h-3.5 text-amber-400" />
+            <span>{activeMembers.length}</span>
+            <Signal className={`w-3 h-3 hidden sm:inline ${connectionState === 'connected' ? 'text-emerald-400' : 'text-amber-400'}`} />
           </span>
-          <button className="btn-gold-rejoin" onClick={handleCopyLink} style={{ padding: '0.35rem 0.75rem', fontSize: 'var(--text-xs)' }}>
-            {copiedLink ? (
-              <><Check size={12} /><span className="hide-mobile"> Copied</span></>
-            ) : (
-              <><Copy size={12} /><span className="hide-mobile"> Copy Invite</span></>
-            )}
-          </button>
         </div>
       </header>
 
-      {/* Main split work area */}
-      <div className="room-content" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100%', display: 'block', overflow: 'hidden' }}>
-        
-        {/* Left Side: Stream Viewer */}
-        <div className="stream-column" style={{ width: '100vw', minWidth: '100vw', position: 'relative', display: 'flex', flexDirection: 'column', background: '#000000' }}>
-          
-          {/* Active control badge overlay */}
-          {isMeInControl && (
-            <div className="glass" style={{ position: 'absolute', top: '1.25rem', left: '50%', transform: 'translateX(-50%)', padding: '0.5rem 1rem', borderRadius: '4px', fontSize: 'var(--text-xs)', fontWeight: 'bold', zIndex: 10, display: 'flex', alignItems: 'center', gap: '0.5rem', border: '1px solid var(--color-gold)', background: 'rgba(0,0,0,0.85)', color: '#ffffff', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
-              <Gamepad2 size={14} color="var(--color-gold)" /> You have browser sync control
+      {/* ── Main Theater Area ── */}
+      <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
+        {/* Remote Control HUD Overlay */}
+        {isMeInControl && (
+          <div className="absolute top-16 sm:top-20 left-1/2 -translate-x-1/2 z-30 px-3.5 py-1.5 rounded-full bg-[#0d0e16]/90 backdrop-blur-xl border border-amber-500/40 text-amber-200 text-xs font-semibold shadow-[0_4px_20px_rgba(245,158,11,0.3)] flex items-center gap-2">
+            <Gamepad2 className="w-4 h-4 text-amber-400" />
+            <span>You have remote sync control</span>
+          </div>
+        )}
+
+        {/* Video Canvas Container */}
+        <div className="relative w-full h-full flex items-center justify-center">
+          {stream ? (
+            <>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted={isMuted}
+                tabIndex={0}
+                onMouseMove={handleMouseMove}
+                onMouseDown={handleMouseDown}
+                onMouseUp={handleMouseUp}
+                onKeyDown={handleKeyDown}
+                onKeyUp={handleKeyUp}
+                onPlay={() => setVideoPlaying(true)}
+                onPause={() => setVideoPlaying(false)}
+                className={`w-full h-full ${isMeInControl ? 'glow-active cursor-crosshair' : 'cursor-default'}`}
+                style={{
+                  objectFit: videoFit,
+                  outline: 'none',
+                }}
+              />
+
+              {/* Click to Play unmuted stream overlay */}
+              {!videoPlaying && (
+                <div 
+                  className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-30 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sound.thud();
+                    if (videoRef.current) {
+                      videoRef.current.muted = false;
+                      setIsMuted(false);
+                      videoRef.current.play().catch(err => console.warn('Play attempt failed:', err));
+                    }
+                  }}
+                >
+                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0d0e16]/95 border border-amber-500/30 shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex flex-col items-center gap-4 text-center max-w-xs">
+                    <span className="text-4xl animate-bounce">🍿</span>
+                    <div className="flex flex-col gap-1">
+                      <h3 className="text-base font-bold text-white tracking-tight">Stream is Live!</h3>
+                      <p className="text-xs text-white/60">Click below to join with synchronized audio.</p>
+                    </div>
+                    <button className="w-full py-3 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-black font-semibold text-xs tracking-wide shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all">
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>Watch Stream</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Floating Tap-to-Unmute capsule */}
+              {videoPlaying && isMuted && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    sound.click();
+                    toggleMute();
+                  }}
+                  className="absolute top-16 left-4 z-30 px-3.5 py-1.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-medium backdrop-blur-xl shadow-lg flex items-center gap-2 active:scale-95 transition-all"
+                >
+                  <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Tap to Unmute</span>
+                </button>
+              )}
+            </>
+          ) : role === MemberRole.HOST ? (
+            isMobileNativeStreaming ? (
+              <div className="relative z-10 w-full max-w-sm sm:max-w-md mx-4 p-6 sm:p-8 rounded-3xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-emerald-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.25)] animate-pulse">
+                  <Tv className="w-7 h-7" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-xs font-mono text-emerald-400 uppercase tracking-wider font-semibold">Broadcasting Live</span>
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Phone Screen Streaming</h3>
+                  <p className="text-xs sm:text-sm text-white/60 leading-relaxed max-w-xs">
+                    Viewers are watching your screen live with zero latency. You can switch to any app or game!
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    sound.click();
+                    handleStopCapture();
+                  }}
+                  className="w-full py-3.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs tracking-wide shadow-lg active:scale-95 transition-all"
+                >
+                  Stop Broadcasting
+                </button>
+              </div>
+            ) : (
+              <div className="relative z-10 w-full max-w-sm sm:max-w-md mx-4 p-6 sm:p-8 rounded-3xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.25)]">
+                  <Tv className="w-7 h-7" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Ready to Share Screen</h3>
+                  <p className="text-xs sm:text-sm text-white/60 leading-relaxed max-w-xs">
+                    Share your browser, desktop, or mobile app in real time with everyone in the room.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    sound.thud();
+                    handleStartCapture();
+                  }}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold text-sm tracking-wide shadow-[0_0_30px_rgba(245,158,11,0.35)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Play className="w-4 h-4 fill-black" />
+                  <span>Start Screen Share</span>
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="relative z-10 w-full max-w-sm sm:max-w-md mx-4 p-6 sm:p-8 rounded-3xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[0_0_24px_rgba(245,158,11,0.25)]">
+                <span className="text-2xl animate-bounce">🍿</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Waiting for Host to Stream...</h3>
+                <p className="text-xs sm:text-sm text-white/60 leading-relaxed max-w-xs">
+                  Hang tight! When your friend starts sharing their screen, it will appear right here in real time.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  sound.click();
+                  handleCopyLink();
+                }}
+                className="w-full py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/10 text-white font-medium text-xs tracking-wide flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-white/70" />}
+                <span>{copiedLink ? 'Invite Link Copied!' : 'Copy Invite Link for Friends'}</span>
+              </button>
             </div>
           )}
+        </div>
 
-          {/* Full Stream rendering area */}
-          <div 
-            className="video-render-area"
-            style={{ 
-              flex: 1, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              position: 'relative', 
-              padding: 0,
-              background: '#000000',
-            }}
-          >
-            {/* Portrait Orientation Assist Tip */}
-            <div className="rotate-device-tip">
-              <span>🔄 Rotate phone for larger theater view</span>
-            </div>
-            {stream ? (
-              <>
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted={isMuted}
-                  tabIndex={0} // capture keyup/keydown events
-                  onMouseMove={handleMouseMove}
-                  onMouseDown={handleMouseDown}
-                  onMouseUp={handleMouseUp}
-                  onKeyDown={handleKeyDown}
-                  onKeyUp={handleKeyUp}
-                  onPlay={() => setVideoPlaying(true)}
-                  onPause={() => setVideoPlaying(false)}
-                  className={isMeInControl ? 'glow-active' : ''}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: videoFit,
-                    borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
-                    outline: 'none',
-                    cursor: isMeInControl ? 'crosshair' : 'default',
-                    border: isMeInControl ? '2.5px solid var(--color-gold)' : 'none',
-                    boxShadow: isFullscreen ? 'none' : '0 15px 50px rgba(0,0,0,0.8)',
-                  }}
-                />
-                {!videoPlaying && (
-                  <div 
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(0, 0, 0, 0.8)',
-                      backdropFilter: 'blur(12px)',
-                      WebkitBackdropFilter: 'blur(12px)',
-                      zIndex: 20,
-                      cursor: 'pointer',
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (videoRef.current) {
-                        videoRef.current.muted = false;
-                        setIsMuted(false);
-                        videoRef.current.play().catch(err => console.warn('Play attempt failed:', err));
-                      }
-                    }}
-                  >
-                    <div 
-                      className="glass"
-                      style={{
-                        padding: '2rem',
-                        borderRadius: '8px',
-                        border: '1.5px solid var(--color-gold)',
-                        background: '#0c0c0c',
-                        boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '1rem',
-                        textAlign: 'center',
-                        maxWidth: '280px',
-                      }}
-                    >
-                      <span style={{ fontSize: '3rem' }}>🍿</span>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', fontFamily: 'var(--font-serif)' }}>
-                        Host is Sharing Screen
-                      </h3>
-                      <button className="btn-red" style={{ width: '100%', fontSize: 'var(--text-xs)', padding: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                        <GoldLogoSVG size={14} /> Click to Play Stream & Audio
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Floating Unmute indicator if browser autoplayed silently */}
-                {videoPlaying && isMuted && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleMute();
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '1rem',
-                      left: '1rem',
-                      zIndex: 25,
-                      background: 'rgba(0,0,0,0.75)',
-                      border: '1px solid var(--color-gold)',
-                      color: 'var(--color-gold)',
-                      borderRadius: '20px',
-                      padding: '0.4rem 0.8rem',
-                      fontSize: 'var(--text-xs)',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      cursor: 'pointer',
-                      backdropFilter: 'blur(8px)',
-                    }}
-                  >
-                    <VolumeX size={14} /> Tap to Unmute Audio
-                  </button>
-                )}
-              </>
-            ) : role === MemberRole.HOST ? (
-              isMobileNativeStreaming ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
-                  <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 12px rgba(16, 185, 129, 0.4))' }}>📱</div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#10b981', fontFamily: 'var(--font-serif)' }}>Mobile Screen Live</h3>
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
-                    Broadcasting phone screen with hardware acceleration. Viewers across all devices are watching with zero latency! You can switch to any app or game.
-                  </p>
-                  <button 
-                    className="btn-red" 
-                    onClick={handleStopCapture} 
-                    style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center', background: '#dc2626' }}
-                  >
-                    Stop Broadcasting
-                  </button>
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
-                  <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>🎬</div>
-                  <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Lounge Ready to Host</h3>
-                  <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.5rem', maxWidth: '380px', marginInline: 'auto', lineHeight: 1.5 }}>
-                    Share a browser window, app, or your phone screen. All connected viewers will watch in real-time.
-                  </p>
-                  <button 
-                    className="btn-red" 
-                    onClick={handleStartCapture} 
-                    style={{ marginTop: '1.5rem', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
-                  >
-                    <GoldLogoSVG size={16} /> Start Lounge Stream
-                  </button>
-                </div>
-              )
-            ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>
-                <div style={{ fontSize: '3.5rem', marginBottom: '1rem', filter: 'drop-shadow(0 0 10px rgba(197,168,92,0.3))' }}>📡</div>
-                <h3 style={{ fontWeight: 700, fontSize: '1.5rem', color: '#ffffff', fontFamily: 'var(--font-serif)' }}>Waiting for Host to Screen...</h3>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Send invite link to friends to start watching together.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Toolbar footer overlay */}
-          <footer 
-            className="room-footer" 
-            style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
-              padding: '0.75rem 1.5rem', 
-              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              zIndex: 30,
-              background: 'rgba(0, 0, 0, 0.85)',
-              backdropFilter: 'blur(10px)',
-              transition: 'opacity 0.3s ease, transform 0.3s ease',
-              opacity: showControls ? 1 : 0,
-              transform: showControls ? 'translateY(0)' : 'translateY(100%)',
-              pointerEvents: showControls ? 'auto' : 'none',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              {role === MemberRole.HOST && (
-                <button 
-                  className="btn-red" 
-                  onClick={stream || isMobileNativeStreaming ? handleStopCapture : handleStartCapture}
-                  style={{ width: 'auto', paddingInline: '1rem', height: '36px', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: (stream || isMobileNativeStreaming) ? '#dc2626' : undefined }}
-                >
-                  <GoldLogoSVG size={14} />
-                  <span className="hide-mobile">{stream || isMobileNativeStreaming ? 'Stop Screen Share' : 'Start Screen Share'}</span>
-                  <span className="show-mobile-only">{stream || isMobileNativeStreaming ? 'Stop' : 'Share'}</span>
-                </button>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Users size={14} /> {activeMembers.length}<span className="hide-mobile"> Watching</span>
-              </span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                <Signal size={14} color={connectionState === 'connected' ? 'var(--color-success)' : 'var(--color-warning)'} /> 
-                <span className="hide-mobile">Signal: </span>{connectionState}
-              </span>
-              {role !== MemberRole.HOST && (
-                <button 
-                  className="btn btn-ghost" 
-                  style={{ padding: '0.4rem' }} 
-                  onClick={toggleMute}
-                  title={isMuted ? "Unmute Audio" : "Mute Audio"}
-                >
-                  {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-                </button>
-              )}
-              <button 
-                className="btn btn-ghost" 
-                style={{ padding: '0.4rem', color: showChat ? 'var(--color-gold)' : 'inherit' }} 
-                onClick={() => setShowChat(!showChat)}
-                title={showChat ? "Hide Chat" : "Show Chat"}
-              >
-                <MessageSquare size={16} />
-              </button>
-              <button 
-                className="btn btn-ghost" 
-                style={{ padding: '0.4rem 0.6rem', fontSize: 'var(--text-xs)', fontWeight: 'bold', minWidth: '70px' }} 
-                onClick={cycleVideoFit}
-                title={`Current fit mode: ${videoFit.toUpperCase()}`}
-              >
-                {videoFit === 'contain' ? '📺 Fit' : videoFit === 'cover' ? '🔍 Zoom' : '↔️ Stretch'}
-              </button>
-              <button 
-                className="btn btn-ghost" 
-                style={{ padding: '0.4rem' }} 
-                onClick={toggleFullscreen}
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-              </button>
-            </div>
-          </footer>
+        {/* Portrait Orientation Tip */}
+        <div className="rotate-device-tip">
+          <span>🔄 Rotate phone for theater view</span>
         </div>
       </div>
 
-      {/* Right Side: Chat & Reaction Drawer */}
-      {showChat && (
-      <aside
-        className="chat-drawer open"
+      {/* ── Floating Bottom Toolbar Dock ── */}
+      <footer 
+        className="room-footer fixed bottom-4 left-1/2 -translate-x-1/2 z-40 px-3 sm:px-4 py-2 rounded-2xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-white/[0.1] shadow-[0_16px_40px_rgba(0,0,0,0.6)] flex items-center gap-2 sm:gap-3 transition-all duration-300 max-w-[calc(100vw-2rem)]"
         style={{
-          borderLeft: '1.5px solid var(--color-gold)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          paddingTop: '60px',
-          background: 'rgba(5, 5, 5, 0.95)',
+          marginBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))',
+          opacity: showControls ? 1 : 0,
+          transform: showControls ? 'translate(-50%, 0)' : 'translate(-50%, 150%)',
+          pointerEvents: showControls ? 'auto' : 'none',
         }}
       >
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-default)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <MessageSquare size={16} color="var(--color-gold)" />
-              <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-gold)' }}>Lounge Chat</h2>
-            </div>
-            <button 
-              className="btn btn-ghost" 
-              type="button"
-              style={{ padding: '0.45rem', minWidth: '44px', width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.75)', position: 'relative', zIndex: 3 }}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setShowChat(false);
-                setShowEmojiPicker(false);
-              }}
-              onTouchStart={(event) => event.stopPropagation()}
-              title="Close Chat"
-            >
-              ✕
-            </button>
-          </div>
+        {/* Host Screen Share Trigger */}
+        {role === MemberRole.HOST && (
+          <button
+            onClick={() => {
+              sound.click();
+              (stream || isMobileNativeStreaming) ? handleStopCapture() : handleStartCapture();
+            }}
+            className={`
+              flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-95
+              ${(stream || isMobileNativeStreaming)
+                ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30'
+                : 'bg-gradient-to-r from-amber-500 to-orange-500 text-black shadow-md'}
+            `}
+          >
+            <Tv className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{(stream || isMobileNativeStreaming) ? 'Stop Sharing' : 'Share Screen'}</span>
+          </button>
+        )}
 
-          {/* Chat scrolling feed */}
-          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {chatMessages.map((msg) => (
-              <div 
-                key={msg.id} 
-                style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '0.15rem',
-                  alignSelf: msg.type === 'system' ? 'center' : 'flex-start',
-                  textAlign: msg.type === 'system' ? 'center' : 'left',
-                  width: '100%',
-                }}
-              >
-                {msg.type === 'system' ? (
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.03)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                    {msg.text}
-                  </span>
-                ) : (
-                  <>
-                    <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'bold', color: msg.userId === userContext?.id ? 'var(--color-gold)' : 'rgba(255,255,255,0.7)' }}>
-                      {msg.displayName}
-                    </span>
-                    <div style={{ background: msg.userId === userContext?.id ? 'rgba(197, 168, 92, 0.08)' : 'rgba(255,255,255,0.04)', border: msg.userId === userContext?.id ? '1px solid rgba(197, 168, 92, 0.15)' : '1px solid rgba(255,255,255,0.04)', padding: '0.5rem 0.75rem', borderRadius: '0 var(--radius-md) var(--radius-md) var(--radius-md)', fontSize: 'var(--text-sm)', width: 'fit-content', wordBreak: 'break-word', color: '#ffffff' }}>
-                      {msg.text}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-            <div ref={chatBottomRef} />
-          </div>
+        {/* Audio Mute / Unmute */}
+        {role !== MemberRole.HOST && (
+          <button
+            onClick={() => {
+              sound.click();
+              toggleMute();
+            }}
+            title={isMuted ? "Unmute Audio" : "Mute Audio"}
+            className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-all"
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-amber-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+          </button>
+        )}
 
-          {/* Emojis drawer overlay toggle */}
+        {/* Video Fit Mode Switcher */}
+        <button
+          onClick={() => {
+            sound.click();
+            cycleVideoFit();
+          }}
+          title={`Fit: ${videoFit.toUpperCase()}`}
+          className="px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium text-white/70 hover:text-white hover:bg-white/[0.08] transition-all"
+        >
+          {videoFit === 'contain' ? '📺 Fit' : videoFit === 'cover' ? '🔍 Fill' : '↔️ Stretch'}
+        </button>
+
+        {/* Emoji Reaction Quick Bar */}
+        <div className="relative">
+          <button
+            onClick={() => {
+              sound.click();
+              setShowEmojiPicker(!showEmojiPicker);
+            }}
+            title="Reactions"
+            className={`p-2 rounded-xl transition-all ${showEmojiPicker ? 'bg-amber-500/20 text-amber-300' : 'text-white/70 hover:text-white hover:bg-white/[0.08]'}`}
+          >
+            <Smile className="w-4 h-4" />
+          </button>
+
           {showEmojiPicker && (
-            <div className="glass" style={{ padding: '0.5rem', display: 'flex', justifyItems: 'center', justifyContent: 'space-around', borderTop: '1px solid var(--border-default)', background: '#0a0a0a' }}>
-              {(['👍', '😂', '🔥', '❤️', '😮'] as const).map((emoji) => (
+            <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 p-1.5 rounded-2xl bg-[#0d0e16]/95 backdrop-blur-2xl border border-white/[0.1] shadow-2xl flex items-center gap-1 z-50">
+              {(['👍', '😂', '🔥', '❤️', '😮', '🍿'] as const).map((emoji) => (
                 <button
                   key={emoji}
-                  onClick={() => handleEmojiReaction(emoji)}
-                  style={{ fontSize: '1.5rem', border: 'none', background: 'none', cursor: 'pointer', padding: '0.25rem', transition: 'transform 0.1s' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.2)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+                  onClick={() => {
+                    sound.click();
+                    handleEmojiReaction(emoji as any);
+                  }}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center text-lg hover:scale-125 hover:bg-white/[0.08] active:scale-95 transition-transform"
                 >
                   {emoji}
                 </button>
               ))}
             </div>
           )}
+        </div>
 
-          {/* Message input footer */}
-          <form onSubmit={handleSendChat} style={{ padding: '1rem', borderTop: '1px solid var(--border-default)', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <button 
-              type="button" 
-              className="btn btn-ghost" 
-              style={{ padding: '0.5rem', color: 'var(--color-gold)' }}
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+        {/* Chat Drawer Toggle */}
+        <button
+          onClick={() => {
+            sound.click();
+            setShowChat(!showChat);
+          }}
+          title={showChat ? "Close Chat" : "Open Chat"}
+          className={`p-2 rounded-xl transition-all flex items-center gap-1.5 ${showChat ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-white/70 hover:text-white hover:bg-white/[0.08]'}`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span className="text-xs font-medium hidden sm:inline">Chat</span>
+        </button>
+
+        {/* Fullscreen Toggle */}
+        <button
+          onClick={() => {
+            sound.click();
+            toggleFullscreen();
+          }}
+          title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/[0.08] transition-all"
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+      </footer>
+
+      {/* ── Slide-Over Chat Drawer ── */}
+      {showChat && (
+        <aside 
+          className="chat-drawer open fixed top-0 right-0 bottom-0 z-50 w-full sm:w-80 md:w-96 bg-[#0d0e16]/95 backdrop-blur-3xl border-l border-white/[0.09] shadow-[-20px_0_50px_rgba(0,0,0,0.8)] flex flex-col transition-all duration-300"
+          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0.75rem))' }}
+        >
+          {/* Chat Header */}
+          <div className="px-4 py-3.5 border-b border-white/[0.07] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-amber-400" />
+              <h2 className="text-sm font-bold text-white tracking-tight">Room Chat</h2>
+              <span className="text-[10px] font-mono text-white/40">({chatMessages.length})</span>
+            </div>
+            <button
+              onClick={() => {
+                sound.click();
+                setShowChat(false);
+              }}
+              className="p-1.5 rounded-xl text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+              title="Close Chat"
             >
-              <Smile size={18} />
+              <X className="w-4 h-4" />
             </button>
+          </div>
+
+          {/* Chat Feed */}
+          <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-3">
+            {chatMessages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-white/40 gap-2">
+                <Smile className="w-8 h-8 text-white/20" />
+                <span className="text-xs">No messages yet. Say hi to everyone!</span>
+              </div>
+            ) : (
+              chatMessages.map((msg) => {
+                const isMe = msg.userId === userContext?.id || (myUserId && msg.userId === myUserId);
+                if (msg.type === 'system') {
+                  return (
+                    <div key={msg.id} className="self-center text-center my-1">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono text-white/40 bg-white/[0.03] border border-white/[0.06]">
+                        {msg.text}
+                      </span>
+                    </div>
+                  );
+                }
+                return (
+                  <div key={msg.id} className={`flex flex-col gap-1 max-w-[85%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}>
+                    <span className="text-[10px] font-mono text-white/40 px-1">
+                      {isMe ? 'You' : msg.displayName}
+                    </span>
+                    <div className={`p-3 rounded-2xl text-xs leading-relaxed break-words ${isMe ? 'bg-amber-500/15 border border-amber-500/30 text-amber-100 rounded-tr-sm' : 'bg-white/[0.05] border border-white/[0.08] text-white/90 rounded-tl-sm'}`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={chatBottomRef} />
+          </div>
+
+          {/* Chat Input Footer */}
+          <form 
+            onSubmit={(e) => {
+              handleSendChat(e);
+              sound.thud();
+            }}
+            className="p-3 border-t border-white/[0.07] flex items-center gap-2"
+            style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
+          >
             <input
               type="text"
               placeholder="Send message..."
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              className="premium-input"
-              style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-sm)', flex: 1 }}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-amber-400/80 transition-all"
             />
-            <button 
-              type="submit" 
-              style={{ 
-                padding: '0.5rem', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                borderRadius: '50%', 
-                width: '36px', 
-                height: '36px',
-                background: 'var(--color-gold)',
-                color: '#000000',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 12px rgba(197, 168, 92, 0.2)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'var(--color-gold-hover)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(197, 168, 92, 0.4)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'var(--color-gold)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(197, 168, 92, 0.2)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+            <button
+              type="submit"
+              disabled={!chatInput.trim()}
+              className="p-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center justify-center"
             >
-              <Send size={16} />
+              <Send className="w-3.5 h-3.5" />
             </button>
           </form>
-
-      </aside>
+        </aside>
       )}
 
-      {/* Chat Notification Toast (WhatsApp style) */}
-      {activeToast && (
+      {/* ── Chat Notification Toast (Dynamic Island style) ── */}
+      {activeToast && !showChat && (
         <div
-          className="glass toast-notification-left"
-            onClick={() => {
-              setActiveToast(null);
-            }}
-            style={{
-              position: 'absolute',
-              top: showControls ? '5.5rem' : '1.5rem',
-              left: '1.5rem',
-              zIndex: 99999,
-              padding: '0.65rem 1rem',
-              borderRadius: '12px',
-              border: '1px solid rgba(197, 168, 92, 0.3)',
-              background: 'rgba(10, 10, 10, 0.9)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              maxWidth: '320px',
-              width: 'fit-content',
-              minWidth: '160px',
-              cursor: 'pointer',
-              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-              userSelect: 'none',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.02)';
-              e.currentTarget.style.borderColor = 'rgba(197, 168, 92, 0.6)';
-              e.currentTarget.style.background = 'rgba(18, 18, 18, 0.95)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.borderColor = 'rgba(197, 168, 92, 0.3)';
-              e.currentTarget.style.background = 'rgba(10, 10, 10, 0.9)';
-            }}
-          >
-            {/* Avatar block */}
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'rgba(197, 168, 92, 0.15)',
-              border: '1px solid var(--color-gold)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              color: 'var(--color-gold)',
-              flexShrink: 0,
-            }}>
-              {activeToast.displayName.slice(0, 2).toUpperCase()}
-            </div>
-
-            {/* Content block */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem', overflow: 'hidden', flex: 1 }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-gold)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activeToast.displayName}
-              </span>
-              <span style={{ fontSize: 'var(--text-sm)', color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {activeToast.text}
-              </span>
-            </div>
-            
-            {/* Indicator Dot */}
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: '#e50914',
-              boxShadow: '0 0 6px #e50914',
-              flexShrink: 0,
-            }} />
+          onClick={() => {
+            sound.click();
+            setShowChat(true);
+            setActiveToast(null);
+          }}
+          className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#0d0e16]/95 backdrop-blur-2xl border border-amber-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.6)] flex items-center gap-3 cursor-pointer max-w-xs transition-all hover:scale-105 active:scale-95 animate-fade-in"
+        >
+          <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+            {activeToast.displayName.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="flex flex-col overflow-hidden min-w-0">
+            <span className="text-[11px] font-bold text-amber-300 truncate">{activeToast.displayName}</span>
+            <span className="text-xs text-white/90 truncate">{activeToast.text}</span>
+          </div>
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-[0_0_8px_#f59e0b]" />
         </div>
       )}
     </div>

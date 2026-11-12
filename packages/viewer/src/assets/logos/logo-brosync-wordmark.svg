@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Dark Brushed Titanium Plinth Gradient -->
+    <radialGradient id="plaque-bg" cx="50%" cy="40%" r="65%">
+      <stop offset="0%" stop-color="#211c26" />
+      <stop offset="45%" stop-color="#0f1017" />
+      <stop offset="100%" stop-color="#050608" />
+    </radialGradient>
+
+    <!-- 24K Chiseled Gold for "BRO" -->
+    <linearGradient id="bro-gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF0" />
+      <stop offset="20%" stop-color="#FDE68A" />
+      <stop offset="45%" stop-color="#F59E0B" />
+      <stop offset="50%" stop-color="#D97706" />
+      <stop offset="80%" stop-color="#92400E" />
+      <stop offset="100%" stop-color="#451A03" />
+    </linearGradient>
+
+    <!-- Sunset Coral Ruby for "SYNC" -->
+    <linearGradient id="sync-ruby" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFF1F2" />
+      <stop offset="20%" stop-color="#FDA4AF" />
+      <stop offset="45%" stop-color="#F43F5E" />
+      <stop offset="50%" stop-color="#E11D48" />
+      <stop offset="80%" stop-color="#9F1239" />
+      <stop offset="100%" stop-color="#4C0519" />
+    </linearGradient>
+
+    <!-- 3D Bevel Highlight Rim -->
+    <linearGradient id="bevel-sheen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="40%" stop-color="#FDE68A" stop-opacity="0.6" />
+      <stop offset="70%" stop-color="#FDA4AF" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.8" />
+    </linearGradient>
+
+    <!-- Deep Physical Shadow -->
+    <filter id="word-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.95" />
+      <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000000" flood-opacity="0.85" />
+    </filter>
+
+    <!-- Specular Flare Filter -->
+    <filter id="word-specular" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1.4" specularExponent="36" lighting-color="#FFFBEB" result="spec">
+        <fePointLight x="180" y="100" z="220" />
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceGraphic" operator="in" result="specIn" />
+      <feComposite in="SourceGraphic" in2="specIn" operator="over" />
+    </filter>
+
+    <!-- Volumetric Glow -->
+    <filter id="word-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="b1" />
+      <feGaussianBlur stdDeviation="24" result="b2" />
+      <feMerge>
+        <feMergeNode in="b2" />
+        <feMergeNode in="b1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 1. Heavy Chamfered Ingot Plaque -->
+  <g filter="url(#word-shadow)">
+    <!-- Base Medal -->
+    <rect x="28" y="48" width="456" height="416" rx="64" fill="url(#plaque-bg)" stroke="url(#bevel-sheen)" stroke-width="2.5" />
+    <!-- Recessed Inner Bed -->
+    <rect x="42" y="62" width="428" height="388" rx="52" fill="#0b0c12" stroke="rgba(255,255,255,0.04)" stroke-width="1.5" />
+
+    <!-- Corner Hex Bolts -->
+    <circle cx="68" cy="88" r="5" fill="#332B1A" stroke="#78350F" stroke-width="1.5" />
+    <circle cx="444" cy="88" r="5" fill="#332B1A" stroke="#78350F" stroke-width="1.5" />
+    <circle cx="68" cy="424" r="5" fill="#332B1A" stroke="#78350F" stroke-width="1.5" />
+    <circle cx="444" cy="424" r="5" fill="#332B1A" stroke="#78350F" stroke-width="1.5" />
+  </g>
+
+  <!-- Ambient Light Field behind lettering -->
+  <circle cx="170" cy="220" r="90" fill="#F59E0B" opacity="0.16" filter="url(#word-glow)" />
+  <circle cx="340" cy="220" r="90" fill="#F43F5E" opacity="0.14" filter="url(#word-glow)" />
+
+  <!-- 2. Sculpted Hero Typography: "BroSync" -->
+  <g filter="url(#word-shadow)">
+    
+    <!-- Cast Shadow Pass for letters -->
+    <g transform="translate(0, 8)" opacity="0.45" fill="#000000">
+      <text x="76" y="248" font-family="'Inter', 'Cabinet Grotesk', -apple-system, sans-serif" font-size="82" font-weight="900" letter-spacing="-1">
+        Bro<tspan fill="#000000">Sync</tspan>
+      </text>
+    </g>
+
+    <!-- Main Chiseled Wordmark: "Bro" in 24K Gold, "Sync" in Sunset Ruby -->
+    <g filter="url(#word-specular)">
+      <!-- "Bro" -->
+      <text x="76" y="240" font-family="'Inter', 'Cabinet Grotesk', -apple-system, sans-serif" font-size="82" font-weight="900" letter-spacing="-1" fill="url(#bro-gold)">
+        Bro
+      </text>
+
+      <!-- "Sync" -->
+      <text x="246" y="240" font-family="'Inter', 'Cabinet Grotesk', -apple-system, sans-serif" font-size="82" font-weight="900" letter-spacing="-1" fill="url(#sync-ruby)">
+        Sync
+      </text>
+    </g>
+
+    <!-- Specular Highlight Cuts along Top of Letters -->
+    <path d="M 82,185 L 122,185 M 134,204 L 164,204 M 180,185 L 235,185 M 252,192 C 275,180 300,185 300,202 M 310,204 L 335,204 M 350,192 L 388,192 M 398,192 C 430,192 430,225 405,236" 
+          stroke="#FFFFFF" 
+          stroke-width="3" 
+          stroke-linecap="round" 
+          fill="none" 
+          opacity="0.8" />
+  </g>
+
+  <!-- 3. Integrated Media Triangle inside the "O" of Bro -->
+  <g transform="translate(204, 212)" filter="url(#word-glow)">
+    <circle cx="0" cy="0" r="18" fill="rgba(10,11,18,0.9)" stroke="#F59E0B" stroke-width="2" />
+    <polygon points="-4,-7 8,0 -4,7" fill="#FFFFFF" />
+    <polygon points="-4,0 8,0 -4,7" fill="#F59E0B" />
+  </g>
+
+  <!-- 4. Dynamic Stream Laser Wave flowing under the wordmark -->
+  <g filter="url(#word-glow)">
+    <path d="M 76,275 C 160,275 220,300 280,275 C 340,250 400,285 436,285" 
+          fill="none" 
+          stroke="url(#bevel-sheen)" 
+          stroke-width="5" 
+          stroke-linecap="round" />
+
+    <!-- Moving Sync Stream Particle -->
+    <circle cx="280" cy="275" r="7" fill="#FFFFFF" />
+    <circle cx="280" cy="275" r="14" fill="#F59E0B" opacity="0.6" filter="url(#word-glow)" />
+  </g>
+
+  <!-- 5. Subtitle Pill Plaque: "WATCH TOGETHER • FOR REAL" -->
+  <g transform="translate(256, 350)">
+    <rect x="-140" y="-16" width="280" height="32" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" />
+    <text x="0" y="5" font-family="'JetBrains Mono', monospace" font-size="11" font-weight="700" letter-spacing="4" fill="#FDE68A" text-anchor="middle">
+      WATCH TOGETHER • 60 FPS
+    </text>
+  </g>
+
+  <!-- Top Studio Gleam Highlight -->
+  <line x1="100" y1="50" x2="412" y2="50" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" opacity="0.35" />
+</svg>

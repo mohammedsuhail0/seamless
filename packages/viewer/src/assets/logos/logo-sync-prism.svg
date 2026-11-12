@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Deep Cosmic Obsidian Void -->
+    <radialGradient id="void-bg" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#181524" />
+      <stop offset="45%" stop-color="#0a0a14" />
+      <stop offset="100%" stop-color="#040508" />
+    </radialGradient>
+
+    <!-- Translucent Optical Glass Slab -->
+    <linearGradient id="optical-glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18" />
+      <stop offset="40%" stop-color="#F59E0B" stop-opacity="0.08" />
+      <stop offset="80%" stop-color="#F43F5E" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05" />
+    </linearGradient>
+
+    <!-- Optical Specular Edge Rim -->
+    <linearGradient id="glass-edge-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.9" />
+      <stop offset="25%" stop-color="#FDE68A" stop-opacity="0.6" />
+      <stop offset="65%" stop-color="#F43F5E" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.1" />
+    </linearGradient>
+
+    <!-- Volumetric Laser Beam Cone -->
+    <linearGradient id="beam-amber" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0" />
+      <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
+    </linearGradient>
+
+    <linearGradient id="beam-rose" x1="100%" y1="50%" x2="0%" y2="50%">
+      <stop offset="0%" stop-color="#F43F5E" stop-opacity="0" />
+      <stop offset="50%" stop-color="#F43F5E" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Glowing Core Filter -->
+    <filter id="neon-bloom" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="glow1" />
+      <feGaussianBlur stdDeviation="24" result="glow2" />
+      <feMerge>
+        <feMergeNode in="glow2" />
+        <feMergeNode in="glow1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Optical Glass Drop Shadow -->
+    <filter id="glass-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="20" stdDeviation="30" flood-color="#000000" flood-opacity="0.95" />
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#F59E0B" flood-opacity="0.2" />
+    </filter>
+  </defs>
+
+  <!-- 1. Background Obsidian Circle -->
+  <circle cx="256" cy="256" r="232" fill="url(#void-bg)" stroke="rgba(255,255,255,0.08)" stroke-width="2" />
+
+  <!-- 2. Volumetric Ambient Glow Spheres in Background -->
+  <circle cx="180" cy="230" r="100" fill="#F59E0B" opacity="0.15" filter="url(#neon-bloom)" />
+  <circle cx="332" cy="280" r="100" fill="#F43F5E" opacity="0.12" filter="url(#neon-bloom)" />
+
+  <!-- 3. Floating Vision-OS Optical Glass Screen Slab -->
+  <g filter="url(#glass-shadow)">
+    <!-- Main Floating Screen Surface (Isometric 3D Tilt) -->
+    <path d="M 120,130 L 372,90 L 412,350 L 160,390 Z" 
+          fill="url(#optical-glass)" 
+          stroke="url(#glass-edge-rim)" 
+          stroke-width="2.5" />
+
+    <!-- Specular Reflection Ray on Glass Face -->
+    <path d="M 140,140 L 260,120 L 220,380 L 170,388 Z" 
+          fill="url(#optical-glass)" 
+          opacity="0.5" />
+
+    <!-- Top Left Glass Apex Lens Highlight -->
+    <circle cx="120" cy="130" r="4" fill="#FFFFFF" filter="url(#neon-bloom)" />
+    <circle cx="372" cy="90" r="3" fill="#FFFFFF" opacity="0.8" />
+  </g>
+
+  <!-- 4. Converging Sync Beams (Screen Sharing Stream) -->
+  <g filter="url(#neon-bloom)">
+    <!-- Amber Emitter Node -->
+    <circle cx="170" cy="260" r="14" fill="#FBBF24" />
+    <circle cx="170" cy="260" r="7" fill="#FFFFFF" />
+
+    <!-- Rose Receiver Node -->
+    <circle cx="360" cy="230" r="14" fill="#FB7185" />
+    <circle cx="360" cy="230" r="7" fill="#FFFFFF" />
+
+    <!-- Connected Photon Laser Arc -->
+    <path d="M 170,260 Q 265,190 360,230" 
+          fill="none" 
+          stroke="url(#beam-amber)" 
+          stroke-width="6" 
+          stroke-linecap="round" />
+
+    <path d="M 170,260 Q 265,300 360,230" 
+          fill="none" 
+          stroke="url(#beam-rose)" 
+          stroke-width="4" 
+          stroke-linecap="round" />
+  </g>
+
+  <!-- 5. Floating Holographic Diamond Play Beacon (Center Focal Point) -->
+  <g filter="url(#neon-bloom)">
+    <polygon points="265,210 305,245 265,280 235,245" fill="rgba(13,14,22,0.85)" stroke="#F59E0B" stroke-width="2" />
+    <polygon points="252,228 288,245 252,262" fill="#FFFFFF" />
+    <polygon points="252,245 288,245 252,262" fill="#F59E0B" />
+  </g>
+
+  <!-- 6. Outer Subtle Circular Horizon Ring -->
+  <circle cx="256" cy="256" r="218" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" stroke-dasharray="4 8" />
+</svg>

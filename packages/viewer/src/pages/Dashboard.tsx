@@ -1,20 +1,23 @@
-// Agent: 🌐 Agent C (Viewer App Dashboard Page)
-// File: packages/viewer/src/pages/Dashboard.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../lib/api';
 import { useAuthStore } from '../stores/auth';
+import { sound } from '../lib/sound';
+import { animate, stagger } from 'animejs';
 import { 
-  Plus, 
-  Film, 
+  Radio, 
+  Tv, 
+  KeyRound, 
   Users, 
-  Clock, 
-  LogOut, 
+  Sparkles, 
   Copy, 
   Check, 
-  Ticket, 
-  Settings,
-  Trash2
+  ArrowRight, 
+  Clock, 
+  Lock, 
+  Globe, 
+  Trash2, 
+  Play, 
+  Layers
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -23,61 +26,51 @@ interface DashboardProps {
   setAuthContext?: (user: any | null) => void;
 }
 
-const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
-    <defs>
-      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#9A7A35" />
-        <stop offset="25%" stopColor="#EAC775" />
-        <stop offset="50%" stopColor="#BE9648" />
-        <stop offset="75%" stopColor="#FDF1A9" />
-        <stop offset="100%" stopColor="#A1813C" />
-      </linearGradient>
-    </defs>
-    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
-    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-export function Dashboard({ onNavigate, userContext, setAuthContext }: DashboardProps) {
+export function Dashboard({ onNavigate, userContext, setAuthContext: _setAuthContext }: DashboardProps) {
   const { logout } = useAuthStore();
   const [history, setHistory] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
-  // New room modal inputs
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  // Workbench Mode: 'create' | 'join' | 'rooms' (mobile zero-scroll)
+  const [workbenchTab, setWorkbenchTab] = useState<'create' | 'join' | 'rooms'>('create');
+
+  // Create Stream Form inputs
   const [roomName, setRoomName] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [qualityPreset, setQualityPreset] = useState('AUTO');
+  const [qualityPreset, setQualityPreset] = useState<'FHD_1080' | 'AUTO'>('FHD_1080');
+  const [capacity, setCapacity] = useState(12);
   const [creationError, setCreationError] = useState('');
   const [creationLoading, setCreationLoading] = useState(false);
 
-  // Newly created room details
+  // Join Room Code input
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [joinLoading, setJoinLoading] = useState(false);
+
+  // Newly created room modal / banner
   const [createdRoom, setCreatedRoom] = useState<any | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Range slider capacity and navigation tab states
-  const [capacity, setCapacity] = useState(8);
-  const [activeTab, setActiveTab] = useState('suites');
-  const [showCinemaModal, setShowCinemaModal] = useState(false);
-  const [showSocialModal, setShowSocialModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const workbenchRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
 
-  const activeLobbies = history.filter(room => room.status !== 'CLOSED');
-  const recentScreenings = history.filter(room => room.status === 'CLOSED');
+  // Stagger entrance with Anime.js
+  useEffect(() => {
+    try {
+      animate('.spatial-hud-reveal', {
+        translateY: [24, 0],
+        opacity: [0, 1],
+        delay: stagger(80, { start: 100 }),
+        ease: 'out(3)',
+        duration: 700,
+      });
+    } catch (_) {}
+  }, []);
 
-  const totalSeconds = history.reduce((sum, r) => sum + (r.duration || 0), 0);
-  const realHoursSynced = Math.round((totalSeconds / 3600) * 10) / 10;
-  const realFriendsActive = history.reduce((sum, r) => sum + (r.viewerCount || 0), 0);
-
-  // Fetch hosted room history on load
   const fetchHistory = async () => {
     try {
       const data = await api.get('/api/rooms/my/history?page=1&limit=100');
-      setHistory(data.rooms);
+      setHistory(data.rooms || []);
     } catch (err) {
       console.error('Failed to load room history:', err);
     } finally {
@@ -89,498 +82,598 @@ export function Dashboard({ onNavigate, userContext, setAuthContext }: Dashboard
     fetchHistory();
   }, []);
 
-  const handleCreateRoomSubmit = async (e: React.FormEvent) => {
+  // Handle Create Stream
+  const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreationError('');
     setCreationLoading(true);
+    sound.thud();
 
     try {
-      // Verify the cached session before creating a room.
-      // This prevents stale localStorage from showing the dashboard while the token is already invalid.
       await api.get('/api/auth/me');
 
       const data = await api.post('/api/rooms', {
-        name: roomName || 'Movie Screening Room 🍿',
+        name: roomName || `${userContext?.displayName || 'Host'}'s Watch Party 🍿`,
         isPrivate,
         qualityPreset,
       });
 
       setCreatedRoom(data);
-      setShowCreateModal(true);
-      // Refresh history list
+      sound.chime();
       fetchHistory();
     } catch (err: any) {
       if (err?.error?.code === 'UNAUTHORIZED' || err?.error?.code === 'SESSION_EXPIRED') {
         await logout().catch(() => {});
-        setCreationError('Session expired. Please log in again.');
         onNavigate('landing');
         return;
       }
-
-      setCreationError(err?.error?.message || err?.message || 'Failed to create room.');
+      setCreationError(err?.error?.message || err?.message || 'Failed to initialize broadcast room.');
     } finally {
       setCreationLoading(false);
     }
   };
 
+  // Handle Direct Join via Room Code in the creation menu
+  const handleDirectJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanCode = joinCode.trim().toUpperCase();
+    if (!cleanCode) return;
+
+    setJoinError('');
+    setJoinLoading(true);
+    sound.click();
+
+    try {
+      const res = await api.get(`/api/rooms/${cleanCode}`);
+      if (res?.room || res?.id || res?.roomCode) {
+        sound.chime();
+        onNavigate('room', cleanCode);
+      } else {
+        setJoinError('Room not found. Check the code and try again.');
+      }
+    } catch (err: any) {
+      if (cleanCode.length >= 4) {
+        sound.click();
+        onNavigate('room', cleanCode);
+      } else {
+        setJoinError(err?.error?.message || 'Invalid or closed room code.');
+      }
+    } finally {
+      setJoinLoading(false);
+    }
+  };
+
   const handleCopyLink = () => {
     if (createdRoom) {
-      const joinUrl = `${window.location.protocol}//${window.location.host}/room/${createdRoom.roomCode}`;
+      const joinUrl = `${window.location.origin}/room/${createdRoom.roomCode}`;
       navigator.clipboard.writeText(joinUrl);
       setCopiedLink(true);
-      setTimeout(() => setCopiedLink(false), 2000);
+      sound.click();
+      setTimeout(() => setCopiedLink(false), 2200);
     }
   };
 
   const handleCloseRoom = async (roomId: string) => {
-    if (!window.confirm('Are you sure you want to end and close this lounge session? Guests will be disconnected.')) {
-      return;
-    }
+    if (!window.confirm('End and archive this stream session? Connected friends will disconnect.')) return;
     try {
+      sound.click();
       await api.patch(`/api/rooms/${roomId}/close`);
       fetchHistory();
     } catch (err) {
       console.error('Failed to close room:', err);
-      alert('Failed to close room session.');
     }
   };
 
-  const triggerLogout = async () => {
-    await logout();
-    setAuthContext?.(null);
-    onNavigate('landing');
-  };
-
   return (
-    <div className="dashboard-page-root" style={{ position: 'relative' }}>
-      <div className="radial-glow" style={{ top: '-10%', right: '-10%', background: 'radial-gradient(circle, rgba(197, 168, 92, 0.08) 0%, rgba(0,0,0,0) 70%)' }} />
-      <div className="radial-glow" style={{ bottom: '-10%', left: '-10%', background: 'radial-gradient(circle, rgba(229, 9, 20, 0.05) 0%, rgba(0,0,0,0) 70%)' }} />
-
-      {/* Header */}
-      <header className="dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', background: '#000000', borderBottom: '1px solid rgba(197, 168, 92, 0.15)', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }} onClick={() => onNavigate('landing')}>
-          <GoldLogoSVG size={34} />
-          <span style={{ fontWeight: 700, fontSize: '1.35rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>Patron Lounge</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', border: '1.5px solid var(--color-gold)', background: 'rgba(197, 168, 92, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--color-gold)', fontSize: 'var(--text-sm)' }}>
-              {userContext?.displayName ? userContext.displayName.slice(0, 2).toUpperCase() : 'JD'}
-            </div>
-            <span style={{ fontWeight: 600, color: '#ffffff', fontSize: 'var(--text-sm)' }} className="hide-mobile">{userContext?.displayName || 'Patron'}</span>
-          </div>
-          <button className="btn btn-ghost" onClick={triggerLogout} style={{ padding: '0.5rem', color: 'rgba(255,255,255,0.6)' }} title="Sign Out"><LogOut size={18} /></button>
-        </div>
-      </header>
-
-      {/* Main Workspace Layout */}
-      <main style={{ maxWidth: '680px', margin: '0 auto', padding: '2rem 1.5rem 6rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '2.25rem', position: 'relative', zIndex: 1 }}>
-        
-        {/* Banner Segment */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <h1 style={{ fontSize: 'var(--text-3xl)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.5px' }}>
-            Welcome back, {userContext?.displayName ? userContext.displayName.split(' ')[0] : 'Patron'}
+    <div 
+      className="flex-1 w-full max-w-5xl mx-auto px-4 sm:px-6 pt-20 sm:pt-24 pb-12 sm:pb-20 flex flex-col gap-5 sm:gap-10"
+      style={{
+        paddingTop: 'max(4.5rem, calc(env(safe-area-inset-top, 0px) + 3.5rem))',
+        paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom, 0px) + 2rem))',
+      }}
+    >
+      
+      {/* ── Top Hero HUD ── */}
+      <section className="spatial-hud-reveal flex flex-col md:flex-row md:items-end justify-between gap-2 sm:gap-6 pb-2 border-b border-white/[0.06] shrink-0">
+        <div className="flex flex-col gap-1 sm:gap-2">
+          <h1 className="text-xl sm:text-3xl font-semibold tracking-tight text-white">
+            Welcome, {userContext?.displayName || 'Friend'}
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>Sync with your friends and control your virtual theater in real-time.</p>
+          <p className="text-[11px] sm:text-sm text-white/55 max-w-md">
+            Watch videos, browse together, and hang out with friends in real-time.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Newly Created Room Ready Modal/Banner ── */}
+      {createdRoom && (
+        <section className="spatial-hud-reveal p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-amber-950/30 backdrop-blur-2xl border border-amber-500/30 shadow-[0_16px_50px_rgba(245,158,11,0.15)] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-6 shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 shrink-0">
+              <Radio className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:text-[11px] font-mono text-amber-300">ROOM READY</span>
+              <h3 className="text-sm sm:text-lg font-semibold text-white tracking-tight">{createdRoom.name}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] sm:text-[11px] font-mono text-white/60">CODE:</span>
+                <span className="text-xs sm:text-sm font-mono font-bold tracking-widest text-amber-300 bg-white/[0.06] px-2 py-0.5 rounded-lg border border-white/10">
+                  {createdRoom.roomCode}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-row items-center gap-2 sm:gap-3 w-full md:w-auto">
+            <button
+              onClick={handleCopyLink}
+              className="flex-1 min-h-[38px] sm:min-h-[44px] flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white text-xs font-medium border border-white/10 transition-all active:scale-95"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-white/70" />}
+              <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+            </button>
+            <button
+              onClick={() => {
+                sound.thud();
+                onNavigate('room', createdRoom.roomCode);
+              }}
+              className="flex-1 min-h-[38px] sm:min-h-[44px] flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-black text-xs font-semibold shadow-md transition-all active:scale-95"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Enter</span>
+            </button>
+          </div>
         </section>
+      )}
 
-        {/* Stats Section */}
-        <section className="stats-grid">
-          <div className="gold-stat-card">
-            <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
-              {realHoursSynced}
-            </div>
-            <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
-              Hours Synced
-            </div>
+      {/* ── Main Spatial Workbench (Create Stream OR Join with Code) ── */}
+      <section 
+        ref={workbenchRef}
+        className="spatial-hud-reveal rounded-2xl sm:rounded-3xl bg-[#0d0e16]/80 backdrop-blur-2xl border border-white/[0.09] shadow-[0_20px_60px_rgba(0,0,0,0.4),inset_0_1px_1px_rgba(255,255,255,0.12)] p-4 sm:p-8 flex flex-col gap-5 sm:gap-6"
+      >
+        {/* Spatial Segmented Switcher */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-2.5 sm:pb-4 gap-2 shrink-0">
+          {/* Mobile 3-Tab Switcher */}
+          <div className="grid grid-cols-3 sm:hidden w-full gap-1 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => {
+                sound.click();
+                setWorkbenchTab('create');
+              }}
+              className={`
+                min-h-[36px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all
+                ${workbenchTab === 'create' 
+                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                  : 'text-white/60 hover:text-white'}
+              `}
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Host</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.click();
+                setWorkbenchTab('join');
+              }}
+              className={`
+                min-h-[36px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all
+                ${workbenchTab === 'join' 
+                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                  : 'text-white/60 hover:text-white'}
+              `}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Join</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                sound.click();
+                setWorkbenchTab('rooms');
+              }}
+              className={`
+                min-h-[36px] flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-xl text-xs font-medium transition-all
+                ${workbenchTab === 'rooms' 
+                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                  : 'text-white/60 hover:text-white'}
+              `}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Rooms ({history.length})</span>
+            </button>
           </div>
 
-          <div className="gold-stat-card">
-            <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 700, color: 'var(--color-gold)', fontFamily: 'var(--font-serif)', lineHeight: 1 }}>
-              {realFriendsActive}
-            </div>
-            <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-gold)', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '0.4rem' }}>
-              Friends Active
-            </div>
-          </div>
-        </section>
+          {/* Desktop 2-Tab Switcher */}
+          <div className="hidden sm:flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+            <button
+              type="button"
+              onClick={() => {
+                sound.click();
+                setWorkbenchTab('create');
+              }}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all
+                ${workbenchTab === 'create' 
+                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                  : 'text-white/60 hover:text-white hover:bg-white/[0.03]'}
+              `}
+            >
+              <Tv className="w-3.5 h-3.5" />
+              <span>Host New Stream</span>
+            </button>
 
-        {/* Create Suite Form (Inline Form replacing previous modal trigger) */}
-        <section className="gold-form-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Plus size={20} color="var(--color-gold)" style={{ strokeWidth: '2.5px' }} />
-            <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#ffffff' }}>Create Suite</h2>
+            <button
+              type="button"
+              onClick={() => {
+                sound.click();
+                setWorkbenchTab('join');
+              }}
+              className={`
+                flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all
+                ${workbenchTab === 'join' 
+                  ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.2)]' 
+                  : 'text-white/60 hover:text-white hover:bg-white/[0.03]'}
+              `}
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              <span>Join via Room Code</span>
+            </button>
           </div>
-          
-          <form onSubmit={handleCreateRoomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+          <span className="text-[11px] font-mono text-white/40 hidden sm:inline-block">
+            {workbenchTab === 'create' ? 'Host a Stream' : 'Join Friends'}
+          </span>
+        </div>
+
+        {/* TAB 1: HOST NEW STREAM */}
+        {workbenchTab === 'create' && (
+          <form onSubmit={handleCreateRoom} className="flex flex-col gap-6">
             {creationError && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)' }}>
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
                 {creationError}
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>LOUNGE NAME</label>
-              <input 
-                type="text" 
-                required
-                placeholder="e.g., Midnight Screening" 
-                value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                className="premium-input"
-                style={{ width: '100%' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>CAPACITY (MAX 20)</label>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-gold)' }}>{capacity}</span>
-              </div>
-              <input 
-                type="range" 
-                min={1} 
-                max={20} 
-                value={capacity}
-                onChange={(e) => setCapacity(Number(e.target.value))}
-                className="premium-slider"
-              />
-            </div>
-
-            {/* Advanced configurations inside grid */}
-            <div className="dashboard-form-grid">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                <label style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>QUALITY PRESET</label>
-                <select 
-                  value={qualityPreset} 
-                  onChange={(e) => setQualityPreset(e.target.value)}
-                  className="premium-input"
-                  style={{ padding: '0.5rem 0.75rem', fontSize: 'var(--text-xs)', background: '#111111', height: '38px' }}
-                >
-                  <option value="AUTO">AUTO (Adaptive)</option>
-                  <option value="HD_720">HD 720p</option>
-                  <option value="FHD_1080">FHD 1080p</option>
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Stream Title */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-amber-200/60">
+                  Room Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. YouTube Watch Party / Gaming"
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  className="w-full px-4 py-3.5 sm:py-3 rounded-2xl bg-white/[0.04] border border-white/10 text-base sm:text-sm text-white placeholder-white/30 focus:outline-none focus:border-amber-400/80 focus:bg-white/[0.06] transition-all"
+                />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.35rem' }}>
-                <label style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.5px' }}>PRIVACY</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', height: '38px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="isPrivate"
-                    checked={isPrivate} 
-                    onChange={(e) => setIsPrivate(e.target.checked)}
-                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--color-gold)' }}
-                  />
-                  <label htmlFor="isPrivate" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Private Suite</label>
-                </div>
-              </div>
-            </div>
+              {/* Stream Quality Selection */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-mono uppercase tracking-wider text-amber-200/60">
+                  Stream Quality
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.click();
+                      setQualityPreset('FHD_1080');
+                    }}
+                    className={`
+                      min-h-[52px] p-2.5 rounded-2xl border text-left flex flex-col justify-center gap-0.5 transition-all
+                      ${qualityPreset === 'FHD_1080' 
+                        ? 'bg-amber-500/10 border-amber-400/40 text-amber-200' 
+                        : 'bg-white/[0.02] border-white/10 text-white/60 hover:border-white/20'}
+                    `}
+                  >
+                    <span className="text-xs font-semibold">High Definition</span>
+                    <span className="text-[10px] text-white/40">Best video & audio</span>
+                  </button>
 
-            <button type="submit" disabled={creationLoading} className="btn-red" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', width: '100%', padding: '0.85rem', marginTop: '0.5rem' }}>
-              <Ticket size={16} style={{ strokeWidth: '2.5px' }} /> {creationLoading ? 'Host Screening...' : 'Host Screening'}
-            </button>
-          </form>
-        </section>
-
-        {/* Active Lobbies */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#e50914', boxShadow: '0 0 8px #e50914' }} />
-            <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Active Lobbies</h2>
-          </div>
-          {loadingHistory ? (
-            <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              Loading active lobbies...
-            </div>
-          ) : activeLobbies.length === 0 ? (
-            <div style={{ padding: '3rem 1.5rem', textAlign: 'center', borderRadius: '8px', color: 'rgba(255, 255, 255, 0.4)', border: '1px dashed rgba(197, 168, 92, 0.2)', background: 'rgba(12, 12, 12, 0.4)' }}>
-              <span style={{ fontSize: '2rem', display: 'block', marginBottom: '0.75rem' }}>🍿</span>
-              <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.5px', fontFamily: 'var(--font-serif)' }}>No Active Lobbies</h3>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: '0.4rem' }}>You haven't hosted or joined any suites yet. Use the Create Suite form above to host one!</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {activeLobbies.map((room) => {
-                return (
-                  <div key={room.id} className="lobby-card">
-                    <div className="lobby-card-header">
-                      <span style={{ fontSize: '9px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', background: 'rgba(255,255,255,0.06)', padding: '0.25rem 0.5rem', borderRadius: '4px', letterSpacing: '0.5px' }}>
-                        {!room.qualityPreset || room.qualityPreset === 'AUTO' ? 'CINEMATIC SYNC' : room.qualityPreset.replace('_', ' ')}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                        <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#c5a85c', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#000000' }}>
-                          {userContext?.displayName ? userContext.displayName[0].toUpperCase() : 'P'}
-                        </div>
-                        {room.viewerCount > 0 && (
-                          <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#222222', border: '1.5px solid #000000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: 'bold', color: '#ffffff', marginLeft: '-6px' }}>
-                            +{room.viewerCount}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff' }}>{room.name}</h3>
-                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <Clock size={12} /> Started {new Date(room.createdAt).toLocaleDateString()} ({Math.ceil(room.duration / 60)}m shared)
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px dashed rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.25rem' }}>
-                      <div className="equalizer-box">
-                        <span className="equalizer-bar" />
-                        <span className="equalizer-bar" />
-                        <span className="equalizer-bar" />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                        <button 
-                          onClick={() => handleCloseRoom(room.id)}
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1.5px solid rgba(239, 68, 68, 0.3)',
-                            color: '#ef4444',
-                            padding: '0.45rem',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                            e.currentTarget.style.borderColor = '#ef4444';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                          }}
-                          title="Close & End Lounge Session"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button className="btn-gold-rejoin" onClick={() => onNavigate('room', room.roomCode)}>
-                          Join Lobby
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Recent Screenings Section */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '0.5rem' }}>
-          <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Recent Screenings</h2>
-          
-          {recentScreenings.length === 0 ? (
-            <div style={{ padding: '2rem 1.5rem', textAlign: 'center', borderRadius: '8px', color: 'rgba(255, 255, 255, 0.4)', border: '1px dashed rgba(255, 255, 255, 0.08)', background: 'rgba(5, 5, 5, 0.2)' }}>
-              <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.5rem' }}>🎬</span>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>No completed screenings found.</p>
-            </div>
-          ) : (
-            <div className="screenings-grid">
-              {recentScreenings.slice(0, 6).map((room) => {
-                const durationHrs = Math.floor(room.duration / 3600);
-                const durationMins = Math.ceil((room.duration % 3600) / 60);
-                const durationStr = durationHrs > 0 ? `${durationHrs}h ${durationMins}m` : `${durationMins}m`;
-
-                return (
-                  <div key={room.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ width: '100%', height: '120px', borderRadius: '8px', background: 'linear-gradient(185deg, #111 0%, #000 100%)', border: '1px solid rgba(197, 168, 92, 0.15)', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Film size={28} color="rgba(197, 168, 92, 0.2)" />
-                      <span style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.85)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold', color: '#ffffff' }}>
-                        {durationStr}
-                      </span>
-                      <span style={{ position: 'absolute', top: '8px', left: '8px', background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(197, 168, 92, 0.2)', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', color: 'var(--color-gold)' }}>
-                        {(!room.qualityPreset || room.qualityPreset === 'AUTO') ? 'AUTO' : room.qualityPreset.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                      <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{room.name}</h3>
-                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{new Date(room.createdAt).toLocaleDateString()}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '-6px' }}>
-                        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'rgba(197, 168, 92, 0.15)', color: 'var(--color-gold)', border: '1px solid var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '7px', fontWeight: 'bold' }}>
-                          {userContext?.displayName ? userContext.displayName[0].toUpperCase() : 'P'}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 'bold' }}>
-                        {room.viewerCount} {room.viewerCount === 1 ? 'Guest' : 'Guests'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-      </main>
-
-      {/* Interactive Sticky Bottom Navigation Bar */}
-      <nav className="sticky-bottom-nav">
-        <button className={`sticky-bottom-nav-item ${activeTab === 'cinema' ? 'active' : ''}`} onClick={() => { setActiveTab('cinema'); setShowCinemaModal(true); }}>
-          <Film size={18} />
-          Cinema
-        </button>
-        <button className={`sticky-bottom-nav-item ${activeTab === 'suites' ? 'active' : ''}`} onClick={() => { setActiveTab('suites'); setShowCinemaModal(false); setShowSocialModal(false); setShowSettingsModal(false); }}>
-          <Ticket size={18} />
-          Suites
-        </button>
-        <button className={`sticky-bottom-nav-item ${activeTab === 'social' ? 'active' : ''}`} onClick={() => { setActiveTab('social'); setShowSocialModal(true); }}>
-          <Users size={18} />
-          Social
-        </button>
-        <button className={`sticky-bottom-nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setActiveTab('settings'); setShowSettingsModal(true); }}>
-          <Settings size={18} />
-          Settings
-        </button>
-      </nav>
-
-      {/* Immersive Glassmorphic Modal Overlay for Creating Rooms - SUCCESS DIALOG ONLY */}
-      {showCreateModal && createdRoom && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass modal-container success-modal-card" style={{ borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1.5px solid var(--color-gold)', background: '#0a0a0a', boxShadow: '0 20px 50px rgba(0,0,0,0.9)', maxWidth: '440px', width: '100%' }}>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, fontFamily: 'var(--font-serif)', color: '#ffffff' }}>Screening Created!</h2>
-              <button className="btn btn-ghost" onClick={() => setShowCreateModal(false)} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem' }}>🍿</div>
-              <div>
-                <h3 style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Suite Invitation Code</h3>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '2.25rem', fontWeight: 800, background: 'rgba(255,255,255,0.04)', padding: '0.5rem', borderRadius: 'var(--radius-md)', margin: '0.75rem 0', letterSpacing: '3px', color: 'var(--color-gold)', border: '1px solid rgba(197, 168, 92, 0.2)' }}>
-                  {createdRoom.roomCode}
-                </div>
-              </div>
-              
-              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>Share this code or link with guests to sync browsing instantly.</p>
-              
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button className="btn btn-secondary" onClick={handleCopyLink} style={{ flex: 1, border: '1px solid rgba(255,255,255,0.15)', color: '#ffffff' }}>
-                  {copiedLink ? <><Check size={16} /> Copied</> : <><Copy size={16} /> Copy Link</>}
-                </button>
-                <button className="btn-red" onClick={() => onNavigate('room', createdRoom.roomCode)} style={{ flex: 1 }}>
-                  Start Stream
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Interactive Overlays for Bottom Tabs */}
-      
-      {/* Cinema Overlay */}
-      {showCinemaModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Film size={18} color="var(--color-gold)" />
-                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Cinema Showcase</h2>
-              </div>
-              <button className="btn btn-ghost" onClick={() => { setShowCinemaModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-              {[
-                { title: 'Dune: Part Two', duration: '2h 46m', desc: 'Epic sci-fi action' },
-                { title: 'Oppenheimer', duration: '3h 00m', desc: 'Biographical historical drama' },
-                { title: 'Everything Everywhere All at Once', duration: '2h 19m', desc: 'Multiverse comedy drama' },
-                { title: 'Interstellar', duration: '2h 49m', desc: 'Space exploration masterpiece' }
-              ].map((movie, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{movie.title}</span>
-                    <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{movie.desc} • {movie.duration}</span>
-                  </div>
-                  <button className="btn-gold-rejoin" style={{ padding: '0.25rem 0.5rem', fontSize: '10px' }} onClick={() => { setRoomName(`${movie.title} Suite 🍿`); setShowCinemaModal(false); setActiveTab('suites'); }}>
-                    Host
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.click();
+                      setQualityPreset('AUTO');
+                    }}
+                    className={`
+                      min-h-[52px] p-2.5 rounded-2xl border text-left flex flex-col justify-center gap-0.5 transition-all
+                      ${qualityPreset === 'AUTO' 
+                        ? 'bg-amber-500/10 border-amber-400/40 text-amber-200' 
+                        : 'bg-white/[0.02] border-white/10 text-white/60 hover:border-white/20'}
+                    `}
+                  >
+                    <span className="text-xs font-semibold">Balanced</span>
+                    <span className="text-[10px] text-white/40">Data friendly</span>
                   </button>
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>Selecting a movie pre-fills the lounge name in your suite builder.</p>
-          </div>
-        </div>
-      )}
-
-      {/* Social Overlay */}
-      {showSocialModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Users size={18} color="var(--color-gold)" />
-                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Patron Network</h2>
               </div>
-              <button className="btn btn-ghost" onClick={() => { setShowSocialModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '300px', overflowY: 'auto' }}>
-              {[
-                { name: 'John Doe', status: 'Online', code: 'JD' },
-                { name: 'Alice Smith', status: 'In a Suite (Dune)', code: 'AS' },
-                { name: 'Bob Johnson', status: 'Offline', code: 'BJ' }
-              ].map((friend, idx) => (
-                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(197,168,92,0.15)', color: 'var(--color-gold)', border: '1px solid var(--color-gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold' }}>{friend.code}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#ffffff' }}>{friend.name}</span>
-                      <span style={{ fontSize: '10px', color: friend.status === 'Offline' ? 'var(--text-muted)' : 'var(--color-success)' }}>{friend.status}</span>
+
+            {/* Slider & Privacy Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+              {/* Capacity Slider */}
+              <div className="flex flex-col gap-2 p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-mono text-white/50 uppercase tracking-wider">Friend Capacity</span>
+                  <span className="font-mono font-bold text-amber-300">{capacity} Viewers</span>
+                </div>
+                <input
+                  type="range"
+                  min={2}
+                  max={24}
+                  value={capacity}
+                  onChange={(e) => setCapacity(Number(e.target.value))}
+                  className="w-full accent-amber-400 cursor-pointer"
+                />
+              </div>
+
+              {/* Privacy Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-white/[0.04] text-white/70">
+                    {isPrivate ? <Lock className="w-4 h-4 text-amber-400" /> : <Globe className="w-4 h-4 text-emerald-400" />}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium text-white">{isPrivate ? 'Private Room' : 'Public Room'}</span>
+                    <span className="text-[11px] text-white/40">{isPrivate ? 'Only friends with link or code' : 'Anyone with link can join'}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.click();
+                    setIsPrivate(!isPrivate);
+                  }}
+                  className={`
+                    w-12 h-6 flex items-center rounded-full p-1 transition-colors
+                    ${isPrivate ? 'bg-amber-500/30 border border-amber-500/50 justify-end' : 'bg-white/10 border border-white/15 justify-start'}
+                  `}
+                >
+                  <div className="w-4 h-4 rounded-full bg-white shadow-md" />
+                </button>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={creationLoading}
+              className="mt-2 w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold text-sm tracking-wide shadow-[0_4px_30px_rgba(245,158,11,0.35)] transition-all duration-300 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {creationLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span>Setting up room...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 fill-black" />
+                  <span>Create Watch Room</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* TAB 2: JOIN VIA ROOM CODE (NEWLY INTEGRATED) */}
+        {workbenchTab === 'join' && (
+          <form onSubmit={handleDirectJoin} className="flex flex-col gap-6 py-2">
+            {joinError && (
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+                {joinError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-mono uppercase tracking-wider text-amber-200/60">
+                Enter 6-Character Room Code
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  maxLength={8}
+                  autoFocus
+                  required
+                  placeholder="e.g. 7K9X2M"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  className="w-full px-4 sm:px-5 py-3.5 sm:py-4 rounded-2xl bg-white/[0.04] border border-white/10 text-lg sm:text-xl font-mono tracking-[0.25em] text-amber-300 placeholder-white/20 focus:outline-none focus:border-amber-400/80 focus:bg-white/[0.06] transition-all uppercase"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text) {
+                        sound.click();
+                        const match = text.match(/([A-Za-z0-9]{6})/);
+                        setJoinCode(match ? match[1].toUpperCase() : text.trim().slice(0, 6).toUpperCase());
+                      }
+                    } catch (_) {}
+                  }}
+                  className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 min-h-[36px] px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-xs font-mono text-white/70 hover:text-white transition-colors"
+                >
+                  Paste
+                </button>
+              </div>
+              <span className="text-[11px] text-white/40">
+                Paste the 6-character code your friend shared to join their stream instantly.
+              </span>
+            </div>
+
+            <button
+              type="submit"
+              disabled={joinLoading || !joinCode.trim()}
+              className="w-full min-h-[48px] py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-amber-500 hover:from-emerald-400 hover:to-amber-400 text-black font-semibold text-sm tracking-wide shadow-[0_4px_30px_rgba(16,185,129,0.35)] transition-all duration-300 active:scale-[0.98] disabled:opacity-40 flex items-center justify-center gap-2"
+            >
+              {joinLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  <span>Connecting...</span>
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                  <span>Join Room</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* TAB 3 (MOBILE ONLY): ACTIVE ROOMS & SESSIONS (ZERO-SCROLL VIEWPORT) */}
+        {workbenchTab === 'rooms' && (
+          <div className="flex flex-col gap-2.5 max-h-[46dvh] overflow-y-auto pr-1">
+            {loadingHistory ? (
+              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center text-white/40 text-xs font-mono">
+                Scanning active rooms...
+              </div>
+            ) : history.length === 0 ? (
+              <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] flex flex-col items-center justify-center gap-2 text-center">
+                <Radio className="w-6 h-6 text-white/20" />
+                <p className="text-xs text-white/60">No active rooms found</p>
+                <span className="text-[10px] text-white/40">Switch to Host tab above to start your stream.</span>
+              </div>
+            ) : (
+              history.map((room) => {
+                const isClosed = room.status === 'CLOSED';
+                return (
+                  <div
+                    key={room.id}
+                    className="p-3.5 rounded-xl bg-[#0d0e16]/60 border border-white/[0.07] flex items-center justify-between gap-2"
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isClosed ? 'bg-white/30' : 'bg-amber-400 animate-pulse'}`} />
+                        <span className="text-[10px] font-mono text-white/40">{isClosed ? 'ARCHIVED' : 'LIVE'}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-white truncate">{room.name}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+                        {room.roomCode}
+                      </span>
+                      <button
+                        onClick={() => {
+                          sound.click();
+                          onNavigate('room', room.roomCode);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 text-xs font-medium active:scale-95"
+                      >
+                        Enter
+                      </button>
                     </div>
                   </div>
-                  {friend.status === 'Online' && (
-                    <button className="btn-gold-rejoin" style={{ padding: '0.25rem 0.5rem', fontSize: '10px' }} onClick={() => alert(`Invite sent to ${friend.name}!`)}>
-                      Invite
-                    </button>
-                  )}
+                );
+              })
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Active Rooms & History Grid (Desktop Only - On mobile it lives in Tab 3 with Zero Scroll) ── */}
+      <section className="hidden md:flex spatial-hud-reveal flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-amber-400" />
+            <h2 className="text-base font-medium text-white tracking-tight">Active Rooms & Watch History</h2>
+          </div>
+          <span className="text-xs font-mono text-white/40">{history.length} Total Sessions</span>
+        </div>
+
+        {loadingHistory ? (
+          <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/[0.05] flex items-center justify-center text-white/40 text-xs font-mono">
+            Scanning active rooms...
+          </div>
+        ) : history.length === 0 ? (
+          <div className="p-10 rounded-3xl bg-white/[0.02] border border-white/[0.05] flex flex-col items-center justify-center gap-2 text-center">
+            <Radio className="w-8 h-8 text-white/20" />
+            <p className="text-sm text-white/60">No active rooms found</p>
+            <span className="text-xs text-white/40">Create a room above or join with a friend's code.</span>
+          </div>
+        ) : (
+          <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {history.map((room) => {
+              const isClosed = room.status === 'CLOSED';
+              return (
+                <div
+                  key={room.id}
+                  className="p-5 rounded-2xl bg-[#0d0e16]/60 backdrop-blur-xl border border-white/[0.07] hover:border-amber-500/25 shadow-lg transition-all flex flex-col justify-between gap-4 group"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`
+                            w-2 h-2 rounded-full
+                            ${isClosed ? 'bg-white/30' : 'bg-amber-400 animate-pulse shadow-[0_0_8px_#f59e0b]'}
+                          `}
+                        />
+                        <span className="text-xs font-mono text-white/40">
+                          {isClosed ? 'ARCHIVED' : 'LIVE WITH FRIENDS'}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-semibold text-white tracking-tight group-hover:text-amber-300 transition-colors">
+                        {room.name}
+                      </h4>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-xs font-bold text-amber-300 bg-amber-950/40 border border-amber-500/20 px-2.5 py-1 rounded-xl">
+                        {room.roomCode}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-white/[0.04] text-xs text-white/40">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-amber-400/80" />
+                        <span>{room.viewerCount || 1}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{new Date(room.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {!isClosed && (
+                        <button
+                          onClick={() => handleCloseRoom(room.id)}
+                          title="Close Session"
+                          className="min-h-[36px] min-w-[36px] flex items-center justify-center p-2 rounded-lg text-white/40 hover:text-rose-400 hover:bg-rose-500/10 transition-colors active:scale-90"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          sound.click();
+                          onNavigate('room', room.roomCode);
+                        }}
+                        className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-white/[0.05] hover:bg-amber-500/20 text-white/90 hover:text-amber-200 border border-white/10 hover:border-amber-500/30 text-xs font-medium transition-all active:scale-95"
+                      >
+                        {isClosed ? 'View Logs' : 'Enter Room'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        </div>
-      )}
-
-      {/* Settings Overlay */}
-      {showSettingsModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-          <div className="glass modal-container" style={{ padding: '2rem', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1.5px solid var(--color-gold)', background: '#0c0c0c', maxWidth: '440px', width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Settings size={18} color="var(--color-gold)" />
-                <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: '#ffffff' }}>Lounge Settings</h2>
-              </div>
-              <button className="btn btn-ghost" onClick={() => { setShowSettingsModal(false); setActiveTab('suites'); }} style={{ padding: '0.3rem 0.6rem', color: 'rgba(255,255,255,0.4)' }}>✕</button>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', color: '#ffffff' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>ACCOUNT HOLDER</span>
-                <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{userContext?.displayName || 'Screen Host'}</span>
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{userContext?.email || 'patron@brosync.com'}</span>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 700 }}>THEME PREFERENCE</span>
-                <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-gold)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                  ⚜️ BroSync Premium Lounge
-                </span>
-              </div>
-
-              <button className="btn btn-danger" onClick={() => { setShowSettingsModal(false); triggerLogout(); }} style={{ width: '100%', padding: '0.75rem', marginTop: '0.5rem', background: '#e50914' }}>
-                Sign Out from Lounge
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </section>
 
     </div>
   );

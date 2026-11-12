@@ -1,69 +1,67 @@
-// Agent: 🌐 Agent C (Viewer App Landing Page)
-// File: packages/viewer/src/pages/Landing.tsx
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../stores/auth';
-import api from '../lib/api';
-import { Sparkles, ArrowRight, Chrome, AlertCircle, Globe, RefreshCw } from 'lucide-react';
+import { sound } from '../lib/sound';
+import { animate, stagger } from 'animejs';
+import { 
+  ArrowRight, 
+  Tv, 
+  KeyRound, 
+  ShieldCheck, 
+  Lock, 
+  User, 
+  Mail, 
+  Volume2,
+  LogIn,
+  Eye,
+  EyeOff
+} from 'lucide-react';
 
 interface LandingProps {
   onNavigate: (page: 'landing' | 'dashboard' | 'room', contextCode?: string) => void;
   setAuthContext: any;
 }
 
-const GoldLogoSVG = ({ size = 32 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ filter: 'drop-shadow(0 0 8px rgba(197, 168, 92, 0.4))' }}>
-    <defs>
-      <linearGradient id="gold-grad-logo" x1="0%" y1="100%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#9A7A35" />
-        <stop offset="25%" stopColor="#EAC775" />
-        <stop offset="50%" stopColor="#BE9648" />
-        <stop offset="75%" stopColor="#FDF1A9" />
-        <stop offset="100%" stopColor="#A1813C" />
-      </linearGradient>
-    </defs>
-    <path d="M33 26V56C33 60.5 37 62 41 62C45 62 45 58.5 45 56V32L33 26Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M39 33V52" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" />
-    <path d="M45 42C48 32 54 30 57 32C61 34 61 48 57 52C55 54 53 56 53 59C53 62 57 62 61 62" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M57 34L77 44L57 54V34Z" stroke="url(#gold-grad-logo)" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M62 40L70 44L62 48V40Z" stroke="url(#gold-grad-logo)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
 export function Landing({ onNavigate, setAuthContext }: LandingProps) {
-  const { user, login, register, isAuthenticated, logout, googleCallback, googleOnboard, tempGoogleSession } = useAuthStore();
+  const { login, register, googleCallback, tempGoogleSession } = useAuthStore();
   
-  // Auth Form tabs state
+  // Auth Form tabs
   const [isLoginTab, setIsLoginTab] = useState(true);
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [formLoading, setFormLoading] = useState(false);
-  const [loadingElapsed, setLoadingElapsed] = useState(0);
 
-  useEffect(() => {
-    let interval: any;
-    if (formLoading) {
-      setLoadingElapsed(0);
-      interval = setInterval(() => {
-        setLoadingElapsed((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setLoadingElapsed(0);
-    }
-    return () => clearInterval(interval);
-  }, [formLoading]);
-  const [googleReady, setGoogleReady] = useState(false);
+  // Quick Room Join
+  const [roomCode, setRoomCode] = useState('');
+
+  // Google Sign-In
   const [googleError, setGoogleError] = useState('');
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleButtonMobileRef = useRef<HTMLDivElement | null>(null);
   const googleInitRef = useRef(false);
 
-  // Quick Room Join code
-  const [roomCode, setRoomCode] = useState('');
+  // Mobile zero-scroll tab
+  // Mobile view tab switcher ('auth' = Sign In first, 'join' = Code second)
+  const [mobileTab, setMobileTab] = useState<'auth' | 'join'>('auth');
 
   const googleClientId = ((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined) || '235405233467-mah2rt1mo7pij09uvinqtukk2l8vvi49.apps.googleusercontent.com';
 
+  // Stagger reveal on mount with Anime.js
+  useEffect(() => {
+    try {
+      animate('.spatial-landing-reveal', {
+        translateY: [28, 0],
+        opacity: [0, 1],
+        delay: stagger(90, { start: 120 }),
+        ease: 'out(3)',
+        duration: 750,
+      });
+    } catch (_) {}
+  }, []);
+
+  // Google Identity Services setup
   useEffect(() => {
     if (!googleClientId || googleInitRef.current || tempGoogleSession) return;
 
@@ -72,43 +70,54 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
 
     const initializeGoogle = () => {
       const google = (window as any).google;
-      if (!google?.accounts?.id || !googleButtonRef.current || googleInitRef.current) return;
+      if (!google?.accounts?.id) return;
 
       google.accounts.id.initialize({
         client_id: googleClientId,
         callback: async (response: { credential?: string }) => {
           if (!response?.credential) {
-            setGoogleError('Google sign-in did not return a token.');
+            setGoogleError('Google sign-in did not return a credential token.');
             return;
           }
 
           setGoogleError('');
           setFormLoading(true);
+          sound.thud();
 
           try {
             const result = await googleCallback(response.credential);
             if (result.status === 'AUTHENTICATED') {
+              sound.chime();
               setAuthContext(result.user);
               onNavigate('dashboard');
             }
           } catch (err: any) {
-            setGoogleError(err?.error?.message || 'Google sign-in failed.');
+            setGoogleError(err?.error?.message || 'Google sign-in verification failed.');
           } finally {
             setFormLoading(false);
           }
         },
       });
 
-      google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'filled_black',
-        size: 'large',
-        width: 360,
-        text: 'continue_with',
-        shape: 'rectangular',
-      });
+      if (googleButtonRef.current) {
+        google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'filled_black',
+          size: 'large',
+          width: 320,
+          text: 'continue_with',
+          shape: 'pill',
+        });
+      }
 
-      googleInitRef.current = true;
-      setGoogleReady(true);
+      if (googleButtonMobileRef.current) {
+        google.accounts.id.renderButton(googleButtonMobileRef.current, {
+          theme: 'filled_black',
+          size: 'large',
+          width: 280,
+          text: 'continue_with',
+          shape: 'pill',
+        });
+      }
     };
 
     if (!existing) {
@@ -118,417 +127,529 @@ export function Landing({ onNavigate, setAuthContext }: LandingProps) {
       script.async = true;
       script.defer = true;
       script.onload = initializeGoogle;
-      script.onerror = () => setGoogleError('Could not load Google sign-in.');
       document.body.appendChild(script);
-      return;
-    }
-
-    if ((window as any).google) {
+    } else {
       initializeGoogle();
-      return;
     }
+  }, [googleClientId, tempGoogleSession]);
 
-    existing.addEventListener('load', initializeGoogle);
-    return () => existing.removeEventListener('load', initializeGoogle);
-  }, [googleClientId, googleCallback, onNavigate, setAuthContext, tempGoogleSession]);
+  // Re-render Google button when switching to auth tab on mobile
+  useEffect(() => {
+    const google = (window as any).google;
+    if (google?.accounts?.id && googleButtonMobileRef.current) {
+      try {
+        google.accounts.id.renderButton(googleButtonMobileRef.current, {
+          theme: 'filled_black',
+          size: 'large',
+          width: 280,
+          text: 'continue_with',
+          shape: 'pill',
+        });
+      } catch (_) {}
+    }
+  }, [mobileTab]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setFormLoading(true);
- 
-    const cleanIdentifier = emailOrUsername.trim().toLowerCase();
-    const resolvedDisplayName = displayName.trim();
+    sound.click();
 
     try {
       if (isLoginTab) {
-        const loggedInUser = await login(cleanIdentifier, password);
-        setAuthContext(loggedInUser);
+        const u = await login(emailOrUsername, password);
+        sound.chime();
+        setAuthContext(u);
         onNavigate('dashboard');
       } else {
-        const registeredUser = await register(cleanIdentifier, resolvedDisplayName, password);
-        setAuthContext(registeredUser);
+        const u = await register(emailOrUsername, displayName || emailOrUsername.split('@')[0], password);
+        sound.chime();
+        setAuthContext(u);
         onNavigate('dashboard');
       }
     } catch (err: any) {
-      let msg = err.error?.message || err.message || 'Authentication failed. Please verify inputs.';
-      if (msg.toLowerCase().includes('email')) {
-        msg = msg.replace(/email/ig, 'Username');
-      }
-      setErrorMsg(msg);
+      setErrorMsg(err?.error?.message || err?.message || 'Authentication failed. Please verify inputs.');
     } finally {
       setFormLoading(false);
     }
   };
-
-  const handleGoogleOnboard = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tempGoogleSession) return;
-
-    setErrorMsg('');
-    setFormLoading(true);
-
-    try {
-      const result = await googleOnboard(displayName.trim(), password, tempGoogleSession.tempToken);
-      if (result.status === 'AUTHENTICATED') {
-        setAuthContext(result.user);
-        onNavigate('dashboard');
-      }
-    } catch (err: any) {
-      setErrorMsg(err?.error?.message || 'Google onboarding failed.');
-    } finally {
-      setFormLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (tempGoogleSession) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [tempGoogleSession]);
 
   const handleQuickJoin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (roomCode.length !== 6) {
-      setErrorMsg('Room code must be exactly 6 characters');
-      return;
-    }
-    onNavigate('room', roomCode.toUpperCase());
+    const clean = roomCode.trim().toUpperCase();
+    if (!clean) return;
+    sound.thud();
+    onNavigate('room', clean);
   };
 
   return (
-    <div className="landing-page-root" style={{ position: 'relative', overflowX: 'hidden', overflowY: 'auto', height: '100dvh', minHeight: '100vh', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-      {/* Decorative Radial Glow overlays */}
-      <div className="radial-glow" style={{ top: '-10%', left: '-10%', background: 'radial-gradient(circle, rgba(197, 168, 92, 0.08) 0%, rgba(0,0,0,0) 70%)' }} />
-      <div className="radial-glow" style={{ bottom: '-15%', right: '-10%', background: 'radial-gradient(circle, rgba(229, 9, 20, 0.05) 0%, rgba(0,0,0,0) 70%)' }} />
+    <>
+      {/* ── 📱 MOBILE VIEW: 100% LOCKED 100dvh (STRICTLY NO SCROLL & ZERO EMPTY VOIDS) ── */}
+      <div 
+        className="flex md:hidden flex-1 w-full h-[100dvh] max-h-[100dvh] px-4 flex-col justify-between items-center overflow-hidden relative"
+        style={{
+          paddingTop: 'max(5.5rem, calc(env(safe-area-inset-top, 0px) + 4.75rem))',
+          paddingBottom: 'max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))',
+        }}
+      >
+        {/* Warm Ambient Specular Light Dome behind mobile hero */}
+        <div 
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(245, 158, 11, 0.16) 0%, rgba(244, 63, 94, 0.10) 45%, transparent 70%)',
+            filter: 'blur(50px)',
+          }}
+        />
 
-      {/* Navbar */}
-      <header className="landing-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2rem', position: 'sticky', top: 0, zIndex: 10, background: 'rgba(0, 0, 0, 0.75)', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)' }}>
-        <div className="landing-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <GoldLogoSVG size={36} />
-          <span style={{ fontWeight: 700, fontSize: '1.45rem', letterSpacing: '0.5px', color: '#c5a85c', fontFamily: 'var(--font-serif)' }}>BroSync</span>
+        {/* 1. Confident Mobile Hero Header (Placed lower down, clean text, no pill) */}
+        <div className="relative z-10 flex flex-col items-center text-center gap-2.5 max-w-sm pt-4">
+          <span className="text-[11px] sm:text-xs font-mono tracking-[0.22em] uppercase text-amber-300/85 font-semibold">
+            Made for Friends
+          </span>
+          <h1 className="text-[34px] sm:text-4xl font-extrabold tracking-tight text-white leading-[1.1]">
+            Watch with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-rose-400">your people.</span>
+          </h1>
+          <p className="text-sm text-white/70 max-w-xs leading-relaxed">
+            Watch videos, browse together, and hang out with friends in real-time.
+          </p>
         </div>
-        <div>
-          {isAuthenticated ? (
-            <div className="landing-user-actions" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Hi, {user?.displayName}</span>
-              <button className="btn btn-gold-outline" onClick={() => onNavigate('dashboard')}>Dashboard</button>
+
+        {/* 2. Middle Interactive Block: Unified Glass Interaction Card */}
+        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
+          {/* Unified Spatial Glass Interaction Unit */}
+          <div className="w-full rounded-3xl bg-[#0d0e16]/90 backdrop-blur-2xl border border-white/[0.1] shadow-[0_20px_50px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.12)] p-4 sm:p-5 flex flex-col gap-4">
+            
+            {/* Segmented Switcher Pill: Option 1 = Sign In, Option 2 = Join with Code */}
+            <div className="w-full grid grid-cols-2 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.08]">
               <button
-                className="btn btn-ghost"
-                onClick={async () => {
-                  await logout();
-                  setAuthContext(null);
-                  onNavigate('landing');
+                type="button"
+                onClick={() => {
+                  sound.click();
+                  setMobileTab('auth');
                 }}
+                className={`
+                  py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5
+                  ${mobileTab === 'auth' 
+                    ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]' 
+                    : 'text-white/60 hover:text-white'}
+                `}
               >
-                Logout
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  sound.click();
+                  setMobileTab('join');
+                }}
+                className={`
+                  py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-center gap-1.5
+                  ${mobileTab === 'join' 
+                    ? 'bg-amber-500/15 text-amber-200 border border-amber-500/30 shadow-[0_0_12px_rgba(245,158,11,0.25)]' 
+                    : 'text-white/60 hover:text-white'}
+                `}
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>Join with Code</span>
               </button>
             </div>
-          ) : (
-            <button 
-              className="btn btn-gold-outline"
-              onClick={() => {
-                const card = document.getElementById('auth-form-card');
-                if (card) {
-                  card.scrollIntoView({ behavior: 'smooth' });
-                  const input = card.querySelector('input');
-                  if (input) input.focus();
-                }
-              }}
-            >
-              Sign In
-            </button>
-          )}
-        </div>
-      </header>
 
-      {/* Main Grid Content */}
-      <main className="landing-main-grid">
-        
-        {/* Left Hand: Hero Details */}
-        <section className="landing-hero-copy" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="landing-kicker" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(197, 168, 92, 0.1)', padding: '0.35rem 0.85rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(197, 168, 92, 0.25)', width: 'fit-content' }}>
-            <Sparkles size={14} color="#e3c578" />
-            <span style={{ fontSize: 'var(--text-xs)', color: '#e3c578', fontWeight: 600 }}>🍿 The Ultimate Virtual Couch</span>
-          </div>
- 
-          <h1 className="landing-title" style={{ fontSize: 'clamp(2.25rem, 6vw, 3.5rem)', fontWeight: 700, lineHeight: 1.15, color: '#ffffff' }}>
-            Watch Together.<br />
-            <span>From Your Real Browser.</span>
-          </h1>
-
-          <p className="landing-subtitle" style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-lg)', lineHeight: 1.6 }}>
-            Watch and browse together from your own real browser. Start a room, share a tab or screen, and let friends join instantly for videos, live events, shopping, research, or casual browsing.
-          </p>
-
-          <div className="landing-trust-line" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', padding: '0.75rem 0', margin: '0.5rem 0', color: 'var(--text-secondary)', fontStyle: 'italic', fontSize: 'var(--text-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            Real-time synchronization across any device.
-          </div>
-
-          {/* Quick Join Segment */}
-          <div className="quick-join-card">
-            <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: '#c5a85c', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Quick Join with invite code</h3>
-            <form onSubmit={handleQuickJoin} className="quick-join-form">
-              <input 
-                type="text" 
-                placeholder="ROOM CODE"
-                value={roomCode}
-                onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                maxLength={6}
-                className="premium-input"
-                style={{ flex: 1, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600, letterSpacing: '1px' }}
-              />
-              <button type="submit" className="btn btn-netflix">Join Room <ArrowRight size={16} /></button>
-            </form>
-          </div>
-        </section>
-
-        {/* Right Hand: Immersive Card Tabs Form */}
-        <section className="landing-auth-panel" style={{ display: 'flex', justifyContent: 'center' }}>
-          {isAuthenticated ? (
-            <div className="glass" style={{ width: '100%', maxWidth: '420px', borderRadius: 'var(--radius-xl)', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '2rem', textAlign: 'center', boxShadow: 'var(--shadow-lg)' }}>
-              <div style={{ fontSize: '3rem' }}>🎉</div>
-              <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700 }}>Welcome Back!</h2>
-              <p style={{ color: 'var(--text-secondary)' }}>You are logged in as <strong>{user?.displayName}</strong>. You can create screening rooms or join your friends' rooms from the dashboard.</p>
-              <button className="btn btn-netflix" onClick={() => onNavigate('dashboard')} style={{ padding: '0.8rem', width: '100%' }}>Go to Dashboard <ArrowRight size={18} /></button>
-            </div>
-          ) : (
-            <div id="auth-form-card" className="glass auth-form-card" onMouseEnter={() => api.warmup()} onFocusCapture={() => api.warmup()}>
-              {tempGoogleSession && (
-                <div style={{ background: 'rgba(229, 9, 20, 0.1)', border: '1px solid rgba(229, 9, 20, 0.25)', borderRadius: 'var(--radius-lg)', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: '#ffffff' }}>
-                    <Chrome size={16} />
-                    Finish Google sign-up
+            {/* OPTION 1: SIGN IN / REGISTER */}
+            {mobileTab === 'auth' && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                  <div className="flex items-center gap-1 bg-white/[0.04] p-0.5 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setIsLoginTab(true)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-colors ${isLoginTab ? 'bg-amber-500/20 text-amber-300 font-semibold' : 'text-white/50'}`}
+                    >
+                      Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsLoginTab(false)}
+                      className={`px-3 py-1 rounded-lg text-xs transition-colors ${!isLoginTab ? 'bg-amber-500/20 text-amber-300 font-semibold' : 'text-white/50'}`}
+                    >
+                      Register
+                    </button>
                   </div>
-                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                    Google confirmed <strong>{tempGoogleSession.email}</strong>. Choose a display name and password to create your BroSync profile.
-                  </div>
+                  <span className="text-[10px] font-mono text-white/40">
+                    {isLoginTab ? 'Welcome Back' : 'Create Account'}
+                  </span>
                 </div>
-              )}
+
+                {errorMsg && (
+                  <div className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-[11px]">
+                    {errorMsg}
+                  </div>
+                )}
+
+                {/* Google One-Tap */}
+                <div ref={googleButtonMobileRef} className="w-full flex justify-center min-h-[40px]" />
+
+                <div className="flex items-center gap-2 my-0.5">
+                  <div className="h-px bg-white/10 flex-1" />
+                  <span className="text-[9px] font-mono text-white/30 uppercase">or credentials</span>
+                  <div className="h-px bg-white/10 flex-1" />
+                </div>
+
+                <form onSubmit={handleAuthSubmit} className="flex flex-col gap-2.5">
+                  {!isLoginTab && (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nickname"
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-base sm:text-xs text-white placeholder-white/30 focus:outline-none focus:border-amber-400"
+                    />
+                  )}
+                  <input
+                    type={isLoginTab ? 'text' : 'email'}
+                    required
+                    placeholder={isLoginTab ? 'Email or Username' : 'Email Address'}
+                    value={emailOrUsername}
+                    onChange={(e) => setEmailOrUsername(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-base sm:text-xs text-white placeholder-white/30 focus:outline-none focus:border-amber-400"
+                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full px-3.5 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-base sm:text-xs text-white placeholder-white/30 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 p-1.5 transition-colors"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={formLoading}
+                    className="w-full min-h-[44px] py-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 text-black font-semibold text-xs tracking-wide shadow-md active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {formLoading ? 'Authenticating...' : (isLoginTab ? 'Sign In' : 'Create Account')}
+                  </button>
+                  <div className="flex items-center justify-center gap-1.5 pt-1 text-xs text-white/50">
+                    <span>{isLoginTab ? "Don't have an account?" : "Already have an account?"}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sound.click();
+                        setIsLoginTab(!isLoginTab);
+                        setErrorMsg('');
+                      }}
+                      className="font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition-colors py-0.5"
+                    >
+                      {isLoginTab ? 'Register' : 'Sign In'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            {/* OPTION 2: JOIN WITH CODE */}
+            {mobileTab === 'join' && (
+              <div className="flex flex-col gap-3.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-mono uppercase tracking-wider text-amber-200/60">Enter Room Code</span>
+                  <span className="font-mono text-white/40 text-[11px]">6 Characters</span>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={8}
+                    placeholder="e.g. 7K9X2M"
+                    value={roomCode}
+                    onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                    className="w-full px-4 py-3.5 rounded-2xl bg-white/[0.04] border border-white/10 text-xl font-mono tracking-[0.25em] text-amber-300 placeholder-white/20 focus:outline-none focus:border-amber-400 focus:bg-white/[0.06] transition-all uppercase"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) {
+                          sound.click();
+                          const match = text.match(/([A-Za-z0-9]{6})/);
+                          setRoomCode(match ? match[1].toUpperCase() : text.trim().slice(0, 6).toUpperCase());
+                        }
+                      } catch (_) {}
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 min-h-[34px] px-3 py-1 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-xs font-mono text-white/80 hover:text-white transition-colors"
+                  >
+                    Paste
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleQuickJoin}
+                  disabled={!roomCode.trim()}
+                  className="w-full min-h-[48px] py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black text-sm font-semibold tracking-wide border border-amber-400/30 transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(245,158,11,0.35)]"
+                >
+                  <span>Join Live Stream</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
+                {/* Feature Highlights Ribbon */}
+                <div className="grid grid-cols-3 gap-1 pt-2.5 border-t border-white/[0.06] text-center text-[11px] text-white/50">
+                  <span className="flex items-center justify-center gap-1">📺 Watch Live</span>
+                  <span className="flex items-center justify-center gap-1">⚡ Zero Lag</span>
+                  <span className="flex items-center justify-center gap-1">🔒 Private</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Micro Footer */}
+        <div className="relative z-10 text-center text-[10px] text-white/35 font-mono">
+          BroSync • Real-Time Together
+        </div>
+      </div>
+
+      {/* ── 💻 DESKTOP VIEW: FULL SPATIAL VISION-OS SPLIT ── */}
+      <div className="hidden md:flex flex-1 w-full max-w-5xl mx-auto px-6 pt-24 pb-16 flex-col justify-center gap-12">
+        <div className="grid grid-cols-12 gap-12 items-center">
+          
+          {/* Left Column: Product Showcase & Friendship Hero */}
+          <div className="col-span-7 flex flex-col gap-6">
+            <div className="spatial-landing-reveal flex items-center gap-2">
+              <span className="text-xs font-mono tracking-[0.2em] uppercase text-amber-300/80 font-medium">
+                Made for Friends
+              </span>
+            </div>
+
+            <h1 className="spatial-landing-reveal text-4xl lg:text-6xl font-semibold tracking-tight text-white leading-[1.08]">
+              Share your screen, laugh, and watch with <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-300 to-rose-400">your people.</span>
+            </h1>
+
+            <p className="spatial-landing-reveal text-base text-white/60 max-w-xl leading-relaxed">
+              Watch YouTube, movies, and browse together with your friends in real time. Just create a room or drop in with a code.
+            </p>
+
+            {/* Quick Room Code Join Bar */}
+            <form
+              onSubmit={handleQuickJoin}
+              className="spatial-landing-reveal flex items-center gap-2 p-2 rounded-2xl bg-[#0d0e16]/85 backdrop-blur-2xl border border-white/10 shadow-2xl"
+            >
+              <div className="flex-1 flex items-center gap-3 px-3 py-1.5">
+                <KeyRound className="w-4 h-4 text-amber-400 shrink-0" />
+                <input
+                  type="text"
+                  maxLength={8}
+                  placeholder="ENTER ROOM CODE (e.g. 7K9X2M)"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
+                  className="w-full bg-transparent text-sm font-mono tracking-widest text-amber-200 placeholder-white/30 focus:outline-none uppercase"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!roomCode.trim()}
+                className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black text-xs font-semibold tracking-wide border border-amber-400/30 transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(245,158,11,0.25)]"
+              >
+                <span>Join Room</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </form>
+
+            {/* Feature Highlights Grid */}
+            <div className="spatial-landing-reveal grid grid-cols-3 gap-3 pt-2">
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.07] backdrop-blur-xl flex flex-col gap-1.5">
+                <div className="p-2 w-fit rounded-xl bg-amber-500/15 text-amber-400">
+                  <Tv className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-semibold text-white">Watch Together</span>
+                <span className="text-[11px] text-white/45">Stream shows, videos & apps</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.07] backdrop-blur-xl flex flex-col gap-1.5">
+                <div className="p-2 w-fit rounded-xl bg-rose-500/15 text-rose-400">
+                  <Volume2 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-semibold text-white">Full Audio</span>
+                <span className="text-[11px] text-white/45">Hear every beat together</span>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.07] backdrop-blur-xl flex flex-col gap-1.5">
+                <div className="p-2 w-fit rounded-xl bg-indigo-500/15 text-indigo-400">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-semibold text-white">Private Room</span>
+                <span className="text-[11px] text-white/45">Only your friends can join</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Spatial Glass Login / Register Card */}
+          <div className="col-span-5 spatial-landing-reveal">
+            <div className="relative rounded-3xl bg-[#0d0e16]/90 backdrop-blur-3xl border border-white/[0.1] shadow-[0_20px_60px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.15)] p-8 flex flex-col gap-6">
               
               {/* Tab Selector */}
-              {!tempGoogleSession && (
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-default)' }}>
-                  <button 
-                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: isLoginTab ? '#ffffff' : 'var(--text-muted)', borderBottom: isLoginTab ? '2.5px solid var(--color-gold)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                    onClick={() => { setIsLoginTab(true); setErrorMsg(''); }}
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+                <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.click();
+                      setIsLoginTab(true);
+                    }}
+                    className={`
+                      px-4 py-1.5 rounded-xl text-xs font-medium transition-all
+                      ${isLoginTab ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' : 'text-white/60 hover:text-white'}
+                    `}
                   >
                     Sign In
                   </button>
-                  <button 
-                    style={{ flex: 1, padding: '0.75rem', background: 'none', border: 'none', color: !isLoginTab ? '#ffffff' : 'var(--text-muted)', borderBottom: !isLoginTab ? '2.5px solid var(--color-gold)' : 'none', fontWeight: 600, cursor: 'pointer' }}
-                    onClick={() => { setIsLoginTab(false); setErrorMsg(''); }}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.click();
+                      setIsLoginTab(false);
+                    }}
+                    className={`
+                      px-4 py-1.5 rounded-xl text-xs font-medium transition-all
+                      ${!isLoginTab ? 'bg-amber-500/15 text-amber-300 border border-amber-500/30' : 'text-white/60 hover:text-white'}
+                    `}
                   >
-                    Create Account
+                    Register
                   </button>
                 </div>
-              )}
+
+                <span className="text-[11px] font-mono text-white/40">
+                  {isLoginTab ? 'Welcome Back' : 'Create Account'}
+                </span>
+              </div>
 
               {errorMsg && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)', fontWeight: 500 }}>
+                <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
                   {errorMsg}
                 </div>
               )}
 
-              {/* Form Input elements */}
-              <form onSubmit={tempGoogleSession ? handleGoogleOnboard : handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {tempGoogleSession ? (
-                  <div style={{ background: 'rgba(197, 168, 92, 0.08)', border: '1px solid rgba(197,168,92,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Chrome size={14} />
-                    Google account detected: {tempGoogleSession.email}
-                  </div>
-                ) : null}
-
-                {!tempGoogleSession && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>{isLoginTab ? 'Username or Email' : 'Email'}</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder={isLoginTab ? 'Enter username' : 'Enter email'} 
-                      value={emailOrUsername}
-                      onChange={(e) => setEmailOrUsername(e.target.value)}
-                      className="premium-input"
-                    />
-                  </div>
-                )}
-
-                {!isLoginTab && !tempGoogleSession && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Display Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="Enter display name" 
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="premium-input"
-                    />
-                  </div>
-                )}
-
-                {tempGoogleSession && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Choose Display Name</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="Enter display name" 
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="premium-input"
-                    />
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <label style={{ fontSize: 'var(--text-xs)', color: '#ffffff', fontWeight: 600 }}>Password</label>
-                  <input 
-                    type="password" 
-                    required
-                    placeholder="Enter password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="premium-input"
-                  />
-                  {!isLoginTab && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      Must be at least 8 characters, include 1 uppercase and 1 number
-                    </span>
-                  )}
-                </div>
-
-                <button type="submit" disabled={formLoading} className="btn btn-netflix" style={{ padding: '0.85rem', marginTop: '0.5rem', width: '100%' }}>
-                  {formLoading ? (loadingElapsed >= 3 ? `Connecting (${loadingElapsed}s)...` : 'Connecting Securely...') : tempGoogleSession ? 'Finish Google Signup' : isLoginTab ? 'Continue' : 'Create Account'}
-                </button>
-
-                {formLoading && loadingElapsed >= 2 && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.6rem',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(197, 168, 92, 0.08)',
-                    border: '1px solid rgba(197, 168, 92, 0.25)',
-                    fontSize: 'var(--text-xs)',
-                    color: '#e3c578',
-                    lineHeight: 1.4,
-                  }}>
-                    <RefreshCw size={14} className="spin" style={{ flexShrink: 0 }} />
-                    <span>
-                      {loadingElapsed >= 6
-                        ? `Waking up cloud backend (${loadingElapsed}s)... Free tier instances sleep when idle. Hang tight, almost ready!`
-                        : `Connecting to secure backend (${loadingElapsed}s)...`}
-                    </span>
-                  </div>
-                )}
-              </form>
-
-              {!tempGoogleSession && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-                    <span style={{ height: '1px', flex: 1, background: 'var(--border-default)' }} />
-                    <span>or</span>
-                    <span style={{ height: '1px', flex: 1, background: 'var(--border-default)' }} />
-                  </div>
-
-                  {googleClientId ? (
-                    <div onMouseEnter={() => api.warmup()} onFocusCapture={() => api.warmup()}>
-                      <div ref={googleButtonRef} />
-                      {!googleReady && !googleError && (
-                        <span style={{ display: 'block', marginTop: '0.5rem', fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                          Loading Google sign-in...
-                        </span>
-                      )}
-
-                      {formLoading && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.6rem',
-                          marginTop: '0.75rem',
-                          padding: '0.65rem 0.85rem',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'rgba(197, 168, 92, 0.08)',
-                          border: '1px solid rgba(197, 168, 92, 0.25)',
-                          fontSize: 'var(--text-xs)',
-                          color: '#e3c578',
-                          lineHeight: 1.4,
-                        }}>
-                          <RefreshCw size={14} className="spin" style={{ flexShrink: 0 }} />
-                          <span>
-                            {loadingElapsed >= 5
-                              ? `Signing in with Google & waking cloud server (${loadingElapsed}s)... Almost ready!`
-                              : `Authenticating with Google (${loadingElapsed}s)...`}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251,191,36,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--text-secondary)', fontSize: 'var(--text-xs)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <AlertCircle size={14} />
-                      Add `VITE_GOOGLE_CLIENT_ID` to enable Google sign-in.
-                    </div>
-                  )}
-
-                  {googleError && (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '0.75rem', borderRadius: 'var(--radius-md)', color: 'var(--color-error)', fontSize: 'var(--text-xs)' }}>
-                      {googleError}
-                    </div>
-                  )}
+              {googleError && (
+                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
+                  {googleError}
                 </div>
               )}
-            </div>
-          )}
-        </section>
-      </main>
 
-      {/* Highlights Grid */}
-      <section className="landing-highlights-section" style={{ maxWidth: '1200px', margin: '4rem auto', padding: '0 2rem', position: 'relative', zIndex: 1 }}>
-        <h2 style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#ffffff' }}>Why you'll love BroSync</h2>
-        <div className="highlights-grid">
-          
-          <div className="glass-card" style={{ padding: '2.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)', borderRadius: 'var(--radius-lg)' }}>
-            <div className="gold-icon-container">
-              <Globe size={24} color="var(--color-gold)" />
-            </div>
-            <div>
-            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Shared Browser Rooms</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-                Host a live browser session and let friends watch, chat, and browse with you.
-            </p>
-            </div>
-          </div>
+              {/* Google Sign-In */}
+              <div className="flex flex-col items-center gap-2">
+                <div ref={googleButtonRef} className="w-full flex justify-center min-h-[44px]" />
+                <div className="flex items-center gap-3 w-full my-1">
+                  <div className="h-px bg-white/10 flex-1" />
+                  <span className="text-[11px] font-mono text-white/30 uppercase">or with credentials</span>
+                  <div className="h-px bg-white/10 flex-1" />
+                </div>
+              </div>
 
-          <div className="glass-card" style={{ padding: '2.5rem', display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'rgba(12, 12, 12, 0.75)', border: '1px solid rgba(197, 168, 92, 0.15)', borderRadius: 'var(--radius-lg)' }}>
-            <div className="gold-icon-container">
-              <RefreshCw size={24} color="var(--color-gold)" />
-            </div>
-            <div>
-            <h3 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: '#ffffff', marginBottom: '0.25rem' }}>Controlled Sharing</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 'var(--text-sm)', lineHeight: 1.5 }}>
-                The host stays in charge while viewers join instantly and follow along.
-            </p>
+              {/* Form */}
+              <form onSubmit={handleAuthSubmit} className="flex flex-col gap-4">
+                {!isLoginTab && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-mono text-white/50 uppercase tracking-wider">Display Name</label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Your Nickname"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-amber-400/80 transition-colors"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-mono text-white/50 uppercase tracking-wider">
+                    {isLoginTab ? 'Email or Username' : 'Email Address'}
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type={isLoginTab ? 'text' : 'email'}
+                      required
+                      placeholder={isLoginTab ? 'email@example.com or username' : 'email@example.com'}
+                      value={emailOrUsername}
+                      onChange={(e) => setEmailOrUsername(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-amber-400/80 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-mono text-white/50 uppercase tracking-wider">Password</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-white/30 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-sm text-white placeholder-white/30 focus:outline-none focus:border-amber-400/80 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 p-1.5 transition-colors"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4 text-amber-400" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  className="mt-2 w-full min-h-[46px] py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-black font-semibold text-xs tracking-wide shadow-[0_4px_25px_rgba(245,158,11,0.35)] transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {formLoading ? (
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>{isLoginTab ? 'Sign In' : 'Create Account'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center justify-center gap-2 pt-1 text-xs text-white/50">
+                  <span>{isLoginTab ? "Don't have an account?" : "Already have an account?"}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sound.click();
+                      setIsLoginTab(!isLoginTab);
+                      setErrorMsg('');
+                    }}
+                    className="font-semibold text-amber-300 hover:text-amber-200 underline underline-offset-2 transition-colors"
+                  >
+                    {isLoginTab ? 'Register now' : 'Sign In'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
 
         </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', background: '#000000', padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', zIndex: 1, position: 'relative' }}>
-        <GoldLogoSVG size={40} />
-        <div style={{ display: 'flex', gap: '2rem', fontSize: 'var(--text-sm)' }}>
-          <a href="#terms" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Terms</a>
-          <a href="#privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Privacy</a>
-          <a href="#support" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Support</a>
-          <a href="#contact" style={{ color: 'var(--text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }} className="hover-gold">Contact</a>
-        </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-xs)' }}>
-          © 2026 BroSync.
-        </p>
-      </footer>
-    </div>
+      </div>
+    </>
   );
 }

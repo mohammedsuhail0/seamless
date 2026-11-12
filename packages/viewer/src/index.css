@@ -1,49 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Agent: 🌐 Agent C (Viewer App Design System) */
 /* File: packages/viewer/src/index.css */
 
 :root {
-  /* ── Background & Surfaces ── */
-  --bg-primary:    #0a0e27;    /* Deep navy — main background */
-  --bg-secondary:  #111638;    /* Slightly lighter — cards, panels */
-  --bg-tertiary:   #1a1f4a;    /* Hover states, active items */
-  --bg-surface:    rgba(255, 255, 255, 0.04);  /* Glass surface */
-  --bg-overlay:    rgba(10, 14, 39, 0.85);      /* Modal backdrop */
+  /* ── Background & Spatial Obsidian Surfaces (Vision-OS HUD) ── */
+  --bg-primary:    #08090e;    /* Deep warm midnight velvet */
+  --bg-secondary:  #0d0e16;    /* Optical warm glass panels */
+  --bg-tertiary:   #131522;    /* Interactive elements & hover surfaces */
+  --bg-surface:    rgba(255, 255, 255, 0.035);  /* Luminous translucent layer */
+  --bg-overlay:    rgba(8, 9, 14, 0.90);        /* Spatial backdrop */
   
-  /* ── Brand Colors ── */
-  --color-primary:       #4f46e5;    /* Electric blue — buttons, links */
-  --color-primary-hover: #4338ca;  /* Darker on hover */
-  --color-primary-glow:  rgba(79, 70, 229, 0.4); /* Glow effects */
-  --color-accent:        #7c3aed;    /* Vibrant purple — highlights */
-  --color-accent-hover:  #6d28d9;
+  /* ── Brand Colors (Golden Hour Amber & Rose Glow) ── */
+  --color-primary:       #f59e0b;    /* Warm Radiant Amber */
+  --color-primary-hover: #fbbf24;    /* Golden Glow */
+  --color-primary-glow:  rgba(245, 158, 11, 0.35);
+  --color-accent:        #f43f5e;    /* Warm Sunset Rose */
+  --color-accent-hover:  #fb7185;
   
   /* ── Semantic Colors ── */
-  --color-success:  #10b981;    /* Green — connected, allowed */
-  --color-warning:  #f59e0b;    /* Amber — degraded, waiting */
-  --color-error:    #ef4444;    /* Red — error, denied, end session */
-  --color-info:     #3b82f6;    /* Blue — informational */
+  --color-success:  #10b981;    /* Emerald — 60fps locked, connected */
+  --color-warning:  #f59e0b;    /* Amber — reconnecting */
+  --color-error:    #ef4444;    /* Red — disconnected, end session */
+  --color-info:     #0ea5e9;    /* Sky blue — telemetry */
   
   /* ── Text Colors ── */
-  --text-primary:   #f1f5f9;    /* White-ish — headings, primary text */
-  --text-secondary: #94a3b8;    /* Gray — secondary text, labels */
-  --text-muted:     #64748b;    /* Dim gray */
-  --text-inverse:   #0a0e27;    /* Dark */
+  --text-primary:   #fdf8f4;    /* Warm pearl white */
+  --text-secondary: #a1a1aa;    /* Warm slate */
+  --text-muted:     #71717a;    /* Subtle mono labels */
+  --text-inverse:   #08090e;    /* Deep dark */
   
-  /* ── Border Colors ── */
+  /* ── 1px Razor Specular Borders ── */
   --border-default: rgba(255, 255, 255, 0.08);
-  --border-hover:   rgba(255, 255, 255, 0.15);
-  --border-focus:   var(--color-primary);
-  --border-control: var(--color-primary-glow); /* Blue glow when viewer has control */
+  --border-hover:   rgba(251, 191, 36, 0.22);
+  --border-focus:   rgba(245, 158, 11, 0.75);
+  --border-control: rgba(245, 158, 11, 0.5);
   
-  /* ── Shadows ── */
-  --shadow-sm:  0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px var(--color-primary-glow);
+  /* ── Shadows & Spatial Elevations ── */
+  --shadow-sm:  0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md:  0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg:  0 20px 60px rgba(0, 0, 0, 0.7);
+  --shadow-glow: 0 0 30px rgba(245, 158, 11, 0.25);
   
-  /* ── Glass Effect ── */
-  --glass-bg:     rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur:   blur(16px);
+  /* ── Optical Glass Engine ── */
+  --glass-bg:     rgba(13, 14, 22, 0.80);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-blur:   blur(28px) saturate(200%);
 
   /* ── Typography Scale ── */
   --font-sans:  'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -78,27 +82,34 @@
   --radius-xl:   1rem;     /* 16px */
   --radius-full: 9999px;   /* Pill */
 
-  /* ── Gold Accents ── */
-  --color-gold: #c5a85c;
-  --color-gold-hover: #e3c578;
-  --color-gold-glow: rgba(197, 168, 92, 0.3);
+  /* ── Spatial Motion Physics ── */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-squash: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* ── Reset ── */
-* {
+/* ── Reset & Hallmark Viewport Floor ── */
+*, *::before, *::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
+html, body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100dvh;
+  overflow-x: clip;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Touch Ergonomics ── */
+@media (max-width: 768px) {
+  html, body {
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
 }
 
 button, input, select, textarea {
@@ -1016,22 +1027,21 @@ button, input, select, textarea {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* ── Scoped Room Page Redesign (Patron Lounge theme) ── */
+/* ── Scoped Room Page Redesign (BroSync Spatial Vision-OS theme) ── */
 .room-page-root {
-  --bg-primary: #000000;
-  --bg-secondary: #0c0c0c;
-  --border-default: rgba(197, 168, 92, 0.15);
-  --color-primary: #e50914; /* Accent Red */
-  --color-primary-hover: #c11119;
+  --bg-primary: #08090e;
+  --bg-secondary: #0d0e16;
+  --border-default: rgba(255, 255, 255, 0.08);
+  --color-primary: #f59e0b; /* Amber */
+  --color-primary-hover: #fbbf24;
   
-  --color-gold: #c5a85c;
-  --color-gold-hover: #e3c578;
+  --color-gold: #f59e0b;
+  --color-gold-hover: #fbbf24;
   
-  --font-serif: 'Playfair Display', 'Georgia', 'Times New Roman', serif;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   
   background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
+  color: #f3f4f6 !important;
   font-family: var(--font-sans) !important;
   height: 100vh;
 }
@@ -1039,27 +1049,30 @@ button, input, select, textarea {
 .room-page-root h1,
 .room-page-root h2,
 .room-page-root h3 {
-  font-family: var(--font-serif) !important;
+  font-family: var(--font-sans) !important;
 }
 
 .room-page-root .room-header {
-  background: rgba(0, 0, 0, 0.85) !important;
-  border-bottom: 1.5px solid var(--color-gold) !important;
+  background: rgba(13, 14, 22, 0.85) !important;
+  backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .room-page-root .room-footer {
-  background: rgba(0, 0, 0, 0.85) !important;
+  background: rgba(13, 14, 22, 0.85) !important;
+  backdrop-filter: blur(24px) !important;
   border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .room-page-root .chat-drawer {
-  background: rgba(5, 5, 5, 0.95) !important;
-  border-left: 1.5px solid var(--color-gold) !important;
+  background: rgba(13, 14, 22, 0.96) !important;
+  backdrop-filter: blur(32px) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
 .room-page-root .chat-drawer h2 {
   font-family: var(--font-sans) !important;
-  color: var(--color-gold) !important;
+  color: #ffffff !important;
 }
 
 @keyframes spin {
@@ -1844,3 +1857,29 @@ button, input, select, textarea {
     transform: translateY(104%) !important;
   }
 }
+
+/* ── Preloader Logo Animations ── */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-150%) skewX(-25deg); opacity: 0; }
+  20% { opacity: 0.85; }
+  80% { opacity: 0.85; }
+  100% { transform: translateX(250%) skewX(-25deg); opacity: 0; }
+}
+
+@keyframes orbitSparkle {
+  0% { transform: rotate(0deg) scale(0.95); opacity: 0.5; }
+  50% { transform: rotate(180deg) scale(1.05); opacity: 1; }
+  100% { transform: rotate(360deg) scale(0.95); opacity: 0.5; }
+}
+
+@keyframes emblemGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.35)) drop-shadow(0 0 36px rgba(234, 88, 12, 0.2));
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 28px rgba(245, 158, 11, 0.6)) drop-shadow(0 0 50px rgba(234, 88, 12, 0.35));
+    transform: translateY(-4px) scale(1.03);
+  }
+}
+
